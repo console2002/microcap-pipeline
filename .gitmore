@@ -10,8 +10,11 @@ __pycache__/
 *.pyc
 
 # Local data/logs
-data/
-logs/
+data/*
+logs/*
+!data/.gitkeep
+!logs/.gitkeep
+
 
 # OS cruft
 .DS_Store
