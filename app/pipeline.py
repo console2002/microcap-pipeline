@@ -42,6 +42,27 @@ def _emit(progress_fn, msg: str):
         progress_fn(f"{utc_now_iso()} | {msg}")
 
 
+def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None = None) -> pd.DataFrame:
+    path = os.path.join(cfg["Paths"]["data"], f"{name}.csv")
+    if not os.path.exists(path):
+        raise RuntimeError(f"{name}.csv missing; cannot resume at this stage")
+
+    df = pd.read_csv(path, encoding="utf-8")
+    if required_cols:
+        missing = [col for col in required_cols if col not in df.columns]
+        if missing:
+            raise RuntimeError(f"{name}.csv missing required columns: {', '.join(missing)}")
+    return df
+
+
+def _load_cached_universe(cfg: dict) -> pd.DataFrame:
+    df_prof = _load_cached_dataframe(cfg, "profiles", ["Ticker"])
+    ticks = df_prof["Ticker"].dropna().unique()
+    if len(ticks) == 0:
+        raise RuntimeError("profiles.csv contains no tickers; cannot resume at profiles stage")
+    return pd.DataFrame({"Ticker": ticks})
+
+
 def universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "universe: start SEC pull")
@@ -229,10 +250,8 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
 
-def run_weekly_pipeline(stop_flag=None, progress_fn=None):
-    """
-    stop_flag is {"stop": bool}, progress_fn is callable(str).
-    """
+def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
+    """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
         stop_flag = {"stop": False}
 
@@ -247,17 +266,57 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None):
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
+    stages = ["universe", "profiles", "filings", "fda", "prices", "hydrate"]
+    if start_stage not in stages:
+        raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
+
     try:
-        _emit(progress_fn, "run_weekly: start")
+        _emit(progress_fn, f"run_weekly: start (from {start_stage})")
 
-        df_uni = universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn)
-        df_prof = profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn)
-        df_fil = filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+        df_uni = None
+        df_prof = None
+        df_fil = None
 
-        # FDA now uses df_fil (companies with actual filings)
-        _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
+        start_idx = stages.index(start_stage)
 
-        _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+        if start_idx <= stages.index("universe"):
+            df_uni = universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn)
+        else:
+            _emit(progress_fn, f"universe: skipped (starting at {start_stage})")
+
+        if start_idx <= stages.index("profiles"):
+            if df_uni is None:
+                df_uni = _load_cached_universe(cfg)
+                _emit(progress_fn, "profiles: using cached tickers from profiles.csv")
+            df_prof = profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn)
+        else:
+            df_prof = _load_cached_dataframe(cfg, "profiles")
+            _emit(progress_fn, "profiles: skipped (loaded cached profiles.csv)")
+
+        if start_idx <= stages.index("filings"):
+            if df_prof is None:
+                df_prof = _load_cached_dataframe(cfg, "profiles")
+                _emit(progress_fn, "filings: using cached profiles.csv")
+            df_fil = filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+        else:
+            df_fil = _load_cached_dataframe(cfg, "filings")
+            _emit(progress_fn, "filings: skipped (loaded cached filings.csv)")
+
+        if start_idx <= stages.index("fda"):
+            if df_fil is None:
+                df_fil = _load_cached_dataframe(cfg, "filings")
+                _emit(progress_fn, "fda: using cached filings.csv")
+            _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
+        else:
+            _emit(progress_fn, "fda: skipped (starting later stage)")
+
+        if start_idx <= stages.index("prices"):
+            if df_prof is None:
+                df_prof = _load_cached_dataframe(cfg, "profiles")
+                _emit(progress_fn, "prices: using cached profiles.csv")
+            _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+        else:
+            _emit(progress_fn, "prices: skipped (starting later stage)")
 
         hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
 
@@ -276,7 +335,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None):
 
 
 
-def run_daily_pipeline(stop_flag=None, progress_fn=None):
+def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "prices"):
     if stop_flag is None:
         stop_flag = {"stop": False}
 
@@ -291,16 +350,25 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None):
     create_lock(cfg, "daily")
     client = make_client(cfg)
 
+    stages = ["prices", "hydrate"]
+    if start_stage not in stages:
+        raise ValueError(f"Unknown daily start_stage '{start_stage}'")
+
     try:
-        _emit(progress_fn, "run_daily: start")
+        _emit(progress_fn, f"run_daily: start (from {start_stage})")
 
-        prof_path = os.path.join(cfg["Paths"]["data"], "profiles.csv")
-        if not os.path.exists(prof_path):
-            raise RuntimeError("profiles.csv missing; run weekly first")
+        start_idx = stages.index(start_stage)
 
-        df_prof = pd.read_csv(prof_path, encoding="utf-8")
+        if start_idx <= stages.index("prices"):
+            prof_path = os.path.join(cfg["Paths"]["data"], "profiles.csv")
+            if not os.path.exists(prof_path):
+                raise RuntimeError("profiles.csv missing; run weekly first or stage requires it")
 
-        _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+            df_prof = pd.read_csv(prof_path, encoding="utf-8")
+            _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+        else:
+            _emit(progress_fn, "prices: skipped (starting at hydrate stage)")
+
         hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
 
         _emit(progress_fn, "run_daily: complete")

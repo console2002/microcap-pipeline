@@ -8,17 +8,26 @@ class RunnerThread(QtCore.QThread):
     progress = QtCore.Signal(str)   # status updates
     finished = QtCore.Signal(str)   # done/cancelled/error
 
-    def __init__(self, mode: str):
+    def __init__(self, mode: str, start_stage: str):
         super().__init__()
         self.mode = mode
+        self.start_stage = start_stage
         self.stop_flag = {"stop": False}
 
     def run(self):
         try:
             if self.mode == "weekly":
-                run_weekly_pipeline(stop_flag=self.stop_flag, progress_fn=self.progress.emit)
+                run_weekly_pipeline(
+                    stop_flag=self.stop_flag,
+                    progress_fn=self.progress.emit,
+                    start_stage=self.start_stage
+                )
             elif self.mode == "daily":
-                run_daily_pipeline(stop_flag=self.stop_flag, progress_fn=self.progress.emit)
+                run_daily_pipeline(
+                    stop_flag=self.stop_flag,
+                    progress_fn=self.progress.emit,
+                    start_stage=self.start_stage
+                )
 
             if self.stop_flag["stop"]:
                 self.finished.emit("cancelled")
@@ -64,6 +73,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_cancel = QtWidgets.QPushButton("Cancel Run")
         self.btn_cancel.setEnabled(False)
 
+        self.weekly_stage_combo = QtWidgets.QComboBox()
+        self.weekly_stage_combo.addItem("Universe (Full Run)", "universe")
+        self.weekly_stage_combo.addItem("Profiles", "profiles")
+        self.weekly_stage_combo.addItem("Filings", "filings")
+        self.weekly_stage_combo.addItem("FDA", "fda")
+        self.weekly_stage_combo.addItem("Prices", "prices")
+        self.weekly_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
+
+        self.daily_stage_combo = QtWidgets.QComboBox()
+        self.daily_stage_combo.addItem("Prices", "prices")
+        self.daily_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
+
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 0)  # spinning bar
         self.progress_bar.setVisible(False)
@@ -74,7 +95,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_tail.setReadOnly(True)
 
         run_layout = QtWidgets.QVBoxLayout()
+        weekly_stage_row = QtWidgets.QHBoxLayout()
+        weekly_stage_row.addWidget(QtWidgets.QLabel("Weekly start stage:"))
+        weekly_stage_row.addWidget(self.weekly_stage_combo)
+        daily_stage_row = QtWidgets.QHBoxLayout()
+        daily_stage_row.addWidget(QtWidgets.QLabel("Daily start stage:"))
+        daily_stage_row.addWidget(self.daily_stage_combo)
+
+        run_layout.addLayout(weekly_stage_row)
         run_layout.addWidget(self.btn_weekly)
+        run_layout.addLayout(daily_stage_row)
         run_layout.addWidget(self.btn_daily)
         run_layout.addWidget(self.btn_cancel)
         run_layout.addWidget(self.progress_bar)
@@ -130,12 +160,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refresh_logs()
 
     def start_weekly(self):
-        self._start_run("weekly")
+        stage = self.weekly_stage_combo.currentData()
+        self._start_run("weekly", stage)
 
     def start_daily(self):
-        self._start_run("daily")
+        stage = self.daily_stage_combo.currentData()
+        self._start_run("daily", stage)
 
-    def _start_run(self, mode: str):
+    def _start_run(self, mode: str, stage: str):
         # don't start if already running
         if self.worker and self.worker.isRunning():
             return
@@ -149,8 +181,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_cancel.setEnabled(True)
         self.btn_weekly.setEnabled(False)
         self.btn_daily.setEnabled(False)
+        self.weekly_stage_combo.setEnabled(False)
+        self.daily_stage_combo.setEnabled(False)
 
-        self.worker = RunnerThread(mode)
+        self.worker = RunnerThread(mode, stage)
         self.worker.progress.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
         self.worker.start()
@@ -179,6 +213,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_cancel.setEnabled(False)
         self.btn_weekly.setEnabled(True)
         self.btn_daily.setEnabled(True)
+        self.weekly_stage_combo.setEnabled(True)
+        self.daily_stage_combo.setEnabled(True)
 
         # show disk logs once more at end
         self.refresh_logs()
