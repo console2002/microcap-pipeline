@@ -1,0 +1,18 @@
+# venv
+.venv/
+venv/
+Scripts/
+Lib/
+Include/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local data/logs
+data/
+logs/
+
+# OS cruft
+.DS_Store
+Thumbs.db

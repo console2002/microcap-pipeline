@@ -1,0 +1,92 @@
+{
+  "UserAgent": "console_2002@yahoo.co.uk",
+  "FMPKey": "kXWx3ZdlUFLcYcyYCma9i2wCbw8EeQwP",
+  "OpenFDAKey": "h1iWeSbEe7N2wPB59eyF0KqVD8wauO5yMiiTaJe0",
+  "RateLimitsPerMin": {
+    "FMP": 300,
+    "OpenFDA": 60,
+    "SEC": 10
+  },
+  "MaxWorkers": 4,
+  "TimeoutSeconds": 30,
+  "Retries": 3,
+  "BackoffSeconds": [
+    1,
+    2,
+    4
+  ],
+  "BatchSizes": {
+    "Profiles": 100,
+    "Prices": 100,
+    "OpenFDA": 100
+  },
+  "Paths": {
+    "data": "./data",
+    "logs": "./logs"
+  },
+  "Universe": {
+    "Source": "SEC",
+    "RefreshCadence": "weekly",
+    "Exchanges": [
+      "NYSE",
+      "NASDAQ",
+      "AMEX"
+    ],
+    "DropPatterns": [
+      "ETF",
+      "ETN",
+      "ADR",
+      "FUND"
+    ],
+    "NormalizeTicker": true
+  },
+  "HardGates": {
+    "MinPrice": 1.0,
+    "CapMax": 350000000,
+    "ADV20_Min": 40000
+  },
+  "Windows": {
+    "DaysBack_Prices": 60,
+    "DaysBack_Filings": 60,
+    "DaysBack_FDA": 120
+  },
+  "FilingsWhitelist": [
+    "8-K",
+    "8-K/A",
+    "S-3",
+    "S-3/A",
+    "S-8",
+    "S-8/A",
+    "424B1",
+    "424B2",
+    "424B3",
+    "424B4",
+    "424B5",
+    "424B7",
+    "424B8",
+    "8-A12B",
+    "S-4"
+  ],
+  "FDA": {
+    "EnableDevice": true,
+    "EnableDrug": true,
+    "StatusesAllowed": [
+      "Approved",
+      "Cleared",
+      "Granted"
+    ]
+  },
+  "ShortlistRule": {
+    "UseFilingsCatalyst": true,
+    "UseFDACatalyst": true
+  },
+  "GUI": {
+    "LogRefreshSeconds": 2,
+    "BackgroundWorker": true,
+    "SingleRunLock": true
+  },
+  "Mode": "Incremental",
+  "LastRun_Prices": "",
+  "LastRun_Filings": "",
+  "LastRun_FDA": ""
+}

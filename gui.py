@@ -1,0 +1,238 @@
+import sys, os, json
+from PySide6 import QtCore, QtWidgets
+from app.pipeline import run_weekly_pipeline, run_daily_pipeline
+from app.config import load_config, save_config
+
+
+class RunnerThread(QtCore.QThread):
+    progress = QtCore.Signal(str)   # status updates
+    finished = QtCore.Signal(str)   # done/cancelled/error
+
+    def __init__(self, mode: str):
+        super().__init__()
+        self.mode = mode
+        self.stop_flag = {"stop": False}
+
+    def run(self):
+        try:
+            if self.mode == "weekly":
+                run_weekly_pipeline(stop_flag=self.stop_flag, progress_fn=self.progress.emit)
+            elif self.mode == "daily":
+                run_daily_pipeline(stop_flag=self.stop_flag, progress_fn=self.progress.emit)
+
+            if self.stop_flag["stop"]:
+                self.finished.emit("cancelled")
+            else:
+                self.finished.emit("done")
+
+        except Exception as e:
+            # pipeline already logged to errorlog
+            self.finished.emit(f"error: {e}")
+
+    def request_stop(self):
+        self.stop_flag["stop"] = True
+        self.progress.emit("cancel requested")
+
+
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Microcap Pipeline")
+        self.resize(900, 600)
+
+        self.cfg = load_config()
+        self.worker = None
+        self.is_running = False
+
+        # live_buffer holds all recent progress msgs so we don't lose them
+        self.live_buffer: list[str] = []
+
+        # timer to refresh offline logs (runlog.csv / errorlog.csv)
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.refresh_logs)
+        self.timer.start(self.cfg["GUI"]["LogRefreshSeconds"] * 1000)
+
+        tabs = QtWidgets.QTabWidget()
+        self.setCentralWidget(tabs)
+
+        # --- Run tab ---
+        self.run_tab = QtWidgets.QWidget()
+        tabs.addTab(self.run_tab, "Run")
+
+        self.btn_weekly = QtWidgets.QPushButton("Run Weekly (Full)")
+        self.btn_daily  = QtWidgets.QPushButton("Run Daily (Prices Only)")
+        self.btn_cancel = QtWidgets.QPushButton("Cancel Run")
+        self.btn_cancel.setEnabled(False)
+
+        self.progress_bar = QtWidgets.QProgressBar()
+        self.progress_bar.setRange(0, 0)  # spinning bar
+        self.progress_bar.setVisible(False)
+
+        self.status_label = QtWidgets.QLabel("Idle")
+
+        self.log_tail = QtWidgets.QPlainTextEdit()
+        self.log_tail.setReadOnly(True)
+
+        run_layout = QtWidgets.QVBoxLayout()
+        run_layout.addWidget(self.btn_weekly)
+        run_layout.addWidget(self.btn_daily)
+        run_layout.addWidget(self.btn_cancel)
+        run_layout.addWidget(self.progress_bar)
+        run_layout.addWidget(self.status_label)
+        run_layout.addWidget(QtWidgets.QLabel("Live Log Tail"))
+        run_layout.addWidget(self.log_tail)
+        self.run_tab.setLayout(run_layout)
+
+        self.btn_weekly.clicked.connect(self.start_weekly)
+        self.btn_daily.clicked.connect(self.start_daily)
+        self.btn_cancel.clicked.connect(self.cancel_run)
+
+        # --- Logs tab ---
+        self.logs_tab = QtWidgets.QWidget()
+        tabs.addTab(self.logs_tab, "Logs")
+
+        self.runlog_view = QtWidgets.QPlainTextEdit()
+        self.runlog_view.setReadOnly(True)
+        self.errorlog_view = QtWidgets.QPlainTextEdit()
+        self.errorlog_view.setReadOnly(True)
+        self.btn_refresh_logs = QtWidgets.QPushButton("Refresh Now")
+
+        logs_layout = QtWidgets.QVBoxLayout()
+        logs_layout.addWidget(QtWidgets.QLabel("runlog.csv"))
+        logs_layout.addWidget(self.runlog_view)
+        logs_layout.addWidget(QtWidgets.QLabel("errorlog.csv"))
+        logs_layout.addWidget(self.errorlog_view)
+        logs_layout.addWidget(self.btn_refresh_logs)
+        self.logs_tab.setLayout(logs_layout)
+
+        self.btn_refresh_logs.clicked.connect(self.refresh_logs)
+
+        # --- Config tab ---
+        self.config_tab = QtWidgets.QWidget()
+        tabs.addTab(self.config_tab, "Config")
+
+        self.config_edit = QtWidgets.QPlainTextEdit()
+        self.btn_load_cfg = QtWidgets.QPushButton("Load Config")
+        self.btn_save_cfg = QtWidgets.QPushButton("Save Config")
+
+        cfg_layout = QtWidgets.QVBoxLayout()
+        cfg_layout.addWidget(QtWidgets.QLabel("Edit config.json below. All fields are live."))
+        cfg_layout.addWidget(self.config_edit)
+        cfg_layout.addWidget(self.btn_load_cfg)
+        cfg_layout.addWidget(self.btn_save_cfg)
+        self.config_tab.setLayout(cfg_layout)
+
+        self.btn_load_cfg.clicked.connect(self.load_cfg_into_editor)
+        self.btn_save_cfg.clicked.connect(self.save_cfg_from_editor)
+
+        # init
+        self.load_cfg_into_editor()
+        self.refresh_logs()
+
+    def start_weekly(self):
+        self._start_run("weekly")
+
+    def start_daily(self):
+        self._start_run("daily")
+
+    def _start_run(self, mode: str):
+        # don't start if already running
+        if self.worker and self.worker.isRunning():
+            return
+
+        self.is_running = True
+        self.live_buffer.clear()
+        self._render_live_buffer()
+
+        self.status_label.setText(f"{mode} starting…")
+        self.progress_bar.setVisible(True)
+        self.btn_cancel.setEnabled(True)
+        self.btn_weekly.setEnabled(False)
+        self.btn_daily.setEnabled(False)
+
+        self.worker = RunnerThread(mode)
+        self.worker.progress.connect(self.on_progress)
+        self.worker.finished.connect(self.on_finished)
+        self.worker.start()
+
+    def cancel_run(self):
+        if self.worker:
+            self.worker.request_stop()
+
+    def on_progress(self, msg: str):
+        # append to live buffer
+        self.live_buffer.insert(0, msg)
+        self._render_live_buffer()
+
+        # update status label with the most recent message
+        self.status_label.setText(msg)
+
+    def on_finished(self, msg: str):
+        self.is_running = False
+        # append final state to buffer
+        final_line = f"Finished: {msg}"
+        self.live_buffer.insert(0, final_line)
+        self._render_live_buffer()
+
+        self.status_label.setText(final_line)
+        self.progress_bar.setVisible(False)
+        self.btn_cancel.setEnabled(False)
+        self.btn_weekly.setEnabled(True)
+        self.btn_daily.setEnabled(True)
+
+        # show disk logs once more at end
+        self.refresh_logs()
+
+    def _render_live_buffer(self):
+        # show whole buffer in the live panel so it's effectively infinite scroll
+        self.log_tail.setPlainText("\n".join(self.live_buffer))
+
+    def refresh_logs(self):
+        """
+        refresh the Logs tab from runlog.csv / errorlog.csv,
+        and ALSO refresh the Run tab log_tail when NOT running
+        (so you see persisted logs after a run completes).
+        While running we do NOT overwrite live_buffer.
+        """
+        paths = load_config()["Paths"]
+        runlog_path = os.path.join(paths["logs"], "runlog.csv")
+        errlog_path = os.path.join(paths["logs"], "errorlog.csv")
+
+        runlog_txt = self._read_file(runlog_path)
+        errlog_txt = self._read_file(errlog_path)
+
+        self.runlog_view.setPlainText(runlog_txt)
+        self.errorlog_view.setPlainText(errlog_txt)
+
+        if not self.is_running:
+            # when idle, mirror runlog.csv into live panel too
+            self.live_buffer = runlog_txt.splitlines()[::-1]  # newest last line -> top
+            self._render_live_buffer()
+
+    def _read_file(self, path: str) -> str:
+        if not os.path.exists(path):
+            return ""
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def load_cfg_into_editor(self):
+        cfg = load_config()
+        self.config_edit.setPlainText(json.dumps(cfg, indent=2))
+
+    def save_cfg_from_editor(self):
+        try:
+            new_cfg = json.loads(self.config_edit.toPlainText())
+            save_config(new_cfg)
+            self.cfg = new_cfg
+            # update timer interval dynamically
+            self.timer.start(self.cfg["GUI"]["LogRefreshSeconds"] * 1000)
+            self.status_label.setText("Config saved.")
+        except Exception as e:
+            self.status_label.setText(f"Config save error: {e}")
+
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    win = MainWindow()
+    win.show()
+    sys.exit(app.exec())
