@@ -124,6 +124,9 @@ def fetch_fda_events(
 
     out_rows: List[dict] = []
 
+    if df_filings is None or df_filings.empty:
+        return out_rows
+
     if not (cfg["FDA"]["EnableDevice"] or cfg["FDA"]["EnableDrug"]):
         return out_rows  # nothing requested
 

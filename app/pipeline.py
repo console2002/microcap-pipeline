@@ -63,6 +63,49 @@ def _load_cached_universe(cfg: dict) -> pd.DataFrame:
     return pd.DataFrame({"Ticker": ticks})
 
 
+def _tickers_passing_adv(cfg: dict, tickers: list[str]) -> set[str]:
+    """Return the subset of *tickers* whose latest ADV20 meets the configured minimum."""
+
+    adv_min = cfg.get("HardGates", {}).get("ADV20_Min", 0) or 0
+    tickers = [str(t).strip() for t in tickers if pd.notna(t) and str(t).strip()]
+
+    if not tickers:
+        return set()
+
+    if adv_min <= 0:
+        return set(tickers)
+
+    prices_path = os.path.join(cfg["Paths"]["data"], "prices.csv")
+    if not os.path.exists(prices_path):
+        return set()
+
+    prices = pd.read_csv(prices_path, encoding="utf-8")
+    if prices.empty or "Ticker" not in prices.columns or "Volume" not in prices.columns or "Date" not in prices.columns:
+        return set()
+
+    prices = prices[prices["Ticker"].astype(str).isin(tickers)]
+    if prices.empty:
+        return set()
+
+    prices["Date"] = pd.to_datetime(prices["Date"], errors="coerce")
+    prices = prices.dropna(subset=["Date"])
+    if prices.empty:
+        return set()
+
+    prices = prices.sort_values(["Ticker", "Date"])
+    prices["ADV20"] = prices.groupby("Ticker")["Volume"].transform(lambda s: s.rolling(20, min_periods=20).mean())
+
+    latest_adv = (
+        prices.groupby("Ticker")
+              .tail(1)[["Ticker", "ADV20"]]
+    )
+
+    latest_adv["ADV20"] = pd.to_numeric(latest_adv["ADV20"], errors="coerce").fillna(0)
+
+    eligible = latest_adv[latest_adv["ADV20"] >= adv_min]["Ticker"].astype(str)
+    return set(eligible.tolist())
+
+
 def universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "universe: start SEC pull")
@@ -149,14 +192,39 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "fda: start")
 
-    # fetch_fda_events now expects the filings dataframe
-    fda_rows = fetch_fda_events(
-        client,
-        cfg,
-        df_filings,
-        progress_fn=progress_fn,
-        stop_flag=stop_flag
-    )
+    if "Ticker" in df_filings.columns:
+        filings_tickers = df_filings["Ticker"].dropna().astype(str).unique().tolist()
+    else:
+        filings_tickers = []
+
+    eligible_tickers = _tickers_passing_adv(cfg, filings_tickers)
+
+    if progress_fn:
+        progress_fn(
+            "fda: {}/{} tickers pass ADV20 filter (min {:.0f})".format(
+                len(eligible_tickers),
+                len(filings_tickers),
+                cfg.get("HardGates", {}).get("ADV20_Min", 0) or 0,
+            )
+        )
+
+    if eligible_tickers and "Ticker" in df_filings.columns:
+        df_filings_for_fda = df_filings[df_filings["Ticker"].astype(str).isin(eligible_tickers)]
+    else:
+        df_filings_for_fda = df_filings.iloc[0:0]
+
+    if df_filings_for_fda.empty:
+        _emit(progress_fn, "fda: no eligible tickers after ADV filter; skipping fetch")
+        fda_rows = []
+    else:
+        # fetch_fda_events now expects the filtered filings dataframe
+        fda_rows = fetch_fda_events(
+            client,
+            cfg,
+            df_filings_for_fda,
+            progress_fn=progress_fn,
+            stop_flag=stop_flag
+        )
 
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during fda")
