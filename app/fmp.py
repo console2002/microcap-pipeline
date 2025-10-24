@@ -201,7 +201,12 @@ def fetch_prices(
         _check_cancel(stop_flag)
 
         url    = f"{FMP_HOST}/api/v3/historical-price-full/{tck}"
-        params = {"apikey": key, "serietype": "line", "timeseries": days}
+        # NOTE:
+        #   FMP's `serietype=line` parameter trims the payload down to
+        #   date/close-only entries.  That was unintentionally stripping the
+        #   open/high/low/volume fields we persist to prices.csv.  By omitting
+        #   the parameter we receive the full OHLCV payload again.
+        params = {"apikey": key, "timeseries": days}
         resp   = client.get(url, params, ratelimit)
 
         if progress_fn and (idx % 25 == 0 or idx == total):
