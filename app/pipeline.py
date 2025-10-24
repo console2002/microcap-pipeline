@@ -334,7 +334,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "fda", "prices", "hydrate"]
+    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate"]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -370,14 +370,6 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             df_fil = _load_cached_dataframe(cfg, "filings")
             _emit(progress_fn, "filings: skipped (loaded cached filings.csv)")
 
-        if start_idx <= stages.index("fda"):
-            if df_fil is None:
-                df_fil = _load_cached_dataframe(cfg, "filings")
-                _emit(progress_fn, "fda: using cached filings.csv")
-            _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
-        else:
-            _emit(progress_fn, "fda: skipped (starting later stage)")
-
         if start_idx <= stages.index("prices"):
             if df_prof is None:
                 df_prof = _load_cached_dataframe(cfg, "profiles")
@@ -385,6 +377,14 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
         else:
             _emit(progress_fn, "prices: skipped (starting later stage)")
+
+        if start_idx <= stages.index("fda"):
+            if df_fil is None:
+                df_fil = _load_cached_dataframe(cfg, "filings")
+                _emit(progress_fn, "fda: using cached filings.csv")
+            _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
+        else:
+            _emit(progress_fn, "fda: skipped (starting later stage)")
 
         hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
 

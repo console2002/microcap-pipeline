@@ -77,8 +77,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weekly_stage_combo.addItem("Universe (Full Run)", "universe")
         self.weekly_stage_combo.addItem("Profiles", "profiles")
         self.weekly_stage_combo.addItem("Filings", "filings")
-        self.weekly_stage_combo.addItem("FDA", "fda")
         self.weekly_stage_combo.addItem("Prices", "prices")
+        self.weekly_stage_combo.addItem("FDA", "fda")
         self.weekly_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
 
         self.daily_stage_combo = QtWidgets.QComboBox()
