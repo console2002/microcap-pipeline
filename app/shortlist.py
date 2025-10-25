@@ -23,10 +23,10 @@ def build_shortlist(cfg: dict, candidates: pd.DataFrame) -> pd.DataFrame:
     )
 
     out = df.loc[mask, [
-        "Ticker","Company","CIK",
+        "Ticker","Company","Sector","CIK",
         "Close","ADV20","MarketCap",
-        "LatestForm","FiledAt","FilingURL",
-        "FDA_EventType","FDA_Date","FDA_URL"
+        "LatestForm","FiledAt","FilingURL","FilingsSummary","FilingURLsAll",
+        "FDA_EventType","FDA_Date","FDA_URL","FDA_Summary","FDA_URLsAll"
     ]].sort_values(["Ticker"])
 
     return out
