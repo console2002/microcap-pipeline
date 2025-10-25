@@ -77,6 +77,8 @@ def fetch_profiles(
                 continue
             if price is not None and price < cfg["HardGates"]["MinPrice"]:
                 continue
+            if mcap is not None and mcap < cfg["HardGates"]["CapMin"]:
+                continue
             if mcap is not None and mcap > cfg["HardGates"]["CapMax"]:
                 continue
             if country:

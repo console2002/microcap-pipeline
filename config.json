@@ -42,6 +42,7 @@
   },
   "HardGates": {
     "MinPrice": 1.0,
+    "CapMin": 25000000,
     "CapMax": 350000000,
     "ADV20_Min": 40000
   },

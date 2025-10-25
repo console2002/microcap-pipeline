@@ -13,6 +13,7 @@ def build_shortlist(cfg: dict, candidates: pd.DataFrame) -> pd.DataFrame:
     # core filters
     mask = (
         (df["Close"] >= hg["MinPrice"]) &
+        (df["MarketCap"] >= hg["CapMin"]) &
         (df["MarketCap"] <= hg["CapMax"]) &
         (df["ADV20"] >= hg["ADV20_Min"]) &
         (
