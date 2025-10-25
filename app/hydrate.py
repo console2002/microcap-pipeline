@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+
 def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     base = cfg["Paths"]["data"]
 
@@ -24,31 +25,113 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     else:
         latest_px = pd.DataFrame(columns=["Ticker","Date","Close","ADV20"])
 
-    # latest filing per CIK
-    if not filings.empty:
+    def _combine_entries(series: pd.Series) -> str:
+        entries: list[str] = []
+        for val in series:
+            if pd.isna(val):
+                continue
+            text = str(val).strip()
+            if text:
+                entries.append(text)
+        return " ; ".join(entries)
+
+    def _combine_unique(series: pd.Series) -> str:
+        seen: list[str] = []
+        for val in series:
+            if pd.isna(val):
+                continue
+            text = str(val).strip()
+            if not text:
+                continue
+            if text not in seen:
+                seen.append(text)
+        return " ; ".join(seen)
+
+    # latest filing per CIK, plus aggregate evidence
+    if not filings.empty and "CIK" in filings.columns:
+        filings["CIK"] = filings["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
         filings["FiledAt"] = pd.to_datetime(filings["FiledAt"], errors="coerce")
         latest_fil = (
             filings.sort_values(["CIK","FiledAt"])
                    .groupby("CIK")
                    .tail(1)[["CIK","Form","FiledAt","URL"]]
         )
+
+        def _format_filing(row: pd.Series) -> str:
+            parts: list[str] = []
+            filed_val = row.get("FiledAt")
+            if pd.notna(filed_val):
+                if isinstance(filed_val, pd.Timestamp):
+                    parts.append(filed_val.strftime("%Y-%m-%d"))
+                else:
+                    parts.append(str(filed_val))
+            form_txt = str(row.get("Form", "") or "").strip()
+            if form_txt:
+                parts.append(form_txt)
+            title_txt = str(row.get("Title", "") or "").strip()
+            if title_txt:
+                parts.append(title_txt)
+            url_txt = str(row.get("URL", "") or "").strip()
+            if url_txt:
+                parts.append(url_txt)
+            return " | ".join(parts)
+
+        filings_sorted = filings.sort_values(["CIK", "FiledAt"], ascending=[True, False])
+        filings_sorted["FilingEntry"] = filings_sorted.apply(_format_filing, axis=1)
+        filings_evidence = (
+            filings_sorted.groupby("CIK")
+                           .agg(
+                               FilingsSummary=("FilingEntry", _combine_entries),
+                               FilingURLsAll=("URL", _combine_unique)
+                           )
+                           .reset_index()
+        )
     else:
         latest_fil = pd.DataFrame(columns=["CIK","Form","FiledAt","URL"])
+        filings_evidence = pd.DataFrame(columns=["CIK","FilingsSummary","FilingURLsAll"])
 
     # latest FDA per CIK/Company (stub mapping: match on CIK first)
-    if not fda.empty:
+    if not fda.empty and "CIK" in fda.columns:
+        fda["CIK"] = fda["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
         fda["DecisionDate"] = pd.to_datetime(fda["DecisionDate"], errors="coerce")
-        # prefer CIK match if present
-        if "CIK" in fda.columns:
-            latest_fda = (
-                fda.sort_values(["CIK","DecisionDate"])
-                   .groupby("CIK")
-                   .tail(1)[["CIK","EventType","DecisionDate","URL"]]
-            )
-        else:
-            latest_fda = pd.DataFrame(columns=["CIK","EventType","DecisionDate","URL"])
+        latest_fda = (
+            fda.sort_values(["CIK","DecisionDate"])
+               .groupby("CIK")
+               .tail(1)[["CIK","EventType","DecisionDate","URL"]]
+        )
+
+        def _format_fda(row: pd.Series) -> str:
+            parts: list[str] = []
+            decision_val = row.get("DecisionDate")
+            if pd.notna(decision_val):
+                if isinstance(decision_val, pd.Timestamp):
+                    parts.append(decision_val.strftime("%Y-%m-%d"))
+                else:
+                    parts.append(str(decision_val))
+            event_txt = str(row.get("EventType", "") or "").strip()
+            if event_txt:
+                parts.append(event_txt)
+            product_txt = str(row.get("Product", "") or "").strip()
+            if product_txt:
+                parts.append(product_txt)
+            url_txt = str(row.get("URL", "") or "").strip()
+            if url_txt:
+                parts.append(url_txt)
+            return " | ".join(parts)
+
+        fda_sorted = fda.sort_values(["CIK", "DecisionDate"], ascending=[True, False])
+        fda_sorted["FDAEntry"] = fda_sorted.apply(_format_fda, axis=1)
+        fda_evidence = (
+            fda_sorted.groupby("CIK")
+                      .agg(
+                          FDA_Summary=("FDAEntry", _combine_entries),
+                          FDA_URLsAll=("URL", _combine_unique)
+                      )
+                      .reset_index()
+        )
     else:
         latest_fda = pd.DataFrame(columns=["CIK","EventType","DecisionDate","URL"])
+        fda_evidence = pd.DataFrame(columns=["CIK","FDA_Summary","FDA_URLsAll"])
 
     # join profiles with latest px
     cand = profiles.merge(
@@ -56,7 +139,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             "Date":"PriceDate"
         }),
         on="Ticker",
-        how="left"
+        how="left",
     )
 
     # add latest SEC filing
@@ -66,7 +149,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             "URL":"FilingURL"
         }),
         on="CIK",
-        how="left"
+        how="left",
     )
 
     # add latest FDA event
@@ -77,15 +160,28 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             "URL":"FDA_URL"
         }),
         on="CIK",
-        how="left"
+        how="left",
+    )
+
+    # attach evidence detail columns
+    cand = cand.merge(
+        filings_evidence,
+        on="CIK",
+        how="left",
+    )
+
+    cand = cand.merge(
+        fda_evidence,
+        on="CIK",
+        how="left",
     )
 
     # final shape
     wanted_cols = [
-        "Ticker","Company","CIK","MarketCap",
+        "Ticker","Company","Sector","CIK","MarketCap",
         "PriceDate","Close","ADV20",
-        "LatestForm","FiledAt","FilingURL",
-        "FDA_EventType","FDA_Date","FDA_URL"
+        "LatestForm","FiledAt","FilingURL","FilingsSummary","FilingURLsAll",
+        "FDA_EventType","FDA_Date","FDA_URL","FDA_Summary","FDA_URLsAll"
     ]
     for col in wanted_cols:
         if col not in cand.columns:
