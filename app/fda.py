@@ -215,7 +215,10 @@ def fetch_fda_events(
         ticker  = str(row.get("Ticker", "")).strip()
 
         if progress_fn and (i % 10 == 0 or i == total):
-            progress_fn(f"[FDA] {i}/{total} companies {company} {client.stats_string()}")
+            pct = int((i / max(total, 1)) * 100)
+            progress_fn(
+                f"[FDA] {i}/{total} companies ({pct}%) {company} {client.stats_string()}"
+            )
 
         # Query device 510(k) if enabled
         device_rows = []
@@ -270,12 +273,22 @@ def fetch_fda_events(
 
         if progress_fn:
             progress_fn(
-                f"[FDA] company {company or ticker}: device_rows={len(device_rows)} drug_rows={len(drug_rows)}"
+                (
+                    f"[FDA] company {company or ticker}: "
+                    f"device_rows={len(device_rows)} "
+                    f"drug_rows={len(drug_rows)} {client.stats_string()}"
+                )
             )
 
     if progress_fn:
         progress_fn(
-            f"[FDA] total events collected device={fetched_device} drug={fetched_drug} overall={len(out_rows)}"
+            (
+                "[FDA] total events collected "
+                f"device={fetched_device} "
+                f"drug={fetched_drug} "
+                f"overall={len(out_rows)} "
+                f"{client.stats_string()}"
+            )
         )
 
     return out_rows
