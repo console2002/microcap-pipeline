@@ -4,7 +4,7 @@
   "OpenFDAKey": "h1iWeSbEe7N2wPB59eyF0KqVD8wauO5yMiiTaJe0",
   "RateLimitsPerMin": {
     "FMP": 300,
-    "OpenFDA": 60,
+    "OpenFDA": 240,
     "SEC": 10
   },
   "MaxWorkers": 4,
