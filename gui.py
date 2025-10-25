@@ -173,7 +173,11 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.is_running = True
-        self.live_buffer.clear()
+
+        # Annotate the live log tail with the new run but keep previous history
+        if self.live_buffer and self.live_buffer[0] != "":
+            self.live_buffer.insert(0, "")
+        self.live_buffer.insert(0, f"=== starting {mode} run from stage '{stage}' ===")
         self._render_live_buffer()
 
         self.status_label.setText(f"{mode} starting…")

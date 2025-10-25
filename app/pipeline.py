@@ -192,6 +192,12 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "fda: start")
 
+    if df_filings is None or df_filings.empty:
+        _emit(progress_fn, "fda: no filings passed into stage; skipping fetch")
+        return pd.DataFrame()
+
+    _emit(progress_fn, f"fda: received {len(df_filings)} filings rows")
+
     if "Ticker" in df_filings.columns:
         filings_tickers = df_filings["Ticker"].dropna().astype(str).unique().tolist()
     else:
@@ -199,14 +205,14 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
 
     eligible_tickers = _tickers_passing_adv(cfg, filings_tickers)
 
-    if progress_fn:
-        progress_fn(
-            "fda: {}/{} tickers pass ADV20 filter (min {:.0f})".format(
-                len(eligible_tickers),
-                len(filings_tickers),
-                cfg.get("HardGates", {}).get("ADV20_Min", 0) or 0,
-            )
-        )
+    _emit(
+        progress_fn,
+        "fda: {}/{} tickers pass ADV20 filter (min {:.0f})".format(
+            len(eligible_tickers),
+            len(filings_tickers),
+            cfg.get("HardGates", {}).get("ADV20_Min", 0) or 0,
+        ),
+    )
 
     if eligible_tickers and "Ticker" in df_filings.columns:
         df_filings_for_fda = df_filings[df_filings["Ticker"].astype(str).isin(eligible_tickers)]
@@ -257,6 +263,7 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
 
     _log_step(runlog, "fda", rows_added, t0, "append+purge")
     _emit(progress_fn, f"fda: done {rows_added} new rows {client.stats_string()}")
+    _emit(progress_fn, f"fda: wrote {len(df_fda)} rows to cache (including existing)")
 
     # read back from disk so hydrate sees a clean CSV
     return pd.read_csv(os.path.join(cfg["Paths"]["data"], "fda.csv"), encoding="utf-8")

@@ -125,9 +125,13 @@ def fetch_fda_events(
     out_rows: List[dict] = []
 
     if df_filings is None or df_filings.empty:
+        if progress_fn:
+            progress_fn("[FDA] aborting fetch – no filings rows provided")
         return out_rows
 
     if not (cfg["FDA"]["EnableDevice"] or cfg["FDA"]["EnableDrug"]):
+        if progress_fn:
+            progress_fn("[FDA] both device/drug lookups disabled; skipping")
         return out_rows  # nothing requested
 
     # Build mapping of tickers to FDA entity names for high/med confidence targets.
@@ -140,6 +144,9 @@ def fetch_fda_events(
         .drop_duplicates()["Ticker"]
         .tolist()
     )
+
+    if progress_fn:
+        progress_fn(f"[FDA] preparing targets for {len(filing_tickers)} filing tickers")
 
     mapped_targets = []
     seen_entities = set()
@@ -184,8 +191,21 @@ def fetch_fda_events(
         seen_entities.add(company)
 
     total = len(targets)
+
+    if progress_fn:
+        progress_fn(
+            f"[FDA] mapped {len(mapped_targets)} tickers; {len(sec_targets)} fallback companies; total targets {total}"
+        )
+
+    if total == 0:
+        if progress_fn:
+            progress_fn("[FDA] no companies to query after mapping; exiting")
+        return out_rows
     per_minute = cfg["RateLimitsPerMin"]["OpenFDA"]
     api_key = cfg.get("OpenFDAKey", "")
+
+    fetched_device = 0
+    fetched_drug = 0
 
     for i, row in enumerate(targets, start=1):
         _check_cancel(stop_flag)
@@ -198,6 +218,7 @@ def fetch_fda_events(
             progress_fn(f"[FDA] {i}/{total} companies {company} {client.stats_string()}")
 
         # Query device 510(k) if enabled
+        device_rows = []
         if cfg["FDA"]["EnableDevice"]:
             params_device = {
                 "search": f'applicant:"{company}"',
@@ -215,11 +236,13 @@ def fetch_fda_events(
             if r_dev:
                 body = r_dev.json()
                 dev_results = body.get("results") or []
-                out_rows.extend(_normalize_device_results(dev_results, company, cik, ticker))
+                device_rows = _normalize_device_results(dev_results, company, cik, ticker)
+                out_rows.extend(device_rows)
 
         _check_cancel(stop_flag)
 
         # Query drug approval data if enabled
+        drug_rows = []
         if cfg["FDA"]["EnableDrug"]:
             params_drug = {
                 "search": f'applicant:"{company}"',
@@ -237,8 +260,22 @@ def fetch_fda_events(
             if r_drug:
                 body = r_drug.json()
                 drug_results = body.get("results") or []
-                out_rows.extend(_normalize_drug_results(drug_results, company, cik, ticker))
+                drug_rows = _normalize_drug_results(drug_results, company, cik, ticker)
+                out_rows.extend(drug_rows)
 
         _check_cancel(stop_flag)
+
+        fetched_device += len(device_rows)
+        fetched_drug += len(drug_rows)
+
+        if progress_fn:
+            progress_fn(
+                f"[FDA] company {company or ticker}: device_rows={len(device_rows)} drug_rows={len(drug_rows)}"
+            )
+
+    if progress_fn:
+        progress_fn(
+            f"[FDA] total events collected device={fetched_device} drug={fetched_drug} overall={len(out_rows)}"
+        )
 
     return out_rows
