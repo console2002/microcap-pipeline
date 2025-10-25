@@ -1,7 +1,7 @@
-from typing import Optional, Callable, List, Dict
-from datetime import datetime
+from typing import Optional, Callable, List
 from app.http import HttpClient
 from app.cancel import CancelledRun
+from app.fda_company_map import get_fda_entities_for_tickers
 
 
 def _check_cancel(stop_flag: Optional[dict]):
@@ -130,15 +130,58 @@ def fetch_fda_events(
     if not (cfg["FDA"]["EnableDevice"] or cfg["FDA"]["EnableDrug"]):
         return out_rows  # nothing requested
 
-    # Build unique company targets from SEC filings only:
-    # We'll use the company names that actually produced whitelisted filings.
-    # This is already the "interesting subset".
-    targets = (
+    # Build mapping of tickers to FDA entity names for high/med confidence targets.
+    # This ensures we query openFDA using the entity strings it expects.
+    filing_tickers = (
+        df_filings[["Ticker"]]
+        .dropna()
+        .assign(Ticker=lambda df: df["Ticker"].astype(str).str.strip())
+        .loc[lambda df: df["Ticker"] != ""]
+        .drop_duplicates()["Ticker"]
+        .tolist()
+    )
+
+    mapped_targets = []
+    seen_entities = set()
+    for entry in get_fda_entities_for_tickers(filing_tickers):
+        entity_name = str(entry.get("FDA_EntityName", "")).strip()
+        if not entity_name or entity_name in seen_entities:
+            continue
+
+        mapped_targets.append(
+            {
+                "Company": entity_name,
+                "CIK": str(entry.get("CIK", "")).strip(),
+                "Ticker": str(entry.get("Ticker", "")).strip(),
+            }
+        )
+        seen_entities.add(entity_name)
+
+    # Include fallback to the company names from SEC filings for any tickers
+    # without an explicit FDA mapping so we keep legacy coverage.
+    sec_targets = (
         df_filings[["Company", "CIK", "Ticker"]]
         .dropna(subset=["Company"])
+        .assign(Company=lambda df: df["Company"].astype(str).str.strip())
+        .assign(CIK=lambda df: df["CIK"].astype(str).str.strip())
+        .assign(Ticker=lambda df: df["Ticker"].astype(str).str.strip())
+        .loc[lambda df: df["Company"] != ""]
         .drop_duplicates()
         .to_dict(orient="records")
     )
+
+    targets = mapped_targets[:]
+    mapped_tickers = {t["Ticker"] for t in mapped_targets if t.get("Ticker")}
+
+    for row in sec_targets:
+        ticker = row.get("Ticker", "")
+        if ticker in mapped_tickers:
+            continue
+        company = row.get("Company", "")
+        if company in seen_entities:
+            continue
+        targets.append(row)
+        seen_entities.add(company)
 
     total = len(targets)
     per_minute = cfg["RateLimitsPerMin"]["OpenFDA"]
