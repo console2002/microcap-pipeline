@@ -55,6 +55,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # live_buffer holds all recent progress msgs so we don't lose them
         self.live_buffer: list[str] = []
+        # When True we are displaying messages from an active/most recent run
+        # and should not overwrite the live log with persisted runlog.csv data.
+        self.tail_from_live_run = False
 
         # timer to refresh offline logs (runlog.csv / errorlog.csv)
         self.timer = QtCore.QTimer()
@@ -175,6 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_running = True
 
         # Starting a new run resets the live log so only the current run is shown
+        self.tail_from_live_run = True
         self.live_buffer = [f"=== starting {mode} run from stage '{stage}' ==="]
         self._render_live_buffer()
 
@@ -197,6 +201,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_progress(self, msg: str):
         # append to live buffer
+        self.tail_from_live_run = True
         self.live_buffer.append(msg)
         self._render_live_buffer(append_only=True)
 
@@ -233,10 +238,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refresh_logs(self):
         """
-        refresh the Logs tab from runlog.csv / errorlog.csv,
-        and ALSO refresh the Run tab log_tail when NOT running
-        (so you see persisted logs after a run completes).
-        While running we do NOT overwrite live_buffer.
+        Refresh the Logs tab from runlog.csv / errorlog.csv.
+        When idle (and only if we are not showing messages from an in-memory run)
+        mirror runlog.csv into the live panel as a convenience.
+        While a run is active we never overwrite live_buffer so the tail stays
+        intact for the entire execution.
         """
         paths = load_config()["Paths"]
         runlog_path = os.path.join(paths["logs"], "runlog.csv")
@@ -248,12 +254,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.runlog_view.setPlainText(runlog_txt)
         self.errorlog_view.setPlainText(errlog_txt)
 
-        if not self.is_running:
-            # when idle, mirror runlog.csv into live panel too
+        if not self.is_running and not self.tail_from_live_run:
+            # when idle and not currently showing an in-memory run log,
+            # mirror runlog.csv into the live panel as a convenience.
             lines = runlog_txt.splitlines()
             if lines and lines[0].startswith("timestamp"):
                 lines = lines[1:]
             self.live_buffer = [line for line in lines if line]
+            self.tail_from_live_run = False
             self._render_live_buffer()
 
     def _read_file(self, path: str) -> str:
