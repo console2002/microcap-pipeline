@@ -174,10 +174,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.is_running = True
 
-        # Annotate the live log tail with the new run but keep previous history
-        if self.live_buffer and self.live_buffer[0] != "":
-            self.live_buffer.insert(0, "")
-        self.live_buffer.insert(0, f"=== starting {mode} run from stage '{stage}' ===")
+        # Starting a new run resets the live log so only the current run is shown
+        self.live_buffer = [f"=== starting {mode} run from stage '{stage}' ==="]
         self._render_live_buffer()
 
         self.status_label.setText(f"{mode} starting…")
@@ -199,8 +197,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_progress(self, msg: str):
         # append to live buffer
-        self.live_buffer.insert(0, msg)
-        self._render_live_buffer()
+        self.live_buffer.append(msg)
+        self._render_live_buffer(append_only=True)
 
         # update status label with the most recent message
         self.status_label.setText(msg)
@@ -209,8 +207,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_running = False
         # append final state to buffer
         final_line = f"Finished: {msg}"
-        self.live_buffer.insert(0, final_line)
-        self._render_live_buffer()
+        self.live_buffer.append(final_line)
+        self._render_live_buffer(append_only=True)
 
         self.status_label.setText(final_line)
         self.progress_bar.setVisible(False)
@@ -223,9 +221,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # show disk logs once more at end
         self.refresh_logs()
 
-    def _render_live_buffer(self):
-        # show whole buffer in the live panel so it's effectively infinite scroll
-        self.log_tail.setPlainText("\n".join(self.live_buffer))
+    def _render_live_buffer(self, append_only: bool = False):
+        if append_only and self.live_buffer:
+            self.log_tail.appendPlainText(self.live_buffer[-1])
+        else:
+            self.log_tail.setPlainText("\n".join(self.live_buffer))
+
+        # always keep the viewport scrolled to the newest message
+        sb = self.log_tail.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     def refresh_logs(self):
         """
@@ -246,7 +250,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if not self.is_running:
             # when idle, mirror runlog.csv into live panel too
-            self.live_buffer = runlog_txt.splitlines()[::-1]  # newest last line -> top
+            lines = runlog_txt.splitlines()
+            if lines and lines[0].startswith("timestamp"):
+                lines = lines[1:]
+            self.live_buffer = [line for line in lines if line]
             self._render_live_buffer()
 
     def _read_file(self, path: str) -> str:
