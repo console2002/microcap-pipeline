@@ -156,6 +156,78 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     df_fil = pd.DataFrame(f_rows)
 
+    if not df_fil.empty and df_prof is not None and not df_prof.empty:
+        prof = df_prof.copy()
+
+        ticker_map = {}
+        if {"Ticker", "Company"}.issubset(prof.columns):
+            prof_ticker = prof[["Ticker", "Company"]].copy()
+            prof_ticker["Ticker"] = (
+                prof_ticker["Ticker"].fillna("").astype(str).str.upper().str.strip()
+            )
+            prof_ticker["Company"] = (
+                prof_ticker["Company"].fillna("").astype(str).str.strip()
+            )
+            prof_ticker = prof_ticker[
+                (prof_ticker["Ticker"] != "") & (prof_ticker["Company"] != "")
+            ]
+            if not prof_ticker.empty:
+                ticker_map = (
+                    prof_ticker.drop_duplicates(subset=["Ticker"], keep="last")
+                    .set_index("Ticker")["Company"].to_dict()
+                )
+
+        cik_map = {}
+        if {"CIK", "Company"}.issubset(prof.columns):
+            prof_cik = prof[["CIK", "Company"]].copy()
+            prof_cik["CIK"] = (
+                prof_cik["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+            )
+            prof_cik["Company"] = (
+                prof_cik["Company"].fillna("").astype(str).str.strip()
+            )
+            prof_cik = prof_cik[
+                (prof_cik["CIK"] != "") & (prof_cik["Company"] != "")
+            ]
+            if not prof_cik.empty:
+                cik_map = (
+                    prof_cik.drop_duplicates(subset=["CIK"], keep="last")
+                    .set_index("CIK")["Company"].to_dict()
+                )
+
+        if "Company" not in df_fil.columns:
+            df_fil["Company"] = pd.Series(dtype="object")
+
+        if "Ticker" in df_fil.columns:
+            df_fil["Ticker"] = (
+                df_fil["Ticker"].fillna("").astype(str).str.upper().str.strip()
+            )
+
+        if "CIK" in df_fil.columns:
+            df_fil["CIK"] = (
+                df_fil["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+            )
+
+        company_series = df_fil["Company"]
+        missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+
+        if ticker_map:
+            df_fil.loc[missing, "Company"] = (
+                df_fil.loc[missing, "Ticker"].map(ticker_map).fillna("")
+            )
+            company_series = df_fil["Company"]
+            missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+
+        if cik_map:
+            df_fil.loc[missing, "Company"] = (
+                df_fil.loc[missing, "CIK"].map(cik_map).fillna("")
+            )
+            company_series = df_fil["Company"]
+            missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+
+        if "Company" in df_fil.columns:
+            df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
+
     expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Title","URL","Accession"]
     for col in expected_cols:
         if col not in df_fil.columns:
