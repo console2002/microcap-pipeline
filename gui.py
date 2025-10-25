@@ -1,4 +1,4 @@
-import sys, os, json
+import sys, os, json, re
 from PySide6 import QtCore, QtWidgets
 from app.pipeline import run_weekly_pipeline, run_daily_pipeline
 from app.config import load_config, save_config
@@ -93,6 +93,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_bar.setVisible(False)
 
         self.status_label = QtWidgets.QLabel("Idle")
+        self.status_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.status_label.setMinimumContentsLength(60)
+        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
         self.log_tail = QtWidgets.QPlainTextEdit()
         self.log_tail.setReadOnly(True)
@@ -184,6 +187,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label.setText(f"{mode} starting…")
         self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
         self.btn_cancel.setEnabled(True)
         self.btn_weekly.setEnabled(False)
         self.btn_daily.setEnabled(False)
@@ -207,6 +212,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # update status label with the most recent message
         self.status_label.setText(msg)
+        self._update_progress_bar_from_msg(msg)
 
     def on_finished(self, msg: str):
         self.is_running = False
@@ -217,6 +223,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label.setText(final_line)
         self.progress_bar.setVisible(False)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
         self.btn_cancel.setEnabled(False)
         self.btn_weekly.setEnabled(True)
         self.btn_daily.setEnabled(True)
@@ -235,6 +243,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # always keep the viewport scrolled to the newest message
         sb = self.log_tail.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    def _update_progress_bar_from_msg(self, msg: str):
+        match = re.search(r"\((\d{1,3})%\)", msg)
+        if match:
+            pct = max(0, min(100, int(match.group(1))))
+            if self.progress_bar.maximum() != 100 or self.progress_bar.minimum() != 0:
+                self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(pct)
 
     def refresh_logs(self):
         """
