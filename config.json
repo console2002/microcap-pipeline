@@ -36,7 +36,9 @@
       "ETF",
       "ETN",
       "ADR",
-      "FUND"
+      "FUND",
+      "TRUST",
+      "PREF"
     ],
     "NormalizeTicker": true
   },
