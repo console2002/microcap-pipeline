@@ -234,7 +234,13 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
             df_fil[col] = pd.Series(dtype="object")
 
     key_cols = ["CIK"]
+    url_present = False
     if "URL" in df_fil.columns:
+        url_series = df_fil["URL"].fillna("").astype(str).str.strip()
+        df_fil["URL"] = url_series
+        url_present = url_series.ne("").any()
+
+    if url_present:
         key_cols.append("URL")
     else:
         key_cols.extend(["Form","FiledAt","Ticker"])
