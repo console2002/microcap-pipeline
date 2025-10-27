@@ -461,7 +461,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "parse_q10: start")
 
-    runway_extract.run()
+    runway_extract.run(data_dir=data_dir)
 
     runway_path = os.path.join(data_dir, "research_results_runway.csv")
     row_count = 0

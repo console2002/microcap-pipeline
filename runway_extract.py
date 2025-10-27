@@ -20,11 +20,16 @@ _DATE_FORMATS = [
 ]
 
 
-def _resolve_path(filename: str) -> str:
-    candidates = [filename, os.path.join("data", filename)]
+def _resolve_path(filename: str, base_dir: str | None = None) -> str:
+    candidates = []
+    if base_dir:
+        candidates.append(os.path.join(base_dir, filename))
+    candidates.extend([filename, os.path.join("data", filename)])
     for path in candidates:
         if os.path.exists(path):
             return path
+    if base_dir:
+        return os.path.join(base_dir, filename)
     return filename
 
 
@@ -96,9 +101,9 @@ def _format_numeric(value: Optional[float]) -> str:
     return str(value)
 
 
-def run() -> None:
-    research_path = _resolve_path("research_results.csv")
-    filings_path = _resolve_path("filings.csv")
+def run(data_dir: str | None = None) -> None:
+    research_path = _resolve_path("research_results.csv", data_dir)
+    filings_path = _resolve_path("filings.csv", data_dir)
 
     research_rows, fieldnames = _read_csv_rows(research_path)
     filings_rows, _ = _read_csv_rows(filings_path)
@@ -148,7 +153,7 @@ def run() -> None:
 
         output_rows.append(row)
 
-    output_dir = os.path.dirname(research_path)
+    output_dir = data_dir or os.path.dirname(research_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
