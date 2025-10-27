@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import math
 import os
+import re
 import sys
 from typing import Iterable, List, Sequence
 
@@ -100,14 +101,21 @@ def normalize_text(value: str | float | None) -> str:
     return text
 
 
+_EVIDENCE_SPLIT_RE = re.compile(r"[;\n]+")
+
+
+def _split_evidence_entries(text: str) -> list[str]:
+    parts = [segment.strip() for segment in _EVIDENCE_SPLIT_RE.split(text)]
+    cleaned = [seg for seg in parts if seg and seg.lower() != "nan"]
+    return cleaned
+
+
 def split_semicolon_list(raw: str | None) -> list[str]:
-    """Split a semicolon-delimited string into cleaned entries."""
+    """Split evidence fields that may be delimited by semicolons or newlines."""
     text = normalize_text(raw)
     if not text:
         return []
-    parts = [segment.strip() for segment in text.split(";")]
-    cleaned = [seg for seg in parts if seg and seg.lower() != "nan"]
-    return cleaned
+    return _split_evidence_entries(text)
 
 
 def dedupe_preserve_order(seq: Iterable[str]) -> list[str]:
@@ -134,7 +142,7 @@ def extract_dilution_info(filings_summary: str | None) -> dict:
             "notes": "",
         }
 
-    chunks = [chunk.strip() for chunk in summary_text.split(";") if chunk.strip()]
+    chunks = _split_evidence_entries(summary_text)
     for chunk in chunks:
         parts = [part.strip() for part in chunk.split("|")]
         form = parts[1] if len(parts) > 1 else ""
