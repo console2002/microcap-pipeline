@@ -16,6 +16,49 @@ def _chunk(seq, n: int):
         yield seq[i:i+n]
 
 
+def _normalize_sec_url(url: str) -> str:
+    if not url:
+        return ""
+
+    cleaned = url.strip()
+    if not cleaned:
+        return ""
+
+    if cleaned.startswith("http://"):
+        cleaned = "https://" + cleaned[len("http://"):]
+
+    lower = cleaned.lower()
+
+    if lower.startswith("https://sec.gov") and not lower.startswith("https://www.sec.gov"):
+        cleaned = "https://www.sec.gov" + cleaned[len("https://sec.gov"):]
+        lower = cleaned.lower()
+
+    if lower.startswith("https://www.sec.gov/ix?doc="):
+        return cleaned
+
+    if lower.startswith("/archives/") or lower.startswith("archives/"):
+        path = cleaned.lstrip("/")
+        return f"https://www.sec.gov/ix?doc=/{path}"
+
+    if (
+        lower.startswith("https://www.sec.gov/archives/")
+        and (
+            lower.endswith(".htm")
+            or lower.endswith(".html")
+            or lower.endswith(".xhtml")
+        )
+        and not lower.endswith("-index.htm")
+        and not lower.endswith("-index.html")
+        and not lower.endswith("-index.xhtml")
+    ):
+        path = cleaned[len("https://www.sec.gov"):]
+        if not path.startswith("/"):
+            path = "/" + path
+        return f"https://www.sec.gov/ix?doc={path}"
+
+    return cleaned
+
+
 def fetch_profiles(
     client: HttpClient,
     cfg: dict,
@@ -163,13 +206,21 @@ def fetch_filings(
             cik_val = rec.get("cik") or ""
             cik_txt = str(cik_val).zfill(10) if cik_val else ""
 
+            source_url = (
+                rec.get("finalLink")
+                or rec.get("linkToFilingDetails")
+                or rec.get("reportUrl")
+                or rec.get("link")
+                or ""
+            )
+
             out.append({
                 "CIK": cik_txt,
                 "Ticker": (rec.get("symbol") or "").upper(),
                 "Company": rec.get("companyName") or "",
                 "Form": form_raw,
                 "FiledAt": filed_raw,
-                "URL": rec.get("link") or ""
+                "URL": _normalize_sec_url(source_url)
             })
 
     return out
