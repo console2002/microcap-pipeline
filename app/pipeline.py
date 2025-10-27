@@ -228,16 +228,22 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         if "Company" in df_fil.columns:
             df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
 
-    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Title","URL","Accession"]
+    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","URL"]
     for col in expected_cols:
         if col not in df_fil.columns:
             df_fil[col] = pd.Series(dtype="object")
 
     key_cols = ["CIK"]
-    if "Accession" in df_fil.columns:
-        key_cols.append("Accession")
-    elif "URL" in df_fil.columns:
+    url_present = False
+    if "URL" in df_fil.columns:
+        url_series = df_fil["URL"].fillna("").astype(str).str.strip()
+        df_fil["URL"] = url_series
+        url_present = url_series.ne("").any()
+
+    if url_present:
         key_cols.append("URL")
+    else:
+        key_cols.extend(["Form","FiledAt","Ticker"])
 
     rows_added = append_antijoin_purge(
         cfg, "filings", df_fil,

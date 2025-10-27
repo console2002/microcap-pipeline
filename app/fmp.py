@@ -70,7 +70,6 @@ def fetch_profiles(
             country  = rec.get("country") or ""
             price    = rec.get("price")
             mcap     = rec.get("mktCap") or rec.get("marketCap")
-            shares   = rec.get("sharesOutstanding")
 
             # hard gate filters
             if cfg["Universe"]["Exchanges"] and exchange not in cfg["Universe"]["Exchanges"]:
@@ -97,7 +96,6 @@ def fetch_profiles(
                 "Sector": rec.get("sector") or "",
                 "Industry": rec.get("industry") or "",
                 "MarketCap": mcap,
-                "SharesOut": shares,
                 "Price": price,
                 "UpdatedAt": datetime.utcnow().isoformat()
             })
@@ -166,9 +164,7 @@ def fetch_filings(
                 "Company": rec.get("companyName") or "",
                 "Form": form_raw,
                 "FiledAt": filed_raw,
-                "Title": rec.get("title") or "",
-                "URL": rec.get("link") or "",
-                "Accession": rec.get("accNo") or ""
+                "URL": rec.get("link") or ""
             })
 
     return out

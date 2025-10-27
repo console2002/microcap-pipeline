@@ -83,9 +83,6 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             form_txt = str(row.get("Form", "") or "").strip()
             if form_txt:
                 parts.append(form_txt)
-            title_txt = str(row.get("Title", "") or "").strip()
-            if title_txt:
-                parts.append(title_txt)
             url_txt = str(row.get("URL", "") or "").strip()
             if url_txt:
                 parts.append(url_txt)
@@ -202,4 +199,12 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
         if col not in cand.columns:
             cand[col] = None
 
-    return cand[wanted_cols]
+    result = cand[wanted_cols].copy()
+
+    if "Ticker" in result.columns:
+        ticker_series = result["Ticker"].astype("string")
+        valid_mask = ticker_series.notna() & ticker_series.str.strip().ne("")
+        result = result.loc[valid_mask].copy()
+        result["Ticker"] = ticker_series.loc[valid_mask].str.strip()
+
+    return result
