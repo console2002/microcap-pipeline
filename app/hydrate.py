@@ -16,6 +16,9 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     filings  = pd.read_csv(filings_path,  encoding="utf-8") if os.path.exists(filings_path)  else pd.DataFrame()
     fda      = pd.read_csv(fda_path,      encoding="utf-8") if os.path.exists(fda_path)      else pd.DataFrame()
 
+    if not profiles.empty and "CIK" in profiles.columns:
+        profiles["CIK"] = profiles["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+
     # latest price + ADV20
     if not prices.empty:
         prices["Date"] = pd.to_datetime(prices["Date"], errors="coerce")
