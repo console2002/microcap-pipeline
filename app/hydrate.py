@@ -48,7 +48,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             text = str(val).strip()
             if text:
                 entries.append(text)
-        return " ; ".join(entries)
+        return "\n".join(entries)
 
     def _combine_unique(series: pd.Series) -> str:
         seen: list[str] = []
@@ -60,7 +60,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
                 continue
             if text not in seen:
                 seen.append(text)
-        return " ; ".join(seen)
+        return "\n".join(seen)
 
     # latest filing per CIK, plus aggregate evidence
     if not filings.empty and "CIK" in filings.columns:
