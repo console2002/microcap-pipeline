@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import math
 import os
+import sys
 from typing import Iterable, List, Sequence
 
 from app.config import load_config
@@ -11,6 +12,27 @@ from app.utils import ensure_csv, log_line, utc_now_iso
 
 
 _PROGRESS_LOG_PATH: str | None = None
+_CSV_FIELD_SIZE_LIMIT_SET = False
+
+
+def _ensure_csv_field_size_limit() -> None:
+    """Raise the CSV field size limit to accommodate large research notes."""
+    global _CSV_FIELD_SIZE_LIMIT_SET
+    if _CSV_FIELD_SIZE_LIMIT_SET:
+        return
+
+    max_limit = sys.maxsize
+    while max_limit > 0:
+        try:
+            csv.field_size_limit(max_limit)
+            _CSV_FIELD_SIZE_LIMIT_SET = True
+            break
+        except (OverflowError, ValueError):
+            max_limit //= 2
+    if not _CSV_FIELD_SIZE_LIMIT_SET:
+        # Fallback to a reasonable manual limit if we exhausted the loop.
+        csv.field_size_limit(10_000_000)
+        _CSV_FIELD_SIZE_LIMIT_SET = True
 
 
 def _progress_log_path() -> str:
@@ -151,6 +173,8 @@ def extract_dilution_info(filings_summary: str | None) -> dict:
 
 def load_candidates(path: str | None = None) -> list[dict]:
     """Load candidate rows from CSV into a list of dictionaries."""
+    _ensure_csv_field_size_limit()
+
     if path is None:
         cfg = load_config()
         data_dir = cfg.get("Paths", {}).get("data", ".")
