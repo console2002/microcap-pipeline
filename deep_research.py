@@ -149,8 +149,13 @@ def extract_dilution_info(filings_summary: str | None) -> dict:
     }
 
 
-def load_candidates(path: str = "candidates.csv") -> list[dict]:
+def load_candidates(path: str | None = None) -> list[dict]:
     """Load candidate rows from CSV into a list of dictionaries."""
+    if path is None:
+        cfg = load_config()
+        data_dir = cfg.get("Paths", {}).get("data", ".")
+        path = os.path.join(data_dir, "candidates.csv")
+
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found")
 
