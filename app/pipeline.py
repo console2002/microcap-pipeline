@@ -416,7 +416,7 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "deep_research: start")
 
-    deep_research_run()
+    deep_research_run(data_dir)
 
     results_path = os.path.join(data_dir, "research_results.csv")
     if not os.path.exists(results_path):

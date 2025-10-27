@@ -283,8 +283,17 @@ def write_research_results(bundles: Sequence[dict], path: str = "research_result
             })
 
 
-def run() -> None:
-    candidates = load_candidates()
+def run(data_dir: str | None = None) -> None:
+    """Execute the deep research pipeline using the provided data directory."""
+
+    if data_dir is None:
+        cfg = load_config()
+        data_dir = cfg.get("Paths", {}).get("data", ".")
+
+    candidates_path = os.path.join(data_dir, "candidates.csv")
+    results_path = os.path.join(data_dir, "research_results.csv")
+
+    candidates = load_candidates(candidates_path)
     bundles: List[dict] = []
 
     for row in candidates:
@@ -300,7 +309,7 @@ def run() -> None:
         else:
             progress("OK", f"{ticker}: no dilution flag")
 
-    write_research_results(bundles)
+    write_research_results(bundles, results_path)
     progress("OK", "DeepResearch complete -> research_results.csv")
 
 
