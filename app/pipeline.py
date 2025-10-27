@@ -132,6 +132,18 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
     df_prof = pd.DataFrame(prof_rows)
 
+    if not df_prof.empty:
+        df_prof = df_prof.copy()
+
+        obj_cols = df_prof.select_dtypes(include=["object", "string"]).columns
+        for col in obj_cols:
+            df_prof[col] = df_prof[col].apply(
+                lambda val: val.strip() if isinstance(val, str) else val
+            )
+            df_prof[col] = df_prof[col].replace("", pd.NA)
+
+        df_prof = df_prof.dropna()
+
     rows_added = append_antijoin_purge(
         cfg, "profiles", df_prof,
         key_cols=["Ticker"],
