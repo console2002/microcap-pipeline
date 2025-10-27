@@ -13,6 +13,13 @@ from app.utils import ensure_csv, log_line, utc_now_iso
 
 _PROGRESS_LOG_PATH: str | None = None
 _CSV_FIELD_SIZE_LIMIT_SET = False
+_ECHO_PROGRESS = False
+
+
+def set_progress_echo(enabled: bool) -> None:
+    """Enable or disable echoing progress rows to stdout."""
+    global _ECHO_PROGRESS
+    _ECHO_PROGRESS = enabled
 
 
 def _ensure_csv_field_size_limit() -> None:
@@ -48,11 +55,12 @@ def _progress_log_path() -> str:
 
 
 def progress(status: str, message: str) -> None:
-    """Append a progress row and echo to stdout for live tailing."""
+    """Append a progress row for the GUI tail (optionally echo to stdout)."""
     path = _progress_log_path()
     timestamp = utc_now_iso()
     log_line(path, [timestamp, status, message])
-    print(f"{timestamp} | {status} | {message}")
+    if _ECHO_PROGRESS:
+        print(f"{timestamp} | {status} | {message}")
 
 
 DILUTION_FORMS = {
@@ -307,35 +315,40 @@ def write_research_results(bundles: Sequence[dict], path: str = "research_result
             })
 
 
-def run(data_dir: str | None = None) -> None:
+def run(data_dir: str | None = None, *, echo: bool = False) -> None:
     """Execute the deep research pipeline using the provided data directory."""
 
-    if data_dir is None:
-        cfg = load_config()
-        data_dir = cfg.get("Paths", {}).get("data", ".")
+    prev_echo = _ECHO_PROGRESS
+    set_progress_echo(echo)
+    try:
+        if data_dir is None:
+            cfg = load_config()
+            data_dir = cfg.get("Paths", {}).get("data", ".")
 
-    candidates_path = os.path.join(data_dir, "candidates.csv")
-    results_path = os.path.join(data_dir, "research_results.csv")
+        candidates_path = os.path.join(data_dir, "candidates.csv")
+        results_path = os.path.join(data_dir, "research_results.csv")
 
-    candidates = load_candidates(candidates_path)
-    bundles: List[dict] = []
+        candidates = load_candidates(candidates_path)
+        bundles: List[dict] = []
 
-    for row in candidates:
-        ticker = normalize_text(row.get("Ticker")) or "?"
-        cik = normalize_text(row.get("CIK")) or "?"
-        progress("RUN", f"DeepResearch {ticker} ({cik})")
-        bundle = build_bundle_for_row(row)
-        bundles.append(bundle)
+        for row in candidates:
+            ticker = normalize_text(row.get("Ticker")) or "?"
+            cik = normalize_text(row.get("CIK")) or "?"
+            progress("RUN", f"DeepResearch {ticker} ({cik})")
+            bundle = build_bundle_for_row(row)
+            bundles.append(bundle)
 
-        if bundle["dilution"]["has_dilution_flag"]:
-            forms = bundle["dilution"]["dilution_forms"]
-            progress("OK", f"{ticker}: dilution risk {forms}")
-        else:
-            progress("OK", f"{ticker}: no dilution flag")
+            if bundle["dilution"]["has_dilution_flag"]:
+                forms = bundle["dilution"]["dilution_forms"]
+                progress("OK", f"{ticker}: dilution risk {forms}")
+            else:
+                progress("OK", f"{ticker}: no dilution flag")
 
-    write_research_results(bundles, results_path)
-    progress("OK", "DeepResearch complete -> research_results.csv")
+        write_research_results(bundles, results_path)
+        progress("OK", "DeepResearch complete -> research_results.csv")
+    finally:
+        set_progress_echo(prev_echo)
 
 
 if __name__ == "__main__":
-    run()
+    run(echo=True)
