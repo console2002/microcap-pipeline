@@ -421,9 +421,9 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise CancelledRun("cancel before deep_research")
 
     data_dir = cfg["Paths"]["data"]
-    cands_path = os.path.join(data_dir, "candidates.csv")
-    if not os.path.exists(cands_path):
-        raise RuntimeError("candidates.csv missing; run hydrate stage first or stage requires it")
+    short_path = os.path.join(data_dir, "shortlist.csv")
+    if not os.path.exists(short_path):
+        raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
 
     t0 = time.time()
     _emit(progress_fn, "deep_research: start")
@@ -514,10 +514,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
         if start_idx <= stages.index("hydrate"):
             hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            cands_path = os.path.join(cfg["Paths"]["data"], "candidates.csv")
             short_path = os.path.join(cfg["Paths"]["data"], "shortlist.csv")
-            if not os.path.exists(cands_path):
-                raise RuntimeError("candidates.csv missing; run hydrate stage first or stage requires it")
             if not os.path.exists(short_path):
                 raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
             _emit(progress_fn, "hydrate: skipped (starting later stage)")
