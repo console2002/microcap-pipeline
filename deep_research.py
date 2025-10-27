@@ -1,0 +1,303 @@
+"""Deep research pipeline stub for catalysts, dilution, and runway analysis."""
+from __future__ import annotations
+
+import csv
+import math
+import os
+from typing import Iterable, List, Sequence
+
+from app.config import load_config
+from app.utils import ensure_csv, log_line, utc_now_iso
+
+
+_PROGRESS_LOG_PATH: str | None = None
+
+
+def _progress_log_path() -> str:
+    global _PROGRESS_LOG_PATH
+    if _PROGRESS_LOG_PATH is None:
+        cfg = load_config()
+        logs_dir = cfg.get("Paths", {}).get("logs", "./logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        path = os.path.join(logs_dir, "progress.csv")
+        ensure_csv(path, ["timestamp", "status", "message"])
+        _PROGRESS_LOG_PATH = path
+    return _PROGRESS_LOG_PATH
+
+
+def progress(status: str, message: str) -> None:
+    """Append a progress row and echo to stdout for live tailing."""
+    path = _progress_log_path()
+    timestamp = utc_now_iso()
+    log_line(path, [timestamp, status, message])
+    print(f"{timestamp} | {status} | {message}")
+
+
+DILUTION_FORMS = {
+    "S-3",
+    "S-3ASR",
+    "S-8",
+    "424B",
+    "424B1",
+    "424B2",
+    "424B3",
+    "424B4",
+    "424B5",
+    "424B7",
+    "424B8",
+}
+
+DILUTION_KEYWORDS = [
+    "offering",
+    "atm",
+    "at-the-market",
+    "sale of common stock",
+    "equity line",
+]
+
+
+def normalize_text(value: str | float | None) -> str:
+    """Normalize arbitrary CSV cell values into clean strings."""
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        if math.isnan(value):
+            return ""
+        return str(value).strip()
+    text = str(value).strip()
+    if text.lower() in {"", "nan", "none", "null"}:
+        return ""
+    return text
+
+
+def split_semicolon_list(raw: str | None) -> list[str]:
+    """Split a semicolon-delimited string into cleaned entries."""
+    text = normalize_text(raw)
+    if not text:
+        return []
+    parts = [segment.strip() for segment in text.split(";")]
+    cleaned = [seg for seg in parts if seg and seg.lower() != "nan"]
+    return cleaned
+
+
+def dedupe_preserve_order(seq: Iterable[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in seq:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def extract_dilution_info(filings_summary: str | None) -> dict:
+    """Identify dilution-related filings and supporting links."""
+    forms: list[str] = []
+    links: list[str] = []
+
+    summary_text = normalize_text(filings_summary)
+    if not summary_text:
+        return {
+            "forms": forms,
+            "links": links,
+            "has_flag": False,
+            "notes": "",
+        }
+
+    chunks = [chunk.strip() for chunk in summary_text.split(";") if chunk.strip()]
+    for chunk in chunks:
+        parts = [part.strip() for part in chunk.split("|")]
+        form = parts[1] if len(parts) > 1 else ""
+        form_clean = normalize_text(form)
+        form_upper = form_clean.upper()
+        chunk_lower = chunk.lower()
+
+        url = ""
+        for part in reversed(parts):
+            candidate = part.strip()
+            if candidate.lower().startswith("http"):
+                url = candidate
+                break
+        if not url:
+            for token in reversed(chunk.replace("|", " ").split()):
+                token_strip = token.strip()
+                if token_strip.lower().startswith("http"):
+                    url = token_strip
+                    break
+
+        is_dilution_form = any(trigger in form_upper for trigger in DILUTION_FORMS)
+        is_keyword_hit = False
+        if form_upper == "8-K":
+            is_keyword_hit = any(keyword in chunk_lower for keyword in DILUTION_KEYWORDS)
+
+        if is_dilution_form or is_keyword_hit:
+            if form_clean:
+                forms.append(form_clean)
+            if url:
+                links.append(url)
+
+    forms = dedupe_preserve_order(forms)
+    links = dedupe_preserve_order(links)
+    has_flag = bool(forms)
+    notes = f"Recent dilution-related filings: {', '.join(forms)}" if has_flag else ""
+
+    return {
+        "forms": forms,
+        "links": links,
+        "has_flag": has_flag,
+        "notes": notes,
+    }
+
+
+def load_candidates(path: str = "candidates.csv") -> list[dict]:
+    """Load candidate rows from CSV into a list of dictionaries."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} not found")
+
+    with open(path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return [dict(row) for row in reader]
+
+
+def _determine_catalyst_type(latest_form: str, fda_event: str) -> str:
+    if fda_event:
+        return fda_event
+
+    form_upper = latest_form.upper()
+    if "8-K" in form_upper:
+        return "Corporate event / guidance / financing"
+    if "10-Q" in form_upper or "10-K" in form_upper:
+        return "Earnings / financial update"
+    return "TBD"
+
+
+def build_bundle_for_row(row: dict) -> dict:
+    ticker = normalize_text(row.get("Ticker"))
+    company = normalize_text(row.get("Company"))
+    cik = normalize_text(row.get("CIK"))
+    sector = normalize_text(row.get("Sector"))
+
+    fda_event = normalize_text(row.get("FDA_EventType"))
+    fda_date = normalize_text(row.get("FDA_Date"))
+    fda_url = normalize_text(row.get("FDA_URL"))
+    fda_urls_all = split_semicolon_list(row.get("FDA_URLsAll"))
+
+    filing_form = normalize_text(row.get("LatestForm"))
+    filed_at = normalize_text(row.get("FiledAt"))
+    filing_url = normalize_text(row.get("FilingURL"))
+    filing_urls_all = split_semicolon_list(row.get("FilingURLsAll"))
+
+    primary_link = fda_url if fda_event else filing_url
+    catalyst_type = _determine_catalyst_type(filing_form, fda_event)
+    catalyst_date = fda_date or filed_at
+
+    evidence_links: list[str] = []
+    if primary_link:
+        evidence_links.append(primary_link)
+    evidence_links.extend(fda_urls_all)
+    evidence_links.extend(filing_urls_all)
+    evidence_links = dedupe_preserve_order(evidence_links)
+
+    dilution_info = extract_dilution_info(row.get("FilingsSummary"))
+
+    return {
+        "ticker": ticker,
+        "company": company,
+        "cik": cik,
+        "sector": sector,
+        "catalyst": {
+            "catalyst_type": catalyst_type,
+            "catalyst_date": catalyst_date,
+            "primary_link": primary_link,
+            "evidence_primary_links": evidence_links,
+            "evidence_secondary_links": [],
+        },
+        "dilution": {
+            "has_dilution_flag": dilution_info["has_flag"],
+            "dilution_forms": dilution_info["forms"],
+            "dilution_links": dilution_info["links"],
+            "notes": dilution_info["notes"],
+        },
+        "runway": {
+            "cash": None,
+            "quarterly_burn": None,
+            "runway_quarters": None,
+            "notes": "TODO: parse 10-Q/10-K to compute runway",
+        },
+    }
+
+
+def write_research_results(bundles: Sequence[dict], path: str = "research_results.csv") -> None:
+    """Flatten bundles into CSV output for downstream steps."""
+    fieldnames = [
+        "Ticker",
+        "Company",
+        "CIK",
+        "Sector",
+        "CatalystType",
+        "CatalystDate",
+        "CatalystPrimaryLink",
+        "CatalystEvidencePrimaryLinks",
+        "CatalystEvidenceSecondaryLinks",
+        "HasDilutionFlag",
+        "DilutionForms",
+        "DilutionLinks",
+        "DilutionNotes",
+        "RunwayCash",
+        "RunwayQuarterlyBurn",
+        "RunwayQuarters",
+        "RunwayNotes",
+    ]
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for bundle in bundles:
+            catalyst = bundle["catalyst"]
+            dilution = bundle["dilution"]
+            runway = bundle["runway"]
+
+            writer.writerow({
+                "Ticker": bundle["ticker"],
+                "Company": bundle["company"],
+                "CIK": bundle["cik"],
+                "Sector": bundle["sector"],
+                "CatalystType": catalyst["catalyst_type"],
+                "CatalystDate": catalyst["catalyst_date"],
+                "CatalystPrimaryLink": catalyst["primary_link"],
+                "CatalystEvidencePrimaryLinks": "; ".join(catalyst["evidence_primary_links"]),
+                "CatalystEvidenceSecondaryLinks": "; ".join(catalyst["evidence_secondary_links"]),
+                "HasDilutionFlag": "TRUE" if dilution["has_dilution_flag"] else "FALSE",
+                "DilutionForms": "; ".join(dilution["dilution_forms"]),
+                "DilutionLinks": "; ".join(dilution["dilution_links"]),
+                "DilutionNotes": dilution["notes"],
+                "RunwayCash": runway["cash"] if runway["cash"] is not None else "",
+                "RunwayQuarterlyBurn": runway["quarterly_burn"] if runway["quarterly_burn"] is not None else "",
+                "RunwayQuarters": runway["runway_quarters"] if runway["runway_quarters"] is not None else "",
+                "RunwayNotes": runway["notes"],
+            })
+
+
+def run() -> None:
+    candidates = load_candidates()
+    bundles: List[dict] = []
+
+    for row in candidates:
+        ticker = normalize_text(row.get("Ticker")) or "?"
+        cik = normalize_text(row.get("CIK")) or "?"
+        progress("RUN", f"DeepResearch {ticker} ({cik})")
+        bundle = build_bundle_for_row(row)
+        bundles.append(bundle)
+
+        if bundle["dilution"]["has_dilution_flag"]:
+            forms = bundle["dilution"]["dilution_forms"]
+            progress("OK", f"{ticker}: dilution risk {forms}")
+        else:
+            progress("OK", f"{ticker}: no dilution flag")
+
+    write_research_results(bundles)
+    progress("OK", "DeepResearch complete -> research_results.csv")
+
+
+if __name__ == "__main__":
+    run()
