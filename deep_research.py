@@ -187,14 +187,14 @@ def extract_dilution_info(filings_summary: str | None) -> dict:
     }
 
 
-def load_candidates(path: str | None = None) -> list[dict]:
-    """Load candidate rows from CSV into a list of dictionaries."""
+def load_research_rows(path: str | None = None) -> list[dict]:
+    """Load shortlist rows from CSV into a list of dictionaries."""
     _ensure_csv_field_size_limit()
 
     if path is None:
         cfg = load_config()
         data_dir = cfg.get("Paths", {}).get("data", ".")
-        path = os.path.join(data_dir, "candidates.csv")
+        path = os.path.join(data_dir, "shortlist.csv")
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found")
@@ -333,13 +333,13 @@ def run(data_dir: str | None = None, *, echo: bool = False) -> None:
             cfg = load_config()
             data_dir = cfg.get("Paths", {}).get("data", ".")
 
-        candidates_path = os.path.join(data_dir, "candidates.csv")
+        shortlist_path = os.path.join(data_dir, "shortlist.csv")
         results_path = os.path.join(data_dir, "research_results.csv")
 
-        candidates = load_candidates(candidates_path)
+        shortlist_rows = load_research_rows(shortlist_path)
         bundles: List[dict] = []
 
-        for row in candidates:
+        for row in shortlist_rows:
             ticker = normalize_text(row.get("Ticker")) or "?"
             cik = normalize_text(row.get("CIK")) or "?"
             progress("RUN", f"DeepResearch {ticker} ({cik})")
