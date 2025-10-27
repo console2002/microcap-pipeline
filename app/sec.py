@@ -35,11 +35,11 @@ def load_sec_universe(client: HttpClient, cfg: dict) -> list[dict]:
                 rec["Ticker"] = rec["Ticker"][:-3]
 
     # drop obvious junk patterns
-    drop_patterns = [p.upper() for p in cfg["Universe"]["DropPatterns"]]
+    drop_patterns = [p.upper() for p in cfg["Universe"].get("DropPatterns", [])]
     clean = []
     for rec in records:
-        name_up = rec["Company"].upper()
-        if any(p in name_up for p in drop_patterns):
+        haystack = f"{rec['Company']} {rec['Ticker']}".upper().strip()
+        if drop_patterns and any(p in haystack for p in drop_patterns):
             continue
         clean.append(rec)
 

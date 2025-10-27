@@ -40,6 +40,7 @@ def fetch_profiles(
     key       = cfg["FMPKey"]
     bs        = cfg["BatchSizes"]["Profiles"]
     ratelimit = cfg["RateLimitsPerMin"]["FMP"]
+    drop_patterns = [p.upper() for p in cfg["Universe"].get("DropPatterns", [])]
 
     batches = list(_chunk(tickers, bs))
     total_batches = len(batches)
@@ -70,6 +71,10 @@ def fetch_profiles(
             country  = rec.get("country") or ""
             price    = rec.get("price")
             mcap     = rec.get("mktCap") or rec.get("marketCap")
+
+            haystack = f"{company} {ticker}".upper().strip()
+            if drop_patterns and any(p in haystack for p in drop_patterns):
+                continue
 
             # hard gate filters
             if cfg["Universe"]["Exchanges"] and exchange not in cfg["Universe"]["Exchanges"]:
