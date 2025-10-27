@@ -1,4 +1,5 @@
 import os, time, pandas as pd
+import runway_extract
 from app.config import load_config
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
@@ -443,6 +444,38 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
     return results_path
 
 
+def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before parse_q10")
+
+    data_dir = cfg["Paths"]["data"]
+    research_path = os.path.join(data_dir, "research_results.csv")
+    filings_path = os.path.join(data_dir, "filings.csv")
+
+    if not os.path.exists(research_path):
+        raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+
+    if not os.path.exists(filings_path):
+        raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "parse_q10: start")
+
+    runway_extract.run(data_dir=data_dir)
+
+    runway_path = os.path.join(data_dir, "research_results_runway.csv")
+    row_count = 0
+    if os.path.exists(runway_path):
+        try:
+            df_runway = pd.read_csv(runway_path, encoding="utf-8")
+            row_count = len(df_runway)
+        except Exception as exc:
+            _log_err(errlog, "parse_q10", f"failed to read output CSV: {exc}")
+
+    _log_step(runlog, "parse_q10", row_count, t0, "write research_results_runway")
+    _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
+
+
 def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
@@ -459,7 +492,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research"]
+    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research", "parse_q10"]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -522,6 +555,13 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
 
         if start_idx <= stages.index("deep_research"):
             deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            results_path = os.path.join(cfg["Paths"]["data"], "research_results.csv")
+            if not os.path.exists(results_path):
+                raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+
+        if start_idx <= stages.index("parse_q10"):
+            parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
 
         _emit(progress_fn, "run_weekly: complete")
 
