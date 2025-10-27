@@ -94,7 +94,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label = QtWidgets.QLabel("Idle")
         self.status_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        self.status_label.setMinimumContentsLength(60)
+        # PySide6's QLabel does not expose setMinimumContentsLength, so approximate
+        # the same behavior by setting a minimum width based on character width.
+        min_width = self.status_label.fontMetrics().horizontalAdvance("M") * 60
+        self.status_label.setMinimumWidth(min_width)
         self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
         self.log_tail = QtWidgets.QPlainTextEdit()
