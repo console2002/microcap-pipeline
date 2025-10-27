@@ -2,6 +2,18 @@ import os
 import pandas as pd
 
 
+def _normalize_cik(series: pd.Series) -> pd.Series:
+    """Normalize CIK values while preserving missing entries."""
+
+    if series.empty:
+        return series
+
+    normalized = series.astype("string").str.strip()
+    normalized = normalized.replace("", pd.NA)
+    normalized = normalized.str.replace(r"\.0+$", "", regex=True)
+    return normalized.str.zfill(10)
+
+
 def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     base = cfg["Paths"]["data"]
 
@@ -17,7 +29,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     fda      = pd.read_csv(fda_path,      encoding="utf-8") if os.path.exists(fda_path)      else pd.DataFrame()
 
     if not profiles.empty and "CIK" in profiles.columns:
-        profiles["CIK"] = profiles["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+        profiles["CIK"] = _normalize_cik(profiles["CIK"])
 
     # latest price + ADV20
     if not prices.empty:
@@ -52,7 +64,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
 
     # latest filing per CIK, plus aggregate evidence
     if not filings.empty and "CIK" in filings.columns:
-        filings["CIK"] = filings["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+        filings["CIK"] = _normalize_cik(filings["CIK"])
         filings["FiledAt"] = pd.to_datetime(filings["FiledAt"], errors="coerce")
         latest_fil = (
             filings.sort_values(["CIK","FiledAt"])
@@ -95,7 +107,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
 
     # latest FDA per CIK/Company (stub mapping: match on CIK first)
     if not fda.empty and "CIK" in fda.columns:
-        fda["CIK"] = fda["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+        fda["CIK"] = _normalize_cik(fda["CIK"])
         fda["DecisionDate"] = pd.to_datetime(fda["DecisionDate"], errors="coerce")
         latest_fda = (
             fda.sort_values(["CIK","DecisionDate"])
