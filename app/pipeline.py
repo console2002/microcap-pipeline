@@ -10,6 +10,7 @@ from app.hydrate import hydrate_candidates
 from app.shortlist import build_shortlist
 from app.lockfile import is_locked, create_lock, clear_lock
 from app.cancel import CancelledRun
+from deep_research import run as deep_research_run
 
 
 def init_logs(cfg: dict):
@@ -403,6 +404,33 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
 
+def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before deep_research")
+
+    data_dir = cfg["Paths"]["data"]
+    cands_path = os.path.join(data_dir, "candidates.csv")
+    if not os.path.exists(cands_path):
+        raise RuntimeError("candidates.csv missing; run hydrate stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "deep_research: start")
+
+    deep_research_run()
+
+    results_path = os.path.join(data_dir, "research_results.csv")
+    if not os.path.exists(results_path):
+        raise RuntimeError("deep research did not create research_results.csv")
+
+    df_results = pd.read_csv(results_path, encoding="utf-8")
+    row_count = len(df_results)
+
+    _log_step(runlog, "deep_research", row_count, t0, "write research_results")
+    _emit(progress_fn, f"deep_research: wrote {row_count} rows")
+
+    return results_path
+
+
 def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
@@ -419,7 +447,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate"]
+    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research"]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -471,7 +499,20 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
         else:
             _emit(progress_fn, "fda: skipped (starting later stage)")
 
-        hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        if start_idx <= stages.index("hydrate"):
+            hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            cands_path = os.path.join(cfg["Paths"]["data"], "candidates.csv")
+            short_path = os.path.join(cfg["Paths"]["data"], "shortlist.csv")
+            if not os.path.exists(cands_path):
+                raise RuntimeError("candidates.csv missing; run hydrate stage first or stage requires it")
+            if not os.path.exists(short_path):
+                raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
+            _emit(progress_fn, "hydrate: skipped (starting later stage)")
+            _emit(progress_fn, "shortlist: skipped (starting later stage)")
+
+        if start_idx <= stages.index("deep_research"):
+            deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn)
 
         _emit(progress_fn, "run_weekly: complete")
 
