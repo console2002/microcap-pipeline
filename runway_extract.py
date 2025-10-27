@@ -1,0 +1,161 @@
+"""Populate cash runway metrics for research results using SEC filings."""
+from __future__ import annotations
+
+import csv
+import os
+from datetime import datetime
+from typing import Dict, Iterable, List, Optional
+
+from deep_research import progress
+
+import parser_10q
+
+
+_RELEVANT_FORM_PREFIXES = ("10-Q", "10-K")
+_DATE_FORMATS = [
+    "%d/%m/%Y %H:%M",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d",
+    "%d/%m/%Y",
+]
+
+
+def _resolve_path(filename: str) -> str:
+    candidates = [filename, os.path.join("data", filename)]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return filename
+
+
+def _read_csv_rows(path: str) -> tuple[List[dict], List[str]]:
+    with open(path, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames or []
+        rows = [dict(row) for row in reader]
+    return rows, fieldnames
+
+
+def _write_csv_rows(path: str, fieldnames: Iterable[str], rows: Iterable[dict]) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def _parse_filed_at(value: str | None) -> Optional[datetime]:
+    if not value:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _is_relevant_form(form: str | None) -> bool:
+    if not form:
+        return False
+    upper = form.upper()
+    return upper.startswith(_RELEVANT_FORM_PREFIXES)
+
+
+def _build_latest_filing_map(filings: Iterable[dict]) -> Dict[str, dict]:
+    latest: Dict[str, dict] = {}
+    for row in filings:
+        cik = (row.get("CIK") or "").strip()
+        if not cik:
+            continue
+        form = (row.get("Form") or "").strip()
+        if not _is_relevant_form(form):
+            continue
+
+        filed_at_raw = row.get("FiledAt")
+        filed_at = _parse_filed_at(filed_at_raw)
+        if filed_at is None:
+            continue
+
+        current = latest.get(cik)
+        if current is None or filed_at > current["filed_at"]:
+            latest[cik] = {
+                "filed_at": filed_at,
+                "filing_url": (row.get("FilingURL") or "").strip(),
+                "form": form,
+            }
+    return latest
+
+
+def _format_numeric(value: Optional[float]) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def run() -> None:
+    research_path = _resolve_path("research_results.csv")
+    filings_path = _resolve_path("filings.csv")
+
+    research_rows, fieldnames = _read_csv_rows(research_path)
+    filings_rows, _ = _read_csv_rows(filings_path)
+
+    latest_filing_map = _build_latest_filing_map(filings_rows)
+
+    output_rows: List[dict] = []
+
+    for row in research_rows:
+        cik = (row.get("CIK") or "").strip()
+        ticker = (row.get("Ticker") or "").strip() or cik or "?"
+
+        cash: Optional[float] = None
+        quarterly_burn: Optional[float] = None
+        runway_quarters: Optional[float] = None
+        note: Optional[str] = None
+
+        filing_info = latest_filing_map.get(cik)
+        if filing_info and filing_info.get("filing_url"):
+            filing_url = filing_info["filing_url"]
+            try:
+                result = parser_10q.get_runway_from_filing(filing_url)
+            except Exception:
+                progress("ERROR", f"{ticker} fetch failed")
+                result = None
+                note = "failed to fetch 10-Q/10-K"
+            else:
+                cash = result.get("cash") if result else None
+                quarterly_burn = result.get("quarterly_burn") if result else None
+                runway_quarters = result.get("runway_quarters") if result else None
+                note = (result.get("note") if result else None) or ""
+        else:
+            note = None
+
+        if not note:
+            note = "no 10-Q/10-K found"
+
+        row["RunwayCash"] = _format_numeric(cash)
+        row["RunwayQuarterlyBurn"] = _format_numeric(quarterly_burn)
+        row["RunwayQuarters"] = _format_numeric(runway_quarters)
+        row["RunwayNotes"] = note
+
+        if runway_quarters is not None:
+            progress("OK", f"{ticker} runway {runway_quarters:.2f} qtrs")
+        else:
+            progress("WARN", f"{ticker} runway missing")
+
+        output_rows.append(row)
+
+    output_dir = os.path.dirname(research_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    output_path = os.path.join(output_dir, "research_results_runway.csv") if output_dir else "research_results_runway.csv"
+    _write_csv_rows(output_path, fieldnames, output_rows)
+    progress("OK", f"Runway extraction complete -> {output_path}")
+
+
+if __name__ == "__main__":
+    run()
