@@ -7,9 +7,31 @@ import re
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
-from deep_research import progress
+from app.config import load_config
+from app.utils import ensure_csv, log_line, utc_now_iso
 
 import parser_10q
+
+
+_PROGRESS_LOG_PATH: str | None = None
+
+
+def _progress_log_path() -> str:
+    global _PROGRESS_LOG_PATH
+    if _PROGRESS_LOG_PATH is None:
+        cfg = load_config()
+        logs_dir = cfg.get("Paths", {}).get("logs", "./logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        path = os.path.join(logs_dir, "progress.csv")
+        ensure_csv(path, ["timestamp", "status", "message"])
+        _PROGRESS_LOG_PATH = path
+    return _PROGRESS_LOG_PATH
+
+
+def progress(status: str, message: str) -> None:
+    path = _progress_log_path()
+    timestamp = utc_now_iso()
+    log_line(path, [timestamp, status, message])
 
 
 _RELEVANT_FORM_PREFIXES = ("10-Q", "10-K")
