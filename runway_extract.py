@@ -213,7 +213,18 @@ def run(data_dir: str | None = None) -> None:
         os.makedirs(output_dir, exist_ok=True)
 
     output_path = os.path.join(output_dir, "research_results_runway.csv") if output_dir else "research_results_runway.csv"
-    _write_csv_rows(output_path, fieldnames, output_rows)
+
+    fieldnames_out = list(fieldnames)
+    for col in [
+        "RunwayCash",
+        "RunwayQuarterlyBurn",
+        "RunwayQuarters",
+        "RunwayNotes",
+    ]:
+        if col not in fieldnames_out:
+            fieldnames_out.append(col)
+
+    _write_csv_rows(output_path, fieldnames_out, output_rows)
     progress("OK", f"Runway extraction complete -> {output_path}")
 
 
