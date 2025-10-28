@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional
 
@@ -70,12 +71,32 @@ def _is_relevant_form(form: str | None) -> bool:
     return upper.startswith(_RELEVANT_FORM_PREFIXES)
 
 
+def _normalize_cik_value(value: object) -> str:
+    if value is None:
+        return ""
+
+    text = str(value).strip()
+    if not text:
+        return ""
+
+    text = re.sub(r"\.0+$", "", text)
+    digits = re.sub(r"\D", "", text)
+    if not digits:
+        return ""
+
+    return digits.zfill(10)
+
+
 def _build_latest_filing_map(filings: Iterable[dict]) -> Dict[str, dict]:
     latest: Dict[str, dict] = {}
     for row in filings:
-        cik = (row.get("CIK") or "").strip()
-        if not cik:
+        cik_normalized = _normalize_cik_value(row.get("CIK"))
+        if not cik_normalized:
             continue
+        cik_keys = {cik_normalized}
+        trimmed = cik_normalized.lstrip("0")
+        if trimmed:
+            cik_keys.add(trimmed)
         form = (row.get("Form") or "").strip()
         if not _is_relevant_form(form):
             continue
@@ -85,13 +106,25 @@ def _build_latest_filing_map(filings: Iterable[dict]) -> Dict[str, dict]:
         if filed_at is None:
             continue
 
-        current = latest.get(cik)
-        if current is None or filed_at > current["filed_at"]:
-            latest[cik] = {
-                "filed_at": filed_at,
-                "filing_url": (row.get("FilingURL") or "").strip(),
-                "form": form,
-            }
+        filing_url = (
+            row.get("FilingURL")
+            or row.get("FilingUrl")
+            or row.get("URL")
+            or row.get("Url")
+            or ""
+        )
+        filing_url = str(filing_url).strip()
+
+        info = {
+            "filed_at": filed_at,
+            "filing_url": filing_url,
+            "form": form,
+        }
+
+        for key in cik_keys:
+            current = latest.get(key)
+            if current is None or filed_at > current["filed_at"]:
+                latest[key] = info
     return latest
 
 
@@ -113,7 +146,7 @@ def run(data_dir: str | None = None) -> None:
     output_rows: List[dict] = []
 
     for row in research_rows:
-        cik = (row.get("CIK") or "").strip()
+        cik = _normalize_cik_value(row.get("CIK"))
         ticker = (row.get("Ticker") or "").strip() or cik or "?"
 
         cash: Optional[float] = None
