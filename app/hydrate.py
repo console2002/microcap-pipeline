@@ -2,6 +2,18 @@ import os
 import pandas as pd
 
 
+def _normalize_cik(series: pd.Series) -> pd.Series:
+    """Normalize CIK values while preserving missing entries."""
+
+    if series.empty:
+        return series
+
+    normalized = series.astype("string").str.strip()
+    normalized = normalized.replace("", pd.NA)
+    normalized = normalized.str.replace(r"\.0+$", "", regex=True)
+    return normalized.str.zfill(10)
+
+
 def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     base = cfg["Paths"]["data"]
 
@@ -36,7 +48,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             text = str(val).strip()
             if text:
                 entries.append(text)
-        return " ; ".join(entries)
+        return "\n".join(entries)
 
     def _combine_unique(series: pd.Series) -> str:
         seen: list[str] = []
@@ -48,11 +60,11 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
                 continue
             if text not in seen:
                 seen.append(text)
-        return " ; ".join(seen)
+        return "\n".join(seen)
 
     # latest filing per CIK, plus aggregate evidence
     if not filings.empty and "CIK" in filings.columns:
-        filings["CIK"] = filings["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+        filings["CIK"] = _normalize_cik(filings["CIK"])
         filings["FiledAt"] = pd.to_datetime(filings["FiledAt"], errors="coerce")
         latest_fil = (
             filings.sort_values(["CIK","FiledAt"])
@@ -71,9 +83,6 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             form_txt = str(row.get("Form", "") or "").strip()
             if form_txt:
                 parts.append(form_txt)
-            title_txt = str(row.get("Title", "") or "").strip()
-            if title_txt:
-                parts.append(title_txt)
             url_txt = str(row.get("URL", "") or "").strip()
             if url_txt:
                 parts.append(url_txt)
@@ -95,7 +104,7 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
 
     # latest FDA per CIK/Company (stub mapping: match on CIK first)
     if not fda.empty and "CIK" in fda.columns:
-        fda["CIK"] = fda["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+        fda["CIK"] = _normalize_cik(fda["CIK"])
         fda["DecisionDate"] = pd.to_datetime(fda["DecisionDate"], errors="coerce")
         latest_fda = (
             fda.sort_values(["CIK","DecisionDate"])
@@ -190,4 +199,12 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
         if col not in cand.columns:
             cand[col] = None
 
-    return cand[wanted_cols]
+    result = cand[wanted_cols].copy()
+
+    if "Ticker" in result.columns:
+        ticker_series = result["Ticker"].astype("string")
+        valid_mask = ticker_series.notna() & ticker_series.str.strip().ne("")
+        result = result.loc[valid_mask].copy()
+        result["Ticker"] = ticker_series.loc[valid_mask].str.strip()
+
+    return result

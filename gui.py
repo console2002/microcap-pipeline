@@ -83,6 +83,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weekly_stage_combo.addItem("Prices", "prices")
         self.weekly_stage_combo.addItem("FDA", "fda")
         self.weekly_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
+        self.weekly_stage_combo.addItem("Deep Research", "deep_research")
+        self.weekly_stage_combo.addItem("Parse Q10", "parse_q10")
 
         self.daily_stage_combo = QtWidgets.QComboBox()
         self.daily_stage_combo.addItem("Prices", "prices")
@@ -94,7 +96,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label = QtWidgets.QLabel("Idle")
         self.status_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        self.status_label.setMinimumContentsLength(60)
+        # PySide6's QLabel does not expose setMinimumContentsLength, so approximate
+        # the same behavior by setting a minimum width based on character width.
+        min_width = self.status_label.fontMetrics().horizontalAdvance("M") * 60
+        self.status_label.setMinimumWidth(min_width)
         self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
         self.log_tail = QtWidgets.QPlainTextEdit()

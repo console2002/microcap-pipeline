@@ -1,4 +1,5 @@
 import os, time, pandas as pd
+import runway_extract
 from app.config import load_config
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
@@ -10,6 +11,7 @@ from app.hydrate import hydrate_candidates
 from app.shortlist import build_shortlist
 from app.lockfile import is_locked, create_lock, clear_lock
 from app.cancel import CancelledRun
+from deep_research import run as deep_research_run
 
 
 def init_logs(cfg: dict):
@@ -131,6 +133,18 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
     df_prof = pd.DataFrame(prof_rows)
 
+    if not df_prof.empty:
+        df_prof = df_prof.copy()
+
+        obj_cols = df_prof.select_dtypes(include=["object", "string"]).columns
+        for col in obj_cols:
+            df_prof[col] = df_prof[col].apply(
+                lambda val: val.strip() if isinstance(val, str) else val
+            )
+            df_prof[col] = df_prof[col].replace("", pd.NA)
+
+        df_prof = df_prof.dropna()
+
     rows_added = append_antijoin_purge(
         cfg, "profiles", df_prof,
         key_cols=["Ticker"],
@@ -228,16 +242,22 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         if "Company" in df_fil.columns:
             df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
 
-    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Title","URL","Accession"]
+    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","URL"]
     for col in expected_cols:
         if col not in df_fil.columns:
             df_fil[col] = pd.Series(dtype="object")
 
     key_cols = ["CIK"]
-    if "Accession" in df_fil.columns:
-        key_cols.append("Accession")
-    elif "URL" in df_fil.columns:
+    url_present = False
+    if "URL" in df_fil.columns:
+        url_series = df_fil["URL"].fillna("").astype(str).str.strip()
+        df_fil["URL"] = url_series
+        url_present = url_series.ne("").any()
+
+    if url_present:
         key_cols.append("URL")
+    else:
+        key_cols.extend(["Form","FiledAt","Ticker"])
 
     rows_added = append_antijoin_purge(
         cfg, "filings", df_fil,
@@ -397,6 +417,65 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
 
+def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before deep_research")
+
+    data_dir = cfg["Paths"]["data"]
+    short_path = os.path.join(data_dir, "shortlist.csv")
+    if not os.path.exists(short_path):
+        raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "deep_research: start")
+
+    deep_research_run(data_dir)
+
+    results_path = os.path.join(data_dir, "research_results.csv")
+    if not os.path.exists(results_path):
+        raise RuntimeError("deep research did not create research_results.csv")
+
+    df_results = pd.read_csv(results_path, encoding="utf-8")
+    row_count = len(df_results)
+
+    _log_step(runlog, "deep_research", row_count, t0, "write research_results")
+    _emit(progress_fn, f"deep_research: wrote {row_count} rows")
+
+    return results_path
+
+
+def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before parse_q10")
+
+    data_dir = cfg["Paths"]["data"]
+    research_path = os.path.join(data_dir, "research_results.csv")
+    filings_path = os.path.join(data_dir, "filings.csv")
+
+    if not os.path.exists(research_path):
+        raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+
+    if not os.path.exists(filings_path):
+        raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "parse_q10: start")
+
+    runway_extract.run(data_dir=data_dir)
+
+    runway_path = os.path.join(data_dir, "research_results_runway.csv")
+    row_count = 0
+    if os.path.exists(runway_path):
+        try:
+            df_runway = pd.read_csv(runway_path, encoding="utf-8")
+            row_count = len(df_runway)
+        except Exception as exc:
+            _log_err(errlog, "parse_q10", f"failed to read output CSV: {exc}")
+
+    _log_step(runlog, "parse_q10", row_count, t0, "write research_results_runway")
+    _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
+
+
 def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
@@ -413,7 +492,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate"]
+    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research", "parse_q10"]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -465,7 +544,24 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
         else:
             _emit(progress_fn, "fda: skipped (starting later stage)")
 
-        hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        if start_idx <= stages.index("hydrate"):
+            hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            short_path = os.path.join(cfg["Paths"]["data"], "shortlist.csv")
+            if not os.path.exists(short_path):
+                raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
+            _emit(progress_fn, "hydrate: skipped (starting later stage)")
+            _emit(progress_fn, "shortlist: skipped (starting later stage)")
+
+        if start_idx <= stages.index("deep_research"):
+            deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            results_path = os.path.join(cfg["Paths"]["data"], "research_results.csv")
+            if not os.path.exists(results_path):
+                raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+
+        if start_idx <= stages.index("parse_q10"):
+            parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
 
         _emit(progress_fn, "run_weekly: complete")
 
