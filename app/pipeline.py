@@ -1,5 +1,6 @@
 import os, time, pandas as pd
 import runway_extract
+from app import dr_populate
 from app.config import load_config
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
@@ -489,6 +490,44 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
+def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before dr_populate")
+
+    data_dir = cfg["Paths"]["data"]
+    runway_path = os.path.join(data_dir, "research_results_runway.csv")
+    filings_path = os.path.join(data_dir, "filings.csv")
+
+    if not os.path.exists(runway_path):
+        raise RuntimeError("research_results_runway.csv missing; run parse_q10 stage first or stage requires it")
+
+    if not os.path.exists(filings_path):
+        raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "dr_populate: start")
+
+    callback = None
+    if progress_fn is not None:
+        callback = lambda status, message: progress_fn(
+            f"dr_populate [{status}] {message}"
+        )
+
+    dr_populate.run(data_dir=data_dir, progress_callback=callback)
+
+    full_path = os.path.join(data_dir, "research_results_full.csv")
+    row_count = 0
+    if os.path.exists(full_path):
+        try:
+            df_full = pd.read_csv(full_path, encoding="utf-8")
+            row_count = len(df_full)
+        except Exception as exc:
+            _log_err(errlog, "dr_populate", f"failed to read output CSV: {exc}")
+
+    _log_step(runlog, "dr_populate", row_count, t0, "write research_results_full")
+    _emit(progress_fn, f"dr_populate: wrote {row_count} rows")
+
+
 def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
@@ -505,7 +544,7 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research", "parse_q10"]
+    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research", "parse_q10", "dr_populate"]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -575,6 +614,17 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
 
         if start_idx <= stages.index("parse_q10"):
             parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            runway_path = os.path.join(cfg["Paths"]["data"], "research_results_runway.csv")
+            if not os.path.exists(runway_path):
+                raise RuntimeError("research_results_runway.csv missing; run parse_q10 stage first or stage requires it")
+
+        if start_idx <= stages.index("dr_populate"):
+            dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            full_path = os.path.join(cfg["Paths"]["data"], "research_results_full.csv")
+            if not os.path.exists(full_path):
+                raise RuntimeError("research_results_full.csv missing; run dr_populate stage first or stage requires it")
 
         _emit(progress_fn, "run_weekly: complete")
 
