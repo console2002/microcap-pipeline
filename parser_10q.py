@@ -7,6 +7,27 @@ from urllib import request
 from urllib.error import HTTPError, URLError
 
 
+_USER_AGENT: str | None = None
+
+
+def _user_agent() -> str:
+    global _USER_AGENT
+    if _USER_AGENT is None:
+        try:
+            from app.config import load_config
+
+            cfg = load_config()
+            user_agent = str(cfg.get("UserAgent", "")).strip()
+        except Exception:
+            user_agent = ""
+
+        if not user_agent:
+            user_agent = "microcap-pipeline/1.0"
+
+        _USER_AGENT = user_agent
+    return _USER_AGENT
+
+
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
 _NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
 
@@ -72,7 +93,8 @@ def _strip_html(html_text: str) -> str:
 def get_runway_from_filing(filing_url: str) -> dict:
     """Fetch a filing URL and estimate the cash runway metrics."""
     try:
-        with request.urlopen(filing_url) as response:
+        req = request.Request(filing_url, headers={"User-Agent": _user_agent()})
+        with request.urlopen(req) as response:
             raw_bytes = response.read()
     except HTTPError as exc:
         raise RuntimeError(
