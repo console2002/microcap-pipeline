@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from typing import Iterable, Optional
 from urllib import request
+from urllib.error import HTTPError, URLError
 
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
@@ -70,8 +71,21 @@ def _strip_html(html_text: str) -> str:
 
 def get_runway_from_filing(filing_url: str) -> dict:
     """Fetch a filing URL and estimate the cash runway metrics."""
-    with request.urlopen(filing_url) as response:
-        raw_bytes = response.read()
+    try:
+        with request.urlopen(filing_url) as response:
+            raw_bytes = response.read()
+    except HTTPError as exc:
+        raise RuntimeError(
+            f"HTTP error fetching filing ({exc.code}): {filing_url}"
+        ) from exc
+    except URLError as exc:
+        raise RuntimeError(
+            f"URL error fetching filing ({exc.reason}): {filing_url}"
+        ) from exc
+    except Exception as exc:
+        raise RuntimeError(
+            f"Unexpected error fetching filing: {filing_url} ({exc.__class__.__name__}: {exc})"
+        ) from exc
     html_text = raw_bytes.decode("utf-8", errors="ignore")
     text = _strip_html(html_text)
 

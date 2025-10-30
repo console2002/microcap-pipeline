@@ -189,6 +189,7 @@ def run(data_dir: str | None = None) -> None:
     for row in research_rows:
         cik = _normalize_cik_value(row.get("CIK"))
         ticker = (row.get("Ticker") or "").strip() or cik or "?"
+        catalyst_link = (row.get("CatalystPrimaryLink") or "").strip()
 
         cash: Optional[float] = None
         quarterly_burn: Optional[float] = None
@@ -198,12 +199,26 @@ def run(data_dir: str | None = None) -> None:
         filing_info = latest_filing_map.get(cik)
         if filing_info and filing_info.get("filing_url"):
             filing_url = filing_info["filing_url"]
+            filed_at_dt = filing_info.get("filed_at")
+            filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
+            form_name = filing_info.get("form") or "?"
+            progress(
+                "INFO",
+                f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}",
+            )
             try:
                 result = parser_10q.get_runway_from_filing(filing_url)
-            except Exception:
-                progress("ERROR", f"{ticker} fetch failed")
+            except Exception as exc:
+                error_msg = (
+                    f"{ticker} fetch failed: {exc.__class__.__name__}: {exc} "
+                    f"(url: {filing_url}; catalyst_link: {catalyst_link or 'n/a'})"
+                )
+                progress("ERROR", error_msg)
                 result = None
-                note = "failed to fetch 10-Q/10-K"
+                note = (
+                    "failed to fetch 10-Q/10-K "
+                    f"({exc.__class__.__name__}: {exc}) – {filing_url}"
+                )
             else:
                 cash = result.get("cash") if result else None
                 quarterly_burn = result.get("quarterly_burn") if result else None
@@ -211,6 +226,19 @@ def run(data_dir: str | None = None) -> None:
                 note = (result.get("note") if result else None) or ""
         else:
             note = None
+            if filing_info:
+                filed_at_dt = filing_info.get("filed_at")
+                filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
+                form_name = filing_info.get("form") or "?"
+                progress(
+                    "WARN",
+                    f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
+                )
+            else:
+                progress(
+                    "WARN",
+                    f"{ticker} no recent 10-Q/10-K filing in filings.csv (CIK {cik or 'n/a'})",
+                )
 
         if not note:
             note = "no 10-Q/10-K found"
