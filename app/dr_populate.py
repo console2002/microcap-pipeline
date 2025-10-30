@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Iterable, Optional
 
 import pandas as pd
@@ -296,7 +296,7 @@ def run(data_dir: str | None = None, progress_callback: ProgressCallback = None)
         if col not in df_runway.columns:
             df_runway[col] = pd.NA
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     days_back = int(cfg.get("Windows", {}).get("DaysBack_Filings", 60) or 60)
     cutoff = now - timedelta(days=days_back)
 
