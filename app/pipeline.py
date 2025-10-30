@@ -461,7 +461,20 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "parse_q10: start")
 
-    runway_extract.run(data_dir=data_dir)
+    callback = None
+    if progress_fn is not None:
+        callback = lambda status, message: progress_fn(
+            f"parse_q10 [{status}] {message}"
+        )
+
+    if callback:
+        runway_extract.set_progress_callback(callback)
+
+    try:
+        runway_extract.run(data_dir=data_dir)
+    finally:
+        if callback:
+            runway_extract.set_progress_callback(None)
 
     runway_path = os.path.join(data_dir, "research_results_runway.csv")
     row_count = 0

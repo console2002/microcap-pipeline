@@ -5,12 +5,15 @@ import csv
 import os
 import re
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 import parser_10q
+
+
+_PROGRESS_CALLBACK: Callable[[str, str], None] | None = None
 
 
 _PROGRESS_LOG_PATH: str | None = None
@@ -28,10 +31,22 @@ def _progress_log_path() -> str:
     return _PROGRESS_LOG_PATH
 
 
+def set_progress_callback(callback: Callable[[str, str], None] | None) -> None:
+    """Register an optional in-memory progress callback."""
+    global _PROGRESS_CALLBACK
+    _PROGRESS_CALLBACK = callback
+
+
 def progress(status: str, message: str) -> None:
     path = _progress_log_path()
     timestamp = utc_now_iso()
     log_line(path, [timestamp, status, message])
+    if _PROGRESS_CALLBACK is not None:
+        try:
+            _PROGRESS_CALLBACK(status, message)
+        except Exception:
+            # never allow GUI callbacks to break disk logging
+            pass
 
 
 _RELEVANT_FORM_PREFIXES = ("10-Q", "10-K")
