@@ -1,13 +1,17 @@
 """Parser for extracting cash runway metrics from 10-Q/10-K filings."""
 from __future__ import annotations
 
+import json
 import re
 from typing import Iterable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 _USER_AGENT: str | None = None
+
+_ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
 
 
 def _user_agent() -> str:
@@ -26,6 +30,29 @@ def _user_agent() -> str:
 
         _USER_AGENT = user_agent
     return _USER_AGENT
+
+
+def _fetch_url(url: str) -> bytes:
+    req = request.Request(url, headers={"User-Agent": _user_agent()})
+    with request.urlopen(req) as response:
+        return response.read()
+
+
+def _fetch_json(url: str) -> dict:
+    try:
+        raw = _fetch_url(url)
+    except HTTPError as exc:
+        raise RuntimeError(f"HTTP error fetching JSON ({exc.code}): {url}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"URL error fetching JSON ({exc.reason}): {url}") from exc
+    except Exception as exc:
+        raise RuntimeError(
+            f"Unexpected error fetching JSON: {url} ({exc.__class__.__name__}: {exc})"
+        ) from exc
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON from {url}: {exc}") from exc
 
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
@@ -90,12 +117,155 @@ def _strip_html(html_text: str) -> str:
     return normalized
 
 
+def _normalize_digits(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    return digits
+
+
+def _extract_filing_identifiers(filing_url: str) -> tuple[Optional[str], Optional[str]]:
+    parsed = urlparse(filing_url)
+    path = parsed.path or ""
+    query = parse_qs(parsed.query)
+    doc_path = path
+    if "doc" in query and query["doc"]:
+        doc_path = query["doc"][0]
+    doc_path = unquote(doc_path)
+
+    match = _ACCESSION_RE.search(doc_path)
+    if not match:
+        match = _ACCESSION_RE.search(path)
+    if not match:
+        return None, None
+
+    cik_digits = _normalize_digits(match.group(1))
+    accession_digits = _normalize_digits(match.group(2))
+    if not cik_digits or not accession_digits:
+        return None, None
+
+    cik_padded = cik_digits.zfill(10)
+    if len(accession_digits) < 18:
+        accession_digits = accession_digits.zfill(18)
+    accession = f"{accession_digits[:10]}-{accession_digits[10:12]}-{accession_digits[12:]}"
+    return cik_padded, accession
+
+
+def _extract_fact_value(units: dict, accession: str) -> Optional[float]:
+    for unit_name in ["USD", "USD ", "USD millions", "USDm", "USD $", "USD $ millions"]:
+        facts = units.get(unit_name)
+        if not facts:
+            continue
+        for fact in facts:
+            if accession and fact.get("accn") != accession:
+                continue
+            val = fact.get("val")
+            if isinstance(val, (int, float)):
+                return float(val)
+    # fallback to any unit if accession match not found
+    if accession:
+        for facts in units.values():
+            for fact in facts:
+                if fact.get("accn") == accession:
+                    val = fact.get("val")
+                    if isinstance(val, (int, float)):
+                        return float(val)
+    return None
+
+
+def _fetch_xbrl_value(cik: str, accession: str, concept: str) -> Optional[float]:
+    base_url = "https://data.sec.gov/api/xbrl/companyconcept"
+    url = f"{base_url}/CIK{cik}/us-gaap/{concept}.json"
+    data = _fetch_json(url)
+    units = data.get("units") or {}
+    value = _extract_fact_value(units, accession)
+    return value
+
+
+def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
+    cik, accession = _extract_filing_identifiers(filing_url)
+    if not cik or not accession:
+        return None
+
+    cash = None
+    cash_concepts = [
+        "CashAndCashEquivalentsAtCarryingValue",
+        "CashAndCashEquivalents",
+        "CashAndCashEquivalentsAndShortTermInvestments",
+        "CashAndCashEquivalentsIncludingRestrictedCashCurrent",
+    ]
+    errors: list[str] = []
+
+    for concept in cash_concepts:
+        try:
+            cash = _fetch_xbrl_value(cik, accession, concept)
+        except Exception as exc:
+            errors.append(f"{concept}: {exc}")
+            continue
+        if cash is not None:
+            break
+
+    burn = None
+    burn_concepts = [
+        "NetCashProvidedByUsedInOperatingActivities",
+        "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+        "NetCashProvidedByUsedInOperatingActivitiesExcludingDiscontinuedOperations",
+        "NetCashProvidedByUsedInOperatingActivitiesConverted",
+    ]
+    for concept in burn_concepts:
+        try:
+            burn = _fetch_xbrl_value(cik, accession, concept)
+        except Exception as exc:
+            errors.append(f"{concept}: {exc}")
+            continue
+        if burn is not None:
+            break
+
+    if cash is None and burn is None:
+        if errors:
+            raise RuntimeError("; ".join(errors))
+        return None
+
+    quarterly_burn: Optional[float]
+    if burn is None:
+        quarterly_burn = None
+    else:
+        quarterly_burn = abs(float(burn))
+        if quarterly_burn == 0:
+            quarterly_burn = 0.0
+
+    runway_quarters: Optional[float]
+    if cash is not None and quarterly_burn not in (None, 0.0):
+        runway_quarters = float(cash) / float(quarterly_burn)
+    else:
+        runway_quarters = None
+
+    result = {
+        "cash": float(cash) if cash is not None else None,
+        "quarterly_burn": quarterly_burn,
+        "runway_quarters": runway_quarters,
+        "note": f"values parsed from XBRL: {filing_url}",
+    }
+    if cash is None or burn is None:
+        result["note"] += " (partial XBRL data)"
+    return result
+
+
 def get_runway_from_filing(filing_url: str) -> dict:
     """Fetch a filing URL and estimate the cash runway metrics."""
+
+    xbrl_result: Optional[dict] = None
+    xbrl_error: Optional[str] = None
     try:
-        req = request.Request(filing_url, headers={"User-Agent": _user_agent()})
-        with request.urlopen(req) as response:
-            raw_bytes = response.read()
+        xbrl_result = _derive_from_xbrl(filing_url)
+    except Exception as exc:
+        xbrl_error = f"XBRL parse failed ({exc.__class__.__name__}: {exc})"
+
+    if xbrl_result:
+        if xbrl_error:
+            xbrl_result["note"] = f"{xbrl_result['note']} (with warning: {xbrl_error})"
+        return xbrl_result
+
+    try:
+        raw_bytes = _fetch_url(filing_url)
     except HTTPError as exc:
         raise RuntimeError(
             f"HTTP error fetching filing ({exc.code}): {filing_url}"
@@ -150,13 +320,15 @@ def get_runway_from_filing(filing_url: str) -> dict:
     else:
         runway_quarters = None
 
-    note = f"values parsed from 10-Q/10-K: {filing_url}"
+    note_parts = [f"values parsed from 10-Q/10-K HTML: {filing_url}"]
+    if xbrl_error:
+        note_parts.append(xbrl_error)
 
     return {
         "cash": cash,
         "quarterly_burn": quarterly_burn,
         "runway_quarters": runway_quarters,
-        "note": note,
+        "note": "; ".join(note_parts),
     }
 
 
