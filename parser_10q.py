@@ -184,8 +184,11 @@ def _parse_fact_timestamp(value: object) -> Optional[datetime]:
     return None
 
 
-def _select_best_fact(facts: Iterable[dict], accession: str) -> Optional[float]:
+def _select_best_fact(
+    facts: Iterable[dict], accession: str
+) -> tuple[Optional[float], Optional[str]]:
     best_value: Optional[float] = None
+    best_form: Optional[str] = None
     best_key: tuple[int, datetime, int] | None = None
     for fact in facts:
         val = fact.get("val")
@@ -207,35 +210,41 @@ def _select_best_fact(facts: Iterable[dict], accession: str) -> Optional[float]:
         if best_key is None or key > best_key:
             best_key = key
             best_value = float(val)
-    return best_value
+            form_text = (fact.get("form") or "").strip()
+            best_form = form_text or None
+    return best_value, best_form
 
 
-def _extract_fact_value(units: dict, accession: str) -> Optional[float]:
+def _extract_fact_value(
+    units: dict, accession: str
+) -> tuple[Optional[float], Optional[str]]:
     preferred_units = ["USD", "USD ", "USD millions", "USDm", "USD $", "USD $ millions"]
     for unit_name in preferred_units:
         facts = units.get(unit_name)
         if not facts:
             continue
-        value = _select_best_fact(facts, accession)
+        value, form = _select_best_fact(facts, accession)
         if value is not None:
-            return value
+            return value, form
 
     # fallback to any available facts, preferring matching accession / newest data
     all_facts: list[dict] = []
     for facts in units.values():
         all_facts.extend(facts)
     if not all_facts:
-        return None
+        return None, None
     return _select_best_fact(all_facts, accession)
 
 
-def _fetch_xbrl_value(cik: str, accession: str, concept: str) -> Optional[float]:
+def _fetch_xbrl_value(
+    cik: str, accession: str, concept: str
+) -> tuple[Optional[float], Optional[str]]:
     base_url = "https://data.sec.gov/api/xbrl/companyconcept"
     url = f"{base_url}/CIK{cik}/us-gaap/{concept}.json"
     data = _fetch_json(url)
     units = data.get("units") or {}
-    value = _extract_fact_value(units, accession)
-    return value
+    value, form = _extract_fact_value(units, accession)
+    return value, form
 
 
 def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
@@ -244,6 +253,7 @@ def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
         return None
 
     cash = None
+    cash_form: Optional[str] = None
     cash_concepts = [
         "CashAndCashEquivalentsAtCarryingValue",
         "CashAndCashEquivalents",
@@ -254,14 +264,17 @@ def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
 
     for concept in cash_concepts:
         try:
-            cash = _fetch_xbrl_value(cik, accession, concept)
+            cash_value, value_form = _fetch_xbrl_value(cik, accession, concept)
         except Exception as exc:
             errors.append(f"{concept}: {exc}")
             continue
-        if cash is not None:
+        if cash_value is not None:
+            cash = float(cash_value)
+            cash_form = value_form or cash_form
             break
 
     burn = None
+    burn_form: Optional[str] = None
     burn_concepts = [
         "NetCashProvidedByUsedInOperatingActivities",
         "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
@@ -270,11 +283,13 @@ def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
     ]
     for concept in burn_concepts:
         try:
-            burn = _fetch_xbrl_value(cik, accession, concept)
+            burn_value, value_form = _fetch_xbrl_value(cik, accession, concept)
         except Exception as exc:
             errors.append(f"{concept}: {exc}")
             continue
-        if burn is not None:
+        if burn_value is not None:
+            burn = float(burn_value)
+            burn_form = value_form or burn_form
             break
 
     if cash is None and burn is None:
@@ -290,6 +305,14 @@ def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
         if quarterly_burn == 0:
             quarterly_burn = 0.0
 
+    form_type = (burn_form or cash_form or "").strip()
+    if (
+        form_type
+        and quarterly_burn is not None
+        and form_type.upper().startswith("10-K")
+    ):
+        quarterly_burn = quarterly_burn / 4.0
+
     runway_quarters: Optional[float]
     if cash is not None and quarterly_burn not in (None, 0.0):
         runway_quarters = float(cash) / float(quarterly_burn)
@@ -297,9 +320,9 @@ def _derive_from_xbrl(filing_url: str) -> Optional[dict]:
         runway_quarters = None
 
     result = {
-        "cash": float(cash) if cash is not None else None,
-        "quarterly_burn": quarterly_burn,
-        "runway_quarters": runway_quarters,
+        "cash": round(cash, 2) if cash is not None else None,
+        "quarterly_burn": round(quarterly_burn, 2) if quarterly_burn is not None else None,
+        "runway_quarters": round(runway_quarters, 2) if runway_quarters is not None else None,
         "note": f"values parsed from XBRL: {filing_url}",
     }
     if cash is None or burn is None:
@@ -339,6 +362,11 @@ def get_runway_from_filing(filing_url: str) -> dict:
     html_text = raw_bytes.decode("utf-8", errors="ignore")
     text = _strip_html(html_text)
 
+    form_type: Optional[str] = None
+    form_match = re.search(r"\bFORM\s+(10-[A-Z0-9/-]+)", text[:1000], re.IGNORECASE)
+    if form_match:
+        form_type = form_match.group(1).strip().upper() or None
+
     cash_keywords = [
         "Cash and cash equivalents",
         "Cash and cash equivalents, end of period",
@@ -369,6 +397,14 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     cash = float(cash_value) if cash_value is not None else None
 
+    if (
+        form_type
+        and quarterly_burn is not None
+        and quarterly_burn > 0
+        and form_type.upper().startswith("10-K")
+    ):
+        quarterly_burn = quarterly_burn / 4.0
+
     if quarterly_burn is not None and quarterly_burn <= 0:
         quarterly_burn = None
 
@@ -383,9 +419,9 @@ def get_runway_from_filing(filing_url: str) -> dict:
         note_parts.append(xbrl_error)
 
     return {
-        "cash": cash,
-        "quarterly_burn": quarterly_burn,
-        "runway_quarters": runway_quarters,
+        "cash": round(cash, 2) if cash is not None else None,
+        "quarterly_burn": round(quarterly_burn, 2) if quarterly_burn is not None else None,
+        "runway_quarters": round(runway_quarters, 2) if runway_quarters is not None else None,
         "note": "; ".join(note_parts),
     }
 
