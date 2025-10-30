@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 _USER_AGENT: str | None = None
 
-_ACCESSION_RE = re.compile(r"/data/(\d{1,10})/(\d{10,})/", re.IGNORECASE)
+_ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
 
 
 def _user_agent() -> str:
