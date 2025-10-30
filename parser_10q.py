@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -166,14 +166,21 @@ def _parse_fact_timestamp(value: object) -> Optional[datetime]:
     if normalized.endswith("Z"):
         normalized = normalized[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(normalized)
+        parsed = datetime.fromisoformat(normalized)
     except ValueError:
         pass
+    else:
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     for fmt in _FACT_DATE_FORMATS:
         try:
-            return datetime.strptime(text, fmt)
+            parsed = datetime.strptime(text, fmt)
         except ValueError:
             continue
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     return None
 
 
@@ -190,7 +197,7 @@ def _select_best_fact(facts: Iterable[dict], accession: str) -> Optional[float]:
             fact.get("end") or fact.get("filed") or fact.get("instant")
         )
         if end_dt is None:
-            end_dt = datetime.min
+            end_dt = datetime.min.replace(tzinfo=timezone.utc)
         fy_value = fact.get("fy")
         try:
             fy_score = int(fy_value)
