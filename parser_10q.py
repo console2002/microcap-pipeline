@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 from typing import Iterable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -57,6 +58,12 @@ def _fetch_json(url: str) -> dict:
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
 _NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
+_FACT_DATE_FORMATS = [
+    "%Y-%m-%d",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%SZ",
+    "%Y-%m-%d %H:%M:%S",
+]
 
 
 def _to_float(num_str: str) -> float:
@@ -149,26 +156,70 @@ def _extract_filing_identifiers(filing_url: str) -> tuple[Optional[str], Optiona
     return cik_padded, accession
 
 
+def _parse_fact_timestamp(value: object) -> Optional[datetime]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    normalized = text
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError:
+        pass
+    for fmt in _FACT_DATE_FORMATS:
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _select_best_fact(facts: Iterable[dict], accession: str) -> Optional[float]:
+    best_value: Optional[float] = None
+    best_key: tuple[int, datetime, int] | None = None
+    for fact in facts:
+        val = fact.get("val")
+        if not isinstance(val, (int, float)):
+            continue
+        fact_accn = (fact.get("accn") or "").strip()
+        match_score = 1 if accession and fact_accn == accession else 0
+        end_dt = _parse_fact_timestamp(
+            fact.get("end") or fact.get("filed") or fact.get("instant")
+        )
+        if end_dt is None:
+            end_dt = datetime.min
+        fy_value = fact.get("fy")
+        try:
+            fy_score = int(fy_value)
+        except (TypeError, ValueError):
+            fy_score = 0
+        key = (match_score, end_dt, fy_score)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_value = float(val)
+    return best_value
+
+
 def _extract_fact_value(units: dict, accession: str) -> Optional[float]:
-    for unit_name in ["USD", "USD ", "USD millions", "USDm", "USD $", "USD $ millions"]:
+    preferred_units = ["USD", "USD ", "USD millions", "USDm", "USD $", "USD $ millions"]
+    for unit_name in preferred_units:
         facts = units.get(unit_name)
         if not facts:
             continue
-        for fact in facts:
-            if accession and fact.get("accn") != accession:
-                continue
-            val = fact.get("val")
-            if isinstance(val, (int, float)):
-                return float(val)
-    # fallback to any unit if accession match not found
-    if accession:
-        for facts in units.values():
-            for fact in facts:
-                if fact.get("accn") == accession:
-                    val = fact.get("val")
-                    if isinstance(val, (int, float)):
-                        return float(val)
-    return None
+        value = _select_best_fact(facts, accession)
+        if value is not None:
+            return value
+
+    # fallback to any available facts, preferring matching accession / newest data
+    all_facts: list[dict] = []
+    for facts in units.values():
+        all_facts.extend(facts)
+    if not all_facts:
+        return None
+    return _select_best_fact(all_facts, accession)
 
 
 def _fetch_xbrl_value(cik: str, accession: str, concept: str) -> Optional[float]:
