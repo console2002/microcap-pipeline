@@ -156,9 +156,16 @@ def _build_filing_map(df: pd.DataFrame, cutoff: datetime) -> dict[str, list[Fili
 
     df = df.copy()
     df["CIK_norm"] = df["CIK"].apply(_normalize_cik)
-    df["FiledAt_dt"] = pd.to_datetime(df["FiledAt"], errors="coerce")
+    df["FiledAt_dt"] = pd.to_datetime(df["FiledAt"], errors="coerce", utc=True)
     df = df.dropna(subset=["CIK_norm", "FiledAt_dt"])
-    df = df[df["FiledAt_dt"] >= cutoff]
+
+    cutoff_ts = pd.Timestamp(cutoff)
+    if cutoff_ts.tzinfo is None:
+        cutoff_ts = cutoff_ts.tz_localize("UTC")
+    else:
+        cutoff_ts = cutoff_ts.tz_convert("UTC")
+
+    df = df[df["FiledAt_dt"] >= cutoff_ts]
     if df.empty:
         return {}
 
