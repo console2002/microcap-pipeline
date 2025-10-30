@@ -201,7 +201,24 @@ def run(data_dir: str | None = None) -> None:
 
     output_rows: List[dict] = []
 
-    for row in research_rows:
+    total_rows = len(research_rows)
+    last_progress_pct = -1
+
+    def emit_progress(current: int, ticker: str | None = None) -> None:
+        nonlocal last_progress_pct
+        if total_rows <= 0:
+            return
+        pct = int(round((current / total_rows) * 100))
+        pct = max(0, min(100, pct))
+        if pct == last_progress_pct:
+            return
+        last_progress_pct = pct
+        detail = f" processed {ticker}" if ticker else ""
+        progress("PROGRESS", f"({pct}%) parse_q10{detail}")
+
+    emit_progress(0)
+
+    for index, row in enumerate(research_rows, start=1):
         cik = _normalize_cik_value(row.get("CIK"))
         ticker = (row.get("Ticker") or "").strip() or cik or "?"
         catalyst_link = (row.get("CatalystPrimaryLink") or "").strip()
@@ -239,21 +256,21 @@ def run(data_dir: str | None = None) -> None:
                 quarterly_burn = result.get("quarterly_burn") if result else None
                 runway_quarters = result.get("runway_quarters") if result else None
                 note = (result.get("note") if result else None) or ""
+        elif filing_info:
+            note = None
+            filed_at_dt = filing_info.get("filed_at")
+            filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
+            form_name = filing_info.get("form") or "?"
+            progress(
+                "WARN",
+                f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
+            )
         else:
             note = None
-            if filing_info:
-                filed_at_dt = filing_info.get("filed_at")
-                filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
-                form_name = filing_info.get("form") or "?"
-                progress(
-                    "WARN",
-                    f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
-                )
-            else:
-                progress(
-                    "WARN",
-                    f"{ticker} no recent 10-Q/10-K filing in filings.csv (CIK {cik or 'n/a'})",
-                )
+            progress(
+                "WARN",
+                f"{ticker} no recent 10-Q/10-K filing in filings.csv (CIK {cik or 'n/a'})",
+            )
 
         if not note:
             note = "no 10-Q/10-K found"
@@ -269,6 +286,8 @@ def run(data_dir: str | None = None) -> None:
             progress("WARN", f"{ticker} runway missing")
 
         output_rows.append(row)
+
+        emit_progress(index, ticker)
 
     output_dir = data_dir or os.path.dirname(research_path)
     if output_dir and not os.path.exists(output_dir):
@@ -288,6 +307,7 @@ def run(data_dir: str | None = None) -> None:
 
     _write_csv_rows(output_path, fieldnames_out, output_rows)
     progress("OK", f"Runway extraction complete -> {output_path}")
+    emit_progress(total_rows or 0)
 
 
 if __name__ == "__main__":
