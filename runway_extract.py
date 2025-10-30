@@ -40,8 +40,14 @@ _DATE_FORMATS = [
     "%Y-%m-%d %H:%M",
     "%Y-%m-%d",
     "%d/%m/%Y",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S.%f",
 ]
 
+
+_ISO_TZ_RE = re.compile(r"([+-]\d{2})(\d{2})$")
 
 def _resolve_path(filename: str, base_dir: str | None = None) -> str:
     candidates = []
@@ -78,6 +84,19 @@ def _parse_filed_at(value: str | None) -> Optional[datetime]:
     text = value.strip()
     if not text:
         return None
+
+    normalized = text
+    if normalized.endswith("Z") or normalized.endswith("z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    normalized = _ISO_TZ_RE.sub(lambda m: f"{m.group(1)}:{m.group(2)}", normalized)
+    normalized = re.sub(r"\s+[A-Za-z]{2,5}$", "", normalized)
+
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError:
+        pass
+
     for fmt in _DATE_FORMATS:
         try:
             return datetime.strptime(text, fmt)
