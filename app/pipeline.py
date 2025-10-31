@@ -1,6 +1,7 @@
 import os, time, pandas as pd
 import runway_extract
 from app import dr_populate
+from app.build_watchlist import run as build_watchlist_run
 from app.config import load_config
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
@@ -528,6 +529,32 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"dr_populate: wrote {row_count} rows")
 
 
+def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before build_watchlist")
+
+    data_dir = cfg["Paths"]["data"]
+    t0 = time.time()
+    _emit(progress_fn, "build_watchlist: start")
+
+    rows_written, status = build_watchlist_run(
+        data_dir=data_dir,
+        progress_fn=progress_fn,
+        stop_flag=stop_flag,
+    )
+
+    if status == "missing_source":
+        _emit(progress_fn, "build_watchlist: research_results_full.csv missing")
+        _log_err(errlog, "build_watchlist", "research_results_full.csv not found")
+        return 0
+
+    if status == "stopped":
+        raise CancelledRun("cancel during build_watchlist")
+
+    _log_step(runlog, "build_watchlist", rows_written, t0, "write validated_watchlist")
+    return rows_written
+
+
 def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
@@ -544,7 +571,18 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
     create_lock(cfg, "weekly")
     client = make_client(cfg)
 
-    stages = ["universe", "profiles", "filings", "prices", "fda", "hydrate", "deep_research", "parse_q10", "dr_populate"]
+    stages = [
+        "universe",
+        "profiles",
+        "filings",
+        "prices",
+        "fda",
+        "hydrate",
+        "deep_research",
+        "parse_q10",
+        "dr_populate",
+        "build_watchlist",
+    ]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
 
@@ -625,6 +663,13 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             full_path = os.path.join(cfg["Paths"]["data"], "research_results_full.csv")
             if not os.path.exists(full_path):
                 raise RuntimeError("research_results_full.csv missing; run dr_populate stage first or stage requires it")
+
+        if start_idx <= stages.index("build_watchlist"):
+            build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            validated_path = os.path.join(cfg["Paths"]["data"], "validated_watchlist.csv")
+            if not os.path.exists(validated_path):
+                raise RuntimeError("validated_watchlist.csv missing; run build_watchlist stage first or stage requires it")
 
         _emit(progress_fn, "run_weekly: complete")
 
