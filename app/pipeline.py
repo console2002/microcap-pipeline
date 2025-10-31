@@ -318,10 +318,27 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         if "Company" in df_fil.columns:
             df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
 
-    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","URL"]
+    age_dtype = "Int64"
+    if "Age" not in df_fil.columns:
+        df_fil["Age"] = pd.Series(dtype=age_dtype)
+
+    if "FiledAt" in df_fil.columns:
+        filed_dt = pd.to_datetime(df_fil["FiledAt"], errors="coerce", utc=True)
+        today = pd.Timestamp.utcnow().normalize()
+        age_series = (today - filed_dt.dt.normalize()).dt.days
+        age_series = age_series.where(~filed_dt.isna())
+        try:
+            df_fil["Age"] = age_series.astype(age_dtype)
+        except (TypeError, ValueError):
+            df_fil["Age"] = age_series
+
+    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Age","URL"]
     for col in expected_cols:
         if col not in df_fil.columns:
             df_fil[col] = pd.Series(dtype="object")
+
+    ordered_cols = expected_cols + [c for c in df_fil.columns if c not in expected_cols]
+    df_fil = df_fil[ordered_cols]
 
     key_cols = ["CIK"]
     url_present = False
