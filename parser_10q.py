@@ -447,7 +447,11 @@ def get_runway_from_filing(filing_url: str) -> dict:
         else:
             quarterly_burn = None
     else:
-        quarterly_burn = abs(burn_value)
+        if burn_value > 0:
+            provided_value = burn_value
+            quarterly_burn = 0.0
+        else:
+            quarterly_burn = abs(burn_value)
 
     _log_debug(f"runway_html: cash_keywords matched -> {cash_value}")
     _log_debug(
