@@ -49,7 +49,15 @@ def progress(status: str, message: str) -> None:
             pass
 
 
-_RELEVANT_FORM_PREFIXES = ("10-Q", "10-K")
+_RELEVANT_FORM_PREFIXES = (
+    "10-Q",
+    "10-QT",
+    "10-K",
+    "10-KT",
+    "20-F",
+    "40-F",
+    "6-K",
+)
 _DATE_FORMATS = [
     "%d/%m/%Y %H:%M",
     "%Y-%m-%d %H:%M",

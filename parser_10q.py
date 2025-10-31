@@ -14,7 +14,10 @@ from urllib.parse import parse_qs, unquote, urlparse
 _USER_AGENT: str | None = None
 
 _ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
-_FORM_TYPE_PATTERN = re.compile(r"10-[A-Za-z0-9]+", re.IGNORECASE)
+_FORM_TYPE_PATTERN = re.compile(
+    r"(10-QT?|10-KT?|20-F|40-F|6-K)(?:/A)?",
+    re.IGNORECASE,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -173,14 +176,17 @@ def _normalize_form_type(value: object) -> Optional[str]:
     match = _FORM_TYPE_PATTERN.search(text)
     if not match:
         return None
-    normalized = match.group(0).upper()
-    if normalized.endswith("/A"):
-        normalized = normalized[:-2]
-    if normalized.startswith("10-K"):
-        return "10-K"
-    if normalized.startswith("10-Q"):
-        return "10-Q"
-    return normalized
+    normalized = match.group(1).upper()
+    canonical_map = {
+        "10-Q": "10-Q",
+        "10-QT": "10-Q",
+        "10-K": "10-K",
+        "10-KT": "10-K",
+        "20-F": "20-F",
+        "40-F": "40-F",
+        "6-K": "6-K",
+    }
+    return canonical_map.get(normalized)
 
 
 def _infer_form_type_from_url(filing_url: str) -> Optional[str]:
@@ -350,7 +356,11 @@ def _derive_from_xbrl(
         if quarterly_burn == 0:
             quarterly_burn = 0.0
 
-    if form_type and form_type.upper().startswith("10-K") and quarterly_burn is not None:
+    if (
+        form_type
+        and form_type.upper() in {"10-K", "20-F", "40-F"}
+        and quarterly_burn is not None
+    ):
         quarterly_burn = quarterly_burn / 4.0
 
     runway_quarters: Optional[float]
@@ -464,7 +474,11 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if quarterly_burn is not None and quarterly_burn <= 0:
         quarterly_burn = None
 
-    if form_type and form_type.upper().startswith("10-K") and quarterly_burn is not None:
+    if (
+        form_type
+        and form_type.upper() in {"10-K", "20-F", "40-F"}
+        and quarterly_burn is not None
+    ):
         quarterly_burn = quarterly_burn / 4.0
 
     runway_quarters: Optional[float]
