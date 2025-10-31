@@ -46,6 +46,23 @@ def _emit(progress_fn, msg: str):
         progress_fn(f"{utc_now_iso()} | {msg}")
 
 
+CORE_FILING_FORMS = (
+    "10-Q",
+    "10-Q/A",
+    "10-QT",
+    "10-QT/A",
+    "10-K",
+    "10-K/A",
+    "10-KT",
+    "10-KT/A",
+    "20-F",
+    "20-F/A",
+    "40-F",
+    "40-F/A",
+    "6-K",
+)
+
+
 def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None = None) -> pd.DataFrame:
     path = os.path.join(cfg["Paths"]["data"], f"{name}.csv")
     if not os.path.exists(path):
@@ -57,6 +74,63 @@ def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None
         if missing:
             raise RuntimeError(f"{name}.csv missing required columns: {', '.join(missing)}")
     return df
+
+
+def _tickers_with_core_filings(df_filings: pd.DataFrame) -> set[str]:
+    """Return tickers that have at least one recent core filing form."""
+
+    if df_filings is None or df_filings.empty:
+        return set()
+
+    required_cols = {"Ticker", "Form"}
+    if not required_cols.issubset(df_filings.columns):
+        return set()
+
+    df = df_filings[list(required_cols)].copy()
+    df["Ticker"] = df["Ticker"].fillna("").astype(str).str.upper().str.strip()
+    df["Form"] = df["Form"].fillna("").astype(str).str.upper().str.strip()
+
+    if df.empty:
+        return set()
+
+    mask = df["Form"].str.startswith(CORE_FILING_FORMS, na=False)
+    if not mask.any():
+        return set()
+
+    return set(df.loc[mask, "Ticker"].tolist())
+
+
+def _restrict_profiles_to_core_filings(
+    df_prof: pd.DataFrame,
+    df_filings: pd.DataFrame,
+    progress_fn,
+):
+    """Filter profiles to tickers that passed the core filings requirement."""
+
+    if df_prof is None or df_prof.empty:
+        return df_prof
+
+    eligible_tickers = _tickers_with_core_filings(df_filings)
+    if not eligible_tickers:
+        _emit(progress_fn, "filings: no tickers have recent core filings; downstream stages will have 0 tickers")
+        return df_prof.iloc[0:0]
+
+    original_count = len(df_prof)
+
+    df_filtered = df_prof.copy()
+    df_filtered["Ticker"] = (
+        df_filtered["Ticker"].fillna("").astype(str).str.upper().str.strip()
+    )
+    df_filtered = df_filtered[df_filtered["Ticker"].isin(eligible_tickers)]
+
+    dropped = original_count - len(df_filtered)
+    if dropped > 0:
+        _emit(
+            progress_fn,
+            f"filings: restricted profiles to {len(df_filtered)} tickers with recent core filings (dropped {dropped})",
+        )
+
+    return df_filtered
 
 
 def _load_cached_universe(cfg: dict) -> pd.DataFrame:
@@ -618,6 +692,9 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             df_fil = _load_cached_dataframe(cfg, "filings")
             _emit(progress_fn, "filings: skipped (loaded cached filings.csv)")
 
+        if df_fil is not None and df_prof is not None:
+            df_prof = _restrict_profiles_to_core_filings(df_prof, df_fil, progress_fn)
+
         if start_idx <= stages.index("prices"):
             if df_prof is None:
                 df_prof = _load_cached_dataframe(cfg, "profiles")
@@ -716,6 +793,8 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
                 raise RuntimeError("profiles.csv missing; run weekly first or stage requires it")
 
             df_prof = pd.read_csv(prof_path, encoding="utf-8")
+            df_fil = _load_cached_dataframe(cfg, "filings")
+            df_prof = _restrict_profiles_to_core_filings(df_prof, df_fil, progress_fn)
             _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
         else:
             _emit(progress_fn, "prices: skipped (starting at hydrate stage)")
