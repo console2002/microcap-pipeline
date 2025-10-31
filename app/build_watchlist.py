@@ -296,10 +296,12 @@ def run(
             continue
 
         runway_raw = getattr(row, "RunwayQuarters", "")
-        runway_text = str(runway_raw).strip()
-        runway_val = _to_float(runway_text)
-        if not runway_text:
+        if pd.isna(runway_raw):
             continue
+        runway_text = str(runway_raw).strip()
+        if not runway_text or runway_text.lower() == "nan":
+            continue
+        runway_val = _to_float(runway_text)
         if runway_val is not None and runway_val <= 0:
             continue
 
@@ -313,7 +315,12 @@ def run(
         if any(term in dilution_lower for term in _NEGATIVE_DILUTION_TERMS):
             continue
 
-        governance_text = str(getattr(row, "Governance", "")).strip()
+        governance_raw = getattr(row, "Governance", "")
+        if pd.isna(governance_raw):
+            continue
+        governance_text = str(governance_raw).strip()
+        if governance_text.lower() == "nan":
+            continue
 
         risk_flag = ""
         if "watch" in dilution_lower:
