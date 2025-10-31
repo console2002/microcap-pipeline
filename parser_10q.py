@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime, timezone
 from typing import Iterable, Optional
@@ -14,6 +15,14 @@ _USER_AGENT: str | None = None
 
 _ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
 _FORM_TYPE_PATTERN = re.compile(r"10-[A-Za-z0-9]+", re.IGNORECASE)
+
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _log_debug(message: str) -> None:
+    """Log debug messages without requiring callers to handle logging setup."""
+    _LOGGER.debug(message)
 
 
 def _user_agent() -> str:
@@ -106,9 +115,9 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
         if not match:
             continue
 
-        remainder = text[match.end():match.end() + 500]
+        remainder = text[match.end():match.end() + 1000]
         tokens = remainder.split()
-        for token in tokens[:6]:
+        for token in tokens[:12]:
             if not _NUMERIC_TOKEN_PATTERN.search(token):
                 continue
             try:
@@ -165,6 +174,8 @@ def _normalize_form_type(value: object) -> Optional[str]:
     if not match:
         return None
     normalized = match.group(0).upper()
+    if normalized.endswith("/A"):
+        normalized = normalized[:-2]
     if normalized.startswith("10-K"):
         return "10-K"
     if normalized.startswith("10-Q"):
@@ -402,16 +413,23 @@ def get_runway_from_filing(filing_url: str) -> dict:
         form_type = _infer_form_type_from_text(text)
 
     cash_keywords = [
-        "Cash and cash equivalents",
         "Cash and cash equivalents, end of period",
         "Cash and cash equivalents at end of period",
+        "Cash, cash equivalents and restricted cash, end of period",
+        "Cash and cash equivalents, including restricted cash, end of period",
+        "Cash and cash equivalents",
     ]
     cash_value = _extract_number_after_keyword(text, cash_keywords)
 
+    provided_value: Optional[float] = None
     burn_value = _extract_number_after_keyword(
         text,
         [
             "Net cash used in operating activities",
+            "Net cash (used in) provided by operating activities",
+            "Net cash flows from operating activities",
+            "Net cash used in operating activities — continuing operations",
+            "Net cash used in operating activities - continuing operations",
         ],
     )
 
@@ -420,6 +438,8 @@ def get_runway_from_filing(filing_url: str) -> dict:
             text,
             [
                 "Net cash provided by operating activities",
+                "Net cash provided by operating activities — continuing operations",
+                "Net cash provided by operating activities - continuing operations",
             ],
         )
         if provided_value is not None:
@@ -428,6 +448,12 @@ def get_runway_from_filing(filing_url: str) -> dict:
             quarterly_burn = None
     else:
         quarterly_burn = abs(burn_value)
+
+    _log_debug(f"runway_html: cash_keywords matched -> {cash_value}")
+    _log_debug(
+        "runway_html: burn_keywords matched -> "
+        f"{burn_value if burn_value is not None else provided_value}"
+    )
 
     cash = float(cash_value) if cash_value is not None else None
 
