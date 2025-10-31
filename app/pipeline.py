@@ -2,7 +2,7 @@ import os, time, pandas as pd
 import runway_extract
 from app import dr_populate
 from app.build_watchlist import run as build_watchlist_run
-from app.config import load_config
+from app.config import load_config, filings_max_lookback
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
 from app.sec import load_sec_universe
@@ -338,7 +338,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
     rows_added = append_antijoin_purge(
         cfg, "filings", df_fil,
         key_cols=key_cols,
-        keep_days=cfg["Windows"]["DaysBack_Filings"],
+        keep_days=filings_max_lookback(cfg),
         date_col="FiledAt"
     )
     _log_step(runlog, "filings", rows_added, t0, "append+purge")

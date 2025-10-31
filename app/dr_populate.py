@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Callable, Iterable, Optional
 
 import pandas as pd
 
-from app.config import load_config
+from app.config import load_config, filings_form_lookbacks, filings_max_lookback
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 
@@ -150,7 +150,12 @@ def _format_fda_row(row: pd.Series) -> str:
     return " | ".join(parts)
 
 
-def _build_filing_map(df: pd.DataFrame, cutoff: datetime) -> dict[str, list[FilingEntry]]:
+def _build_filing_map(
+    df: pd.DataFrame,
+    now: datetime,
+    lookbacks: dict[str, int],
+    default_days: int,
+) -> dict[str, list[FilingEntry]]:
     if df.empty:
         return {}
 
@@ -159,15 +164,17 @@ def _build_filing_map(df: pd.DataFrame, cutoff: datetime) -> dict[str, list[Fili
     df["FiledAt_dt"] = pd.to_datetime(df["FiledAt"], errors="coerce", utc=True)
     df = df.dropna(subset=["CIK_norm", "FiledAt_dt"])
 
-    cutoff_ts = pd.Timestamp(cutoff)
-    if cutoff_ts.tzinfo is None:
-        cutoff_ts = cutoff_ts.tz_localize("UTC")
-    else:
-        cutoff_ts = cutoff_ts.tz_convert("UTC")
-
-    df = df[df["FiledAt_dt"] >= cutoff_ts]
     if df.empty:
         return {}
+
+    now_ts = pd.Timestamp(now)
+    if now_ts.tzinfo is None:
+        now_ts = now_ts.tz_localize("UTC")
+    else:
+        now_ts = now_ts.tz_convert("UTC")
+
+    prefix_order = sorted(lookbacks.keys(), key=len, reverse=True)
+    cutoff_cache: dict[int, pd.Timestamp] = {}
 
     df = df.sort_values(["CIK_norm", "FiledAt_dt"], ascending=[True, False])
 
@@ -175,6 +182,21 @@ def _build_filing_map(df: pd.DataFrame, cutoff: datetime) -> dict[str, list[Fili
     for _, row in df.iterrows():
         cik = row["CIK_norm"]
         form = _normalize_form(row.get("Form"))
+        if not form:
+            continue
+
+        matched_prefix = next(
+            (prefix for prefix in prefix_order if form.startswith(prefix)),
+            None,
+        )
+        lookback_days = lookbacks.get(matched_prefix, default_days)
+        if lookback_days and lookback_days > 0:
+            cutoff = cutoff_cache.setdefault(
+                lookback_days, now_ts - pd.Timedelta(days=lookback_days)
+            )
+            if row["FiledAt_dt"] < cutoff:
+                continue
+
         url = str(row.get("URL") or "").strip()
         filed_at = pd.Timestamp(row["FiledAt_dt"]).to_pydatetime()
         entry = FilingEntry(filed_at=filed_at, form=form, url=url)
@@ -304,10 +326,10 @@ def run(data_dir: str | None = None, progress_callback: ProgressCallback = None)
             df_runway[col] = pd.NA
 
     now = datetime.now(timezone.utc)
-    days_back = int(cfg.get("Windows", {}).get("DaysBack_Filings", 60) or 60)
-    cutoff = now - timedelta(days=days_back)
+    form_lookbacks = filings_form_lookbacks(cfg)
+    days_back = filings_max_lookback(cfg)
 
-    filing_map = _build_filing_map(df_filings, cutoff)
+    filing_map = _build_filing_map(df_filings, now, form_lookbacks, days_back)
 
     fda_map: dict[str, str] = {}
     if not df_fda.empty and "CIK" in df_fda.columns:

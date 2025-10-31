@@ -50,7 +50,6 @@
   },
   "Windows": {
     "DaysBack_Prices": 60,
-    "DaysBack_Filings": 60,
     "DaysBack_FDA": 120
   },
   "FilingsWhitelist": [
@@ -84,7 +83,9 @@
     "8-A12B",
     "DEF 14A",
     "13D",
+    "13D/A",
     "13G",
+    "13G/A",
     "13F-HR"
   ],
   "FDA": {
@@ -108,5 +109,79 @@
   "Mode": "Incremental",
   "LastRun_Prices": "",
   "LastRun_Filings": "",
-  "LastRun_FDA": ""
+  "LastRun_FDA": "",
+  "FilingsGroups": {
+    "Financials_Quarterly": {
+      "forms": [
+        "10-Q",
+        "10-Q/A",
+        "10-QT",
+        "10-QT/A",
+        "6-K"
+      ],
+      "lookback_days": 180,
+      "notes": "Primary source for Runway; prefer 10-Q; 6-K for foreign issuers' interim updates."
+    },
+    "Financials_Annual": {
+      "forms": [
+        "10-K",
+        "10-K/A",
+        "10-KT",
+        "10-KT/A",
+        "20-F",
+        "20-F/A",
+        "40-F",
+        "40-F/A"
+      ],
+      "lookback_days": 400,
+      "notes": "Fallback for Runway; governance flags in MD&A/auditor report."
+    },
+    "Catalyst": {
+      "forms": [
+        "8-K",
+        "8-K/A"
+      ],
+      "lookback_days": 180,
+      "notes": "Material events; combine with PR/FDA for 'Active' catalyst."
+    },
+    "Dilution_Overhang": {
+      "forms": [
+        "S-3",
+        "S-3/A",
+        "424B1",
+        "424B2",
+        "424B3",
+        "424B4",
+        "424B5",
+        "424B7",
+        "424B8",
+        "S-8",
+        "S-8/A",
+        "S-4",
+        "8-K"
+      ],
+      "lookback_days": 400,
+      "notes": "Shelves/ATMs/prospectus; include financing 8-Ks to catch usage."
+    },
+    "Governance": {
+      "forms": [
+        "10-K",
+        "10-K/A",
+        "DEF 14A"
+      ],
+      "lookback_days": 400,
+      "notes": "Going-concern, auditor, board/comp."
+    },
+    "Ownership": {
+      "forms": [
+        "13D",
+        "13D/A",
+        "13G",
+        "13G/A",
+        "13F-HR"
+      ],
+      "lookback_days": 365,
+      "notes": "Large holder changes; 13F is quarterly and often laggy."
+    }
+  }
 }

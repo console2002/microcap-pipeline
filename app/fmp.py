@@ -2,6 +2,7 @@ from datetime import date, timedelta, datetime
 from typing import Callable, Optional
 from app.http import HttpClient
 from app.cancel import CancelledRun
+from app.config import filings_form_lookbacks, filings_max_lookback
 
 FMP_HOST = "https://financialmodelingprep.com"
 
@@ -166,11 +167,15 @@ def fetch_filings(
 
     out = []
 
-    key       = cfg["FMPKey"]
-    wl_forms  = set(cfg["FilingsWhitelist"])
-    days_back = cfg["Windows"]["DaysBack_Filings"]
-    cutoff    = date.today() - timedelta(days=days_back)
+    key = cfg["FMPKey"]
+    whitelist = [str(x).strip().upper() for x in cfg.get("FilingsWhitelist", [])]
+    wl_forms = {form for form in whitelist if form}
+    whitelist_ordered = sorted(wl_forms, key=len, reverse=True)
+    form_lookbacks = filings_form_lookbacks(cfg)
+    max_lookback = filings_max_lookback(cfg)
     ratelimit = cfg["RateLimitsPerMin"]["FMP"]
+    today = date.today()
+    cutoff_cache: dict[int, date] = {}
 
     total = len(tickers)
 
@@ -191,8 +196,16 @@ def fetch_filings(
         for rec in data:
             # --- use 'type' field instead of 'form'
             form_raw = rec.get("type", "") or rec.get("form", "")
+            form_upper = (form_raw or "").strip().upper()
+            if not form_upper:
+                continue
+
             # loose match: allow prefixes (e.g., "8-K/A" matches "8-K")
-            if not any(form_raw.startswith(x) for x in wl_forms):
+            matched_prefix = next(
+                (prefix for prefix in whitelist_ordered if form_upper.startswith(prefix)),
+                None,
+            )
+            if not matched_prefix:
                 continue
 
             filed_raw = rec.get("filingDate") or rec.get("fillingDate") or ""
@@ -200,8 +213,16 @@ def fetch_filings(
                 filed_date = datetime.strptime(filed_raw[:10], "%Y-%m-%d").date()
             except Exception:
                 filed_date = None
-            if not filed_date or filed_date < cutoff:
+            if not filed_date:
                 continue
+
+            lookback_days = form_lookbacks.get(matched_prefix, max_lookback)
+            if lookback_days and lookback_days > 0:
+                cutoff = cutoff_cache.setdefault(
+                    lookback_days, today - timedelta(days=lookback_days)
+                )
+                if filed_date < cutoff:
+                    continue
 
             cik_val = rec.get("cik") or ""
             cik_txt = str(cik_val).zfill(10) if cik_val else ""
