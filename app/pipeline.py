@@ -46,7 +46,14 @@ def _emit(progress_fn, msg: str):
         progress_fn(f"{utc_now_iso()} | {msg}")
 
 
-CORE_FILING_FORMS = (
+US_COUNTRY_CODES = {
+    "US",
+    "USA",
+    "UNITED STATES",
+    "UNITED STATES OF AMERICA",
+}
+
+US_RUNWAY_FORM_PREFIXES = (
     "10-Q",
     "10-Q/A",
     "10-QT",
@@ -55,11 +62,18 @@ CORE_FILING_FORMS = (
     "10-K/A",
     "10-KT",
     "10-KT/A",
+)
+
+FPI_ANNUAL_FORM_PREFIXES = (
     "20-F",
     "20-F/A",
     "40-F",
     "40-F/A",
+)
+
+FPI_INTERIM_FORM_PREFIXES = (
     "6-K",
+    "6-K/A",
 )
 
 
@@ -76,41 +90,210 @@ def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None
     return df
 
 
-def _tickers_with_core_filings(df_filings: pd.DataFrame) -> set[str]:
-    """Return tickers that have at least one recent core filing form."""
+def _normalize_country(value: object) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    return str(value).strip().upper()
 
+
+def _is_us_country(value: str) -> bool:
+    if not value:
+        return True
+    return value in US_COUNTRY_CODES
+
+
+def _profile_lookup(df_prof: pd.DataFrame) -> tuple[dict[str, str], dict[str, str], set[str]]:
+    ticker_to_country: dict[str, str] = {}
+    cik_to_ticker: dict[str, str] = {}
+    tickers: set[str] = set()
+
+    if df_prof is None or df_prof.empty:
+        return ticker_to_country, cik_to_ticker, tickers
+
+    df = df_prof.copy()
+
+    ticker_series = df.get("Ticker")
+    cik_series = df.get("CIK")
+    country_series = df.get("Country")
+
+    if ticker_series is not None:
+        df["Ticker_norm"] = ticker_series.fillna("").astype(str).str.upper().str.strip()
+    else:
+        df["Ticker_norm"] = ""
+
+    if cik_series is not None:
+        df["CIK_norm"] = cik_series.fillna("").astype(str).str.strip().str.zfill(10)
+    else:
+        df["CIK_norm"] = ""
+
+    if country_series is not None:
+        df["Country_norm"] = country_series.apply(_normalize_country)
+    else:
+        df["Country_norm"] = ""
+
+    for row in df.itertuples(index=False):
+        ticker = getattr(row, "Ticker_norm", "")
+        cik = getattr(row, "CIK_norm", "")
+        country = getattr(row, "Country_norm", "")
+
+        if ticker:
+            tickers.add(ticker)
+            if country and ticker not in ticker_to_country:
+                ticker_to_country[ticker] = country
+        if ticker and cik and cik not in cik_to_ticker:
+            cik_to_ticker[cik] = ticker
+
+    return ticker_to_country, cik_to_ticker, tickers
+
+
+def _normalize_filings_tickers(df_filings: pd.DataFrame, cik_to_ticker: dict[str, str]) -> pd.DataFrame:
     if df_filings is None or df_filings.empty:
-        return set()
+        return df_filings
 
-    required_cols = {"Ticker", "Form"}
-    if not required_cols.issubset(df_filings.columns):
-        return set()
+    df = df_filings.copy()
 
-    df = df_filings[list(required_cols)].copy()
+    if "Ticker" not in df.columns:
+        df["Ticker"] = pd.Series(dtype="object")
+
     df["Ticker"] = df["Ticker"].fillna("").astype(str).str.upper().str.strip()
-    df["Form"] = df["Form"].fillna("").astype(str).str.upper().str.strip()
 
-    if df.empty:
-        return set()
+    if "CIK" in df.columns:
+        cik_series = df["CIK"].fillna("").astype(str).str.strip().str.zfill(10)
+        df["CIK"] = cik_series
+        if cik_to_ticker:
+            missing_mask = df["Ticker"].eq("") & cik_series.ne("")
+            if missing_mask.any():
+                df.loc[missing_mask, "Ticker"] = (
+                    cik_series.loc[missing_mask].map(cik_to_ticker).fillna("")
+                )
+                df["Ticker"] = df["Ticker"].fillna("").astype(str).str.upper().str.strip()
 
-    mask = df["Form"].str.startswith(CORE_FILING_FORMS, na=False)
-    if not mask.any():
-        return set()
+    return df
 
-    return set(df.loc[mask, "Ticker"].tolist())
+
+def _forms_support_runway(forms: set[str], country: str) -> bool:
+    if not forms:
+        return False
+
+    normalized_forms = {str(f).strip().upper() for f in forms if str(f).strip()}
+    if not normalized_forms:
+        return False
+
+    has_us_form = any(
+        form.startswith(prefix) for prefix in US_RUNWAY_FORM_PREFIXES for form in normalized_forms
+    )
+    if has_us_form:
+        return True
+
+    has_fpi_annual = any(
+        form.startswith(prefix) for prefix in FPI_ANNUAL_FORM_PREFIXES for form in normalized_forms
+    )
+    has_fpi_interim = any(
+        form.startswith(prefix) for prefix in FPI_INTERIM_FORM_PREFIXES for form in normalized_forms
+    )
+
+    if has_fpi_annual and has_fpi_interim:
+        return True
+
+    if not _is_us_country(country) and has_fpi_annual:
+        return False
+
+    return False
+
+
+def _apply_runway_gate_to_filings(
+    df_filings: pd.DataFrame,
+    df_prof: pd.DataFrame,
+    progress_fn,
+    *,
+    log: bool = True,
+) -> tuple[pd.DataFrame, set[str]]:
+    if df_filings is None:
+        return pd.DataFrame(), set()
+
+    ticker_to_country, cik_to_ticker, prof_tickers = _profile_lookup(df_prof)
+    df_normalized = _normalize_filings_tickers(df_filings, cik_to_ticker)
+
+    if df_normalized.empty or "Form" not in df_normalized.columns:
+        if log and prof_tickers:
+            _emit(progress_fn, "filings: runway gate removed all tickers (no filings available)")
+        return df_normalized.iloc[0:0], set()
+
+    form_map: dict[str, set[str]] = {}
+    for row in df_normalized.itertuples(index=False):
+        ticker = getattr(row, "Ticker", "")
+        form = getattr(row, "Form", "")
+        if not ticker or not form:
+            continue
+        ticker_upper = str(ticker).strip().upper()
+        form_upper = str(form).strip().upper()
+        if not ticker_upper or not form_upper:
+            continue
+        form_map.setdefault(ticker_upper, set()).add(form_upper)
+
+    candidate_tickers = set(prof_tickers) if prof_tickers else set(form_map.keys())
+
+    eligible: set[str] = set()
+    dropped: set[str] = set()
+
+    for ticker in candidate_tickers:
+        forms = form_map.get(ticker, set())
+        country = ticker_to_country.get(ticker, "")
+        if _forms_support_runway(forms, country):
+            eligible.add(ticker)
+        else:
+            dropped.add(ticker)
+
+    extra_tickers = set(form_map.keys()) - candidate_tickers
+    for ticker in extra_tickers:
+        forms = form_map.get(ticker, set())
+        country = ticker_to_country.get(ticker, "")
+        if _forms_support_runway(forms, country):
+            eligible.add(ticker)
+        else:
+            dropped.add(ticker)
+
+    filtered = (
+        df_normalized[df_normalized["Ticker"].isin(eligible)].copy()
+        if eligible
+        else df_normalized.iloc[0:0].copy()
+    )
+
+    if log:
+        total_candidates = len(candidate_tickers) or len(form_map)
+        if total_candidates:
+            _emit(
+                progress_fn,
+                "filings: runway gate retained {} tickers, dropped {} lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(
+                    len(eligible),
+                    len(dropped),
+                ),
+            )
+        elif dropped:
+            _emit(
+                progress_fn,
+                "filings: runway gate dropped {} tickers lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(len(dropped)),
+            )
+
+    return filtered, eligible
 
 
 def _restrict_profiles_to_core_filings(
     df_prof: pd.DataFrame,
     df_filings: pd.DataFrame,
     progress_fn,
+    eligible_tickers: set[str] | None = None,
 ):
     """Filter profiles to tickers that passed the core filings requirement."""
 
     if df_prof is None or df_prof.empty:
         return df_prof
 
-    eligible_tickers = _tickers_with_core_filings(df_filings)
+    if eligible_tickers is None:
+        _, eligible_tickers = _apply_runway_gate_to_filings(
+            df_filings, df_prof, progress_fn, log=False
+        )
+
     if not eligible_tickers:
         _emit(progress_fn, "filings: no tickers have recent core filings; downstream stages will have 0 tickers")
         return df_prof.iloc[0:0]
@@ -246,6 +429,10 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     df_fil = pd.DataFrame(f_rows)
 
+    df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+        df_fil, df_prof, progress_fn
+    )
+
     if not df_fil.empty and df_prof is not None and not df_prof.empty:
         prof = df_prof.copy()
 
@@ -361,7 +548,14 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
     _log_step(runlog, "filings", rows_added, t0, "append+purge")
     _emit(progress_fn, f"filings: done {rows_added} new rows {client.stats_string()}")
 
-    return pd.read_csv(os.path.join(cfg["Paths"]["data"], "filings.csv"), encoding="utf-8")
+    filings_path = os.path.join(cfg["Paths"]["data"], "filings.csv")
+    df_cached = pd.read_csv(filings_path, encoding="utf-8") if os.path.exists(filings_path) else pd.DataFrame()
+    df_cached, eligible_tickers = _apply_runway_gate_to_filings(
+        df_cached, df_prof, progress_fn, log=False
+    )
+    df_cached.to_csv(filings_path, index=False, encoding="utf-8")
+
+    return df_cached, eligible_tickers
 
 
 def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
@@ -700,17 +894,26 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             df_prof = _load_cached_dataframe(cfg, "profiles")
             _emit(progress_fn, "profiles: skipped (loaded cached profiles.csv)")
 
+        eligible_tickers: set[str] | None = None
+
         if start_idx <= stages.index("filings"):
             if df_prof is None:
                 df_prof = _load_cached_dataframe(cfg, "profiles")
                 _emit(progress_fn, "filings: using cached profiles.csv")
-            df_fil = filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+            df_fil, eligible_tickers = filings_step(
+                cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
+            )
         else:
             df_fil = _load_cached_dataframe(cfg, "filings")
+            df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+                df_fil, df_prof, progress_fn
+            )
             _emit(progress_fn, "filings: skipped (loaded cached filings.csv)")
 
         if df_fil is not None and df_prof is not None:
-            df_prof = _restrict_profiles_to_core_filings(df_prof, df_fil, progress_fn)
+            df_prof = _restrict_profiles_to_core_filings(
+                df_prof, df_fil, progress_fn, eligible_tickers
+            )
 
         if start_idx <= stages.index("prices"):
             if df_prof is None:
@@ -811,7 +1014,12 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
 
             df_prof = pd.read_csv(prof_path, encoding="utf-8")
             df_fil = _load_cached_dataframe(cfg, "filings")
-            df_prof = _restrict_profiles_to_core_filings(df_prof, df_fil, progress_fn)
+            df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+                df_fil, df_prof, progress_fn
+            )
+            df_prof = _restrict_profiles_to_core_filings(
+                df_prof, df_fil, progress_fn, eligible_tickers
+            )
             _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
         else:
             _emit(progress_fn, "prices: skipped (starting at hydrate stage)")
