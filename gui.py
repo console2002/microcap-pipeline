@@ -8,10 +8,11 @@ class RunnerThread(QtCore.QThread):
     progress = QtCore.Signal(str)   # status updates
     finished = QtCore.Signal(str)   # done/cancelled/error
 
-    def __init__(self, mode: str, start_stage: str):
+    def __init__(self, mode: str, start_stage: str, skip_fda: bool = False):
         super().__init__()
         self.mode = mode
         self.start_stage = start_stage
+        self.skip_fda = skip_fda
         self.stop_flag = {"stop": False}
 
     def run(self):
@@ -20,7 +21,8 @@ class RunnerThread(QtCore.QThread):
                 run_weekly_pipeline(
                     stop_flag=self.stop_flag,
                     progress_fn=self.progress.emit,
-                    start_stage=self.start_stage
+                    start_stage=self.start_stage,
+                    skip_fda=self.skip_fda,
                 )
             elif self.mode == "daily":
                 run_daily_pipeline(
@@ -92,6 +94,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.daily_stage_combo.addItem("Prices", "prices")
         self.daily_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
 
+        self.chk_skip_fda = QtWidgets.QCheckBox("Skip FDA")
+
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 0)  # spinning bar
         self.progress_bar.setVisible(False)
@@ -116,6 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
         daily_stage_row.addWidget(self.daily_stage_combo)
 
         run_layout.addLayout(weekly_stage_row)
+        run_layout.addWidget(self.chk_skip_fda)
         run_layout.addWidget(self.btn_weekly)
         run_layout.addLayout(daily_stage_row)
         run_layout.addWidget(self.btn_daily)
@@ -201,8 +206,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_daily.setEnabled(False)
         self.weekly_stage_combo.setEnabled(False)
         self.daily_stage_combo.setEnabled(False)
+        self.chk_skip_fda.setEnabled(False)
 
-        self.worker = RunnerThread(mode, stage)
+        skip_fda = self.chk_skip_fda.isChecked() if mode == "weekly" else False
+        self.worker = RunnerThread(mode, stage, skip_fda=skip_fda)
         self.worker.progress.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
         self.worker.start()
@@ -237,6 +244,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_daily.setEnabled(True)
         self.weekly_stage_combo.setEnabled(True)
         self.daily_stage_combo.setEnabled(True)
+        self.chk_skip_fda.setEnabled(True)
 
         # show disk logs once more at end
         self.refresh_logs()
