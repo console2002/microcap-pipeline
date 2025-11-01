@@ -33,7 +33,6 @@ _OUTPUT_COLUMNS = [
     "CatalystPrimaryDate",
     "CatalystPrimaryDaysAgo",
     "CatalystPrimaryURL",
-    "CatalystEvidenceAll",
     "RunwayQuartersRaw",
     "RunwayQuarters",
     "RunwayCashRaw",
@@ -42,6 +41,8 @@ _OUTPUT_COLUMNS = [
     "RunwayQuarterlyBurn",
     "RunwayEstimate",
     "RunwayNotes",
+    "RunwayDays",
+    "RunwayBucket",
     "RunwaySourceForm",
     "RunwaySourceDate",
     "RunwaySourceDaysAgo",
@@ -81,14 +82,12 @@ _OUTPUT_COLUMNS = [
     "SubscoresEvidencedCount",
     "Status",
     "ChecklistPassed",
-    "ChecklistTotal",
     "ChecklistCatalyst",
     "ChecklistDilution",
     "ChecklistRunway",
     "ChecklistGovernance",
     "ChecklistInsider",
     "ChecklistOwnership",
-    "ChecklistSummary",
     "RiskFlag",
 ]
 
@@ -161,6 +160,10 @@ _FORM_URL_PATTERNS = {
     "f3": re.compile(r"/[^/]*f-?3"),
     "8a12b": re.compile(r"/[^/]*8a12b"),
 }
+
+_GOVERNANCE_VALID_FORMS = {"DEF 14A", "10-K", "20-F", "40-F"}
+_INSIDER_LINK_RE = re.compile(r"(form[345]|xslf345)", re.IGNORECASE)
+_OWNERSHIP_LINK_RE = re.compile(r"(13f|sc13d|sc13g)", re.IGNORECASE)
 
 _CATALYST_ITEM_LABELS = {
     "1.01": "Material Agreement",
@@ -261,6 +264,20 @@ def _round_half_up_number(value: Optional[float], digits: int = 2) -> Optional[f
         return float(value)
 
 
+def _runway_bucket(quarters: Optional[float]) -> str:
+    if quarters is None:
+        return ""
+    if quarters < 1:
+        return "<1q"
+    if quarters < 3:
+        return "1-3q"
+    if quarters < 6:
+        return "3-6q"
+    if quarters < 12:
+        return "6-12q"
+    return ">12q"
+
+
 def _normalize_form_name(value: str) -> str:
     text = _clean_text(value)
     if not text:
@@ -300,7 +317,7 @@ def _parse_date_value(value: object) -> Optional[pd.Timestamp]:
     if not text:
         return None
     try:
-        ts = pd.to_datetime(text, utc=True, errors="coerce")
+        ts = pd.to_datetime(text, utc=True, errors="coerce", dayfirst=True)
     except Exception:
         return None
     if ts is None or pd.isna(ts):
@@ -318,6 +335,10 @@ def _format_date(ts: Optional[pd.Timestamp]) -> str:
     if ts is None:
         return ""
     return ts.strftime("%Y-%m-%d")
+
+
+def _is_iso_date_string(value: str) -> bool:
+    return bool(value and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value))
 
 
 def _compute_days_ago(ts: Optional[pd.Timestamp], now: pd.Timestamp) -> str:
@@ -348,11 +369,25 @@ def _select_primary_entry(entries: list[dict]) -> Optional[dict]:
 
 
 def _entry_to_text(entry: dict) -> str:
-    date_str = entry.get("date") or ""
-    form = entry.get("form") or ""
-    url = entry.get("url") or ""
-    parts = [part for part in [date_str, form, url] if part]
-    return " ".join(parts)
+    url = _clean_text(entry.get("url"))
+    if not url:
+        return ""
+
+    date_value = entry.get("date_value")
+    if isinstance(date_value, pd.Timestamp):
+        date_str = _format_date(date_value)
+    else:
+        date_str = entry.get("date") or ""
+    if date_str and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_str):
+        parsed = _parse_date_value(date_str)
+        date_str = _format_date(parsed)
+
+    form = _normalize_form_name(entry.get("form", ""))
+
+    if not (date_str and form):
+        return ""
+
+    return f"{date_str} {form} {url}"
 
 
 def _format_evidence_entries(entries: list[dict]) -> str:
@@ -766,38 +801,60 @@ def run(
         runway_quarters_raw = _to_float(getattr(row, "RunwayQuartersRaw", None))
         if runway_quarters_raw is None:
             runway_quarters_raw = _to_float(getattr(row, "RunwayQuarters", None))
-        runway_quarters = _round_half_up_number(runway_quarters_raw)
-        if runway_quarters is None or runway_quarters <= 0:
-            continue
+        runway_quarters = (
+            _round_half_up_number(runway_quarters_raw)
+            if runway_quarters_raw is not None
+            else None
+        )
 
         runway_cash_raw = _to_float(getattr(row, "RunwayCashRaw", None))
         if runway_cash_raw is None:
             runway_cash_raw = _to_float(getattr(row, "RunwayCash", None))
-        runway_cash = _round_half_up_number(_to_float(getattr(row, "RunwayCash", runway_cash_raw)))
+        runway_cash = _round_half_up_number(
+            _to_float(getattr(row, "RunwayCash", runway_cash_raw))
+        )
 
         runway_burn_raw = _to_float(getattr(row, "RunwayQuarterlyBurnRaw", None))
         if runway_burn_raw is None:
             runway_burn_raw = _to_float(getattr(row, "RunwayQuarterlyBurn", None))
-        runway_burn = _round_half_up_number(_to_float(getattr(row, "RunwayQuarterlyBurn", runway_burn_raw)))
+        runway_burn = _round_half_up_number(
+            _to_float(getattr(row, "RunwayQuarterlyBurn", runway_burn_raw))
+        )
 
         runway_estimate = _clean_text(getattr(row, "RunwayEstimate", ""))
         runway_notes = _clean_text(getattr(row, "RunwayNotes", ""))
-        runway_source_form = _clean_text(getattr(row, "RunwaySourceForm", ""))
+        runway_source_form = _normalize_form_name(_clean_text(getattr(row, "RunwaySourceForm", "")))
         runway_source_date_ts = _parse_date_value(getattr(row, "RunwaySourceDate", ""))
-        if runway_source_date_ts is None:
-            notes_match = _DATE_RE.search(runway_notes)
-            if notes_match:
-                runway_source_date_ts = _parse_date_value(notes_match.group(1))
-        runway_source_date = _format_date(runway_source_date_ts)
-        runway_source_url = _clean_text(getattr(row, "RunwaySourceURL", "")) or _first_url(runway_notes)
-        runway_source_days = _compute_days_ago(runway_source_date_ts, now_utc)
+        runway_source_url = _clean_text(getattr(row, "RunwaySourceURL", ""))
 
-        if runway_source_date_ts is None:
-            _emit("WARN", f"Dropped: No Q10/K runway source ({identifier})", progress_fn)
-            continue
-        if (now_utc - runway_source_date_ts).days > 465:
-            _emit("WARN", f"Dropped: Runway filing stale ({identifier})", progress_fn)
-            continue
+        has_runway_values = (
+            runway_quarters is not None
+            and runway_cash is not None
+            and runway_burn is not None
+        )
+
+        runway_days_value: Optional[int] = None
+        runway_bucket_label = ""
+
+        if has_runway_values and runway_quarters is not None:
+            runway_days_value = int(round(runway_quarters * 90))
+            runway_bucket_label = _runway_bucket(runway_quarters)
+            if not runway_source_form or runway_source_date_ts is None or not runway_source_url:
+                _emit("WARN", f"Dropped: Missing runway source details ({identifier})", progress_fn)
+                continue
+            if (now_utc - runway_source_date_ts).days > 465:
+                _emit("WARN", f"Dropped: Runway filing stale ({identifier})", progress_fn)
+                continue
+            runway_status = "Pass" if runway_quarters > 0 else "Fail"
+        else:
+            runway_status = "Missing"
+            runway_estimate = ""
+            runway_source_form = ""
+            runway_source_date_ts = None
+            runway_source_url = ""
+
+        runway_source_date = _format_date(runway_source_date_ts)
+        runway_source_days = _compute_days_ago(runway_source_date_ts, now_utc)
 
         catalyst_text = _clean_text(getattr(row, "Catalyst", ""))
         if not catalyst_text or catalyst_text.upper() == "TBD":
@@ -841,7 +898,6 @@ def run(
         catalyst_primary_url = catalyst_summary.get("primary_url") or _clean_text(getattr(row, "CatalystPrimaryLink", ""))
         if catalyst_primary_url:
             catalyst_summary["primary_url"] = catalyst_primary_url
-        catalyst_evidence = _format_evidence_entries(catalyst_entries) or catalyst_text
         catalyst_field = catalyst_summary.get("primary_text") or catalyst_text
         catalyst_type = _infer_catalyst_type(
             catalyst_entries,
@@ -882,15 +938,18 @@ def run(
             for prefix in _DILUTION_OFFERING_PREFIXES
         )
         has_s8_only = bool(dilution_forms_hit) and all(form.startswith("S-8") for form in dilution_forms_hit)
-        dilution_flag = bool(dilution_forms_hit or dilution_keywords_hit or has_keyword_filing)
-        if (has_offering_form and dilution_keywords_hit) or has_keyword_filing:
+        dilution_status = "Missing"
+        dilution_flag = False
+        if has_offering_form or has_keyword_filing:
             dilution_status = "Pass (Offering)"
+            dilution_flag = True
         elif has_s8_only:
             dilution_status = "Overhang (S-8)"
-        elif dilution_flag:
+            dilution_flag = True
+        elif dilution_entries:
             dilution_status = "None"
-        else:
-            dilution_status = "Missing"
+            dilution_flag = False
+
         if not dilution_flag:
             _emit("WARN", f"Dropped: Dilution filing missing ({identifier})", progress_fn)
             continue
@@ -903,6 +962,16 @@ def run(
         governance_primary_url = governance_summary.get("primary_url") or _first_url(governance_text)
         if governance_primary_url:
             governance_summary["primary_url"] = governance_primary_url
+        if (
+            governance_summary.get("primary_form")
+            and governance_summary["primary_form"] not in _GOVERNANCE_VALID_FORMS
+        ):
+            governance_summary["status"] = "Missing"
+            governance_summary["primary_form"] = ""
+            governance_summary["primary_date"] = ""
+            governance_summary["primary_days_ago"] = ""
+            governance_summary["primary_url"] = ""
+            governance_summary["primary_text"] = ""
         governance_evidence = _format_evidence_entries(governance_entries) or governance_text
         governance_field = governance_summary.get("primary_text") or governance_text
         governance_notes = governance_summary.get("primary_raw") or governance_text
@@ -922,6 +991,8 @@ def run(
         ownership_text = _clean_text(getattr(row, "Ownership", ""))
         insider_links = _extract_urls_list(insider_text)
         ownership_links = _extract_urls_list(ownership_text)
+        insider_links = [url for url in insider_links if _INSIDER_LINK_RE.search(url)]
+        ownership_links = [url for url in ownership_links if _OWNERSHIP_LINK_RE.search(url)]
         insider_buy_count_val = _to_float(getattr(row, "InsiderBuyCount", None))
         insider_buy_count = int(insider_buy_count_val) if insider_buy_count_val is not None else 0
         has_insider_cluster_raw = getattr(row, "HasInsiderCluster", False)
@@ -934,8 +1005,7 @@ def run(
         subscores_text = _clean_text(getattr(row, "SubscoresEvidenced", ""))
         subscores_count = int(getattr(row, "SubscoresEvidencedCount", 0) or 0)
         status_text = _clean_text(getattr(row, "Status", ""))
-
-        runway_status = "Pass" if runway_quarters and runway_quarters > 0 else "Missing"
+        status_text = status_text.replace("—", "-").replace("–", "-")
 
         insider_status_label = _normalize_checklist_status(getattr(row, "InsiderStatus", ""))
         ownership_status_label = _normalize_checklist_status(getattr(row, "OwnershipStatus", ""))
@@ -950,10 +1020,8 @@ def run(
         }
 
         passed_count = sum(1 for status in checklist_statuses.values() if status == "Pass")
-        checklist_total = len(checklist_statuses)
-        checklist_summary = "; ".join(
-            f"{name}={status}" for name, status in checklist_statuses.items()
-        )
+        total_checks = len(checklist_statuses)
+        checklist_passed_value = f"{passed_count}/{total_checks}"
 
         mandatory_pass = (
             checklist_statuses["Catalyst"] == "Pass"
@@ -961,7 +1029,7 @@ def run(
             and checklist_statuses["Runway"] == "Pass"
         )
         if not mandatory_pass:
-            status_text = "TBD — exclude"
+            status_text = "TBD - exclude"
 
         catalyst_primary_form = catalyst_summary.get("primary_form", "")
         catalyst_primary_date = catalyst_summary.get("primary_date", "")
@@ -977,6 +1045,35 @@ def run(
         governance_primary_date = governance_summary.get("primary_date", "")
         governance_primary_days = governance_summary.get("primary_days_ago", "")
         governance_primary_url = governance_summary.get("primary_url", "")
+
+        validation_errors: list[str] = []
+        if not _is_iso_date_string(catalyst_primary_date) or not _url_matches_form(
+            catalyst_primary_form, catalyst_primary_url
+        ):
+            validation_errors.append("CatalystPrimary")
+
+        if dilution_primary_form:
+            if not _is_iso_date_string(dilution_primary_date):
+                validation_errors.append("DilutionPrimaryDate")
+            if not _url_matches_form(dilution_primary_form, dilution_primary_url):
+                validation_errors.append("DilutionPrimaryURL")
+
+        if governance_primary_form and governance_primary_form not in _GOVERNANCE_VALID_FORMS:
+            validation_errors.append("GovernancePrimaryForm")
+
+        if dilution_flag and dilution_status not in {"Pass (Offering)", "Overhang (S-8)"}:
+            validation_errors.append("DilutionStatus")
+
+        if runway_quarters is None and (runway_status != "Missing" or runway_source_url):
+            validation_errors.append("RunwayMissing")
+
+        if validation_errors:
+            _emit(
+                "WARN",
+                f"Dropped: Validation failed ({identifier}) {'; '.join(validation_errors)}",
+                progress_fn,
+            )
+            continue
 
         record = {
             "Ticker": ticker_value,
@@ -996,7 +1093,6 @@ def run(
             "CatalystPrimaryDate": catalyst_primary_date,
             "CatalystPrimaryDaysAgo": catalyst_primary_days,
             "CatalystPrimaryURL": catalyst_primary_url,
-            "CatalystEvidenceAll": catalyst_evidence,
             "RunwayQuartersRaw": runway_quarters_raw,
             "RunwayQuarters": runway_quarters,
             "RunwayCashRaw": runway_cash_raw,
@@ -1005,7 +1101,9 @@ def run(
             "RunwayQuarterlyBurn": runway_burn,
             "RunwayEstimate": runway_estimate,
             "RunwayNotes": runway_notes,
-            "RunwaySourceForm": _normalize_form_name(runway_source_form),
+            "RunwayDays": runway_days_value,
+            "RunwayBucket": runway_bucket_label,
+            "RunwaySourceForm": runway_source_form,
             "RunwaySourceDate": runway_source_date,
             "RunwaySourceDaysAgo": runway_source_days,
             "RunwaySourceURL": runway_source_url,
@@ -1043,15 +1141,13 @@ def run(
             "SubscoresEvidenced": subscores_text,
             "SubscoresEvidencedCount": subscores_count,
             "Status": status_text,
-            "ChecklistPassed": passed_count,
-            "ChecklistTotal": checklist_total,
+            "ChecklistPassed": checklist_passed_value,
             "ChecklistCatalyst": checklist_statuses["Catalyst"],
             "ChecklistDilution": checklist_statuses["Dilution"],
             "ChecklistRunway": checklist_statuses["Runway"],
             "ChecklistGovernance": checklist_statuses["Governance"],
             "ChecklistInsider": checklist_statuses["Insider"],
             "ChecklistOwnership": checklist_statuses["Ownership"],
-            "ChecklistSummary": checklist_summary,
             "RiskFlag": risk_flag,
         }
 
