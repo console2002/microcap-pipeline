@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Iterable, Optional
 
 import pandas as pd
@@ -25,6 +26,7 @@ _OUTPUT_COLUMNS = [
     "LatestForm",
     "LatestFiledAt",
     "LatestFiledAgeDays",
+    "CatalystType",
     "Catalyst",
     "CatalystStatus",
     "CatalystPrimaryForm",
@@ -32,15 +34,24 @@ _OUTPUT_COLUMNS = [
     "CatalystPrimaryDaysAgo",
     "CatalystPrimaryURL",
     "CatalystEvidenceAll",
+    "RunwayQuartersRaw",
     "RunwayQuarters",
+    "RunwayCashRaw",
     "RunwayCash",
+    "RunwayQuarterlyBurnRaw",
     "RunwayQuarterlyBurn",
+    "RunwayEstimate",
     "RunwayNotes",
-    "RunwayStatus",
+    "RunwaySourceForm",
     "RunwaySourceDate",
     "RunwaySourceDaysAgo",
+    "RunwaySourceURL",
+    "RunwayStatus",
+    "DilutionFlag",
     "Dilution",
     "DilutionStatus",
+    "DilutionFormsHit",
+    "DilutionKeywordsHit",
     "DilutionPrimaryForm",
     "DilutionPrimaryDate",
     "DilutionPrimaryDaysAgo",
@@ -53,10 +64,18 @@ _OUTPUT_COLUMNS = [
     "GovernancePrimaryDaysAgo",
     "GovernancePrimaryURL",
     "GovernanceEvidenceAll",
+    "GovernanceNotes",
+    "HasGoingConcern",
+    "HasMaterialWeakness",
+    "Auditor",
     "Insider",
     "InsiderStatus",
+    "InsiderForms345Links",
+    "InsiderBuyCount",
+    "HasInsiderCluster",
     "Ownership",
     "OwnershipStatus",
+    "OwnershipLinks",
     "Materiality",
     "SubscoresEvidenced",
     "SubscoresEvidencedCount",
@@ -76,6 +95,83 @@ _NEGATIVE_DILUTION_TERMS = (
 _SUBSCORE_SPLIT_RE = re.compile(r"[;\n]+")
 _DATE_RE = re.compile(r"(20\d{2}-\d{2}-\d{2})")
 _URL_RE = re.compile(r"https?://\S+")
+
+_MANAGER_FORM_PREFIXES = (
+    "13F",
+    "13F-HR",
+    "SC 13D",
+    "SC 13G",
+)
+
+_DILUTION_FORM_PREFIXES = (
+    "S-1",
+    "S-3",
+    "F-1",
+    "F-3",
+    "424B",
+    "S-8",
+)
+
+_DILUTION_OFFERING_PREFIXES = (
+    "S-1",
+    "S-3",
+    "F-1",
+    "F-3",
+    "424B",
+)
+
+_DILUTION_KEYWORDS = [
+    "equity distribution agreement",
+    "atm",
+    "at-the-market",
+    "sales agreement",
+    "registered direct",
+    "underwritten",
+    "follow-on",
+    "prospectus supplement",
+    "rule 415",
+    "shelf",
+    "pipe",
+    "subscription agreement",
+    "convertible note",
+    "convertible debenture",
+    "convertible",
+    "warrant",
+    "pre-funded",
+]
+
+_FORM_URL_PATTERNS = {
+    "10q": re.compile(r"/10-?q"),
+    "10k": re.compile(r"/10-?k"),
+    "8k": re.compile(r"/8-?k"),
+    "6k": re.compile(r"/6-?k"),
+    "20f": re.compile(r"/20-?f"),
+    "40f": re.compile(r"/40-?f"),
+    "def14a": re.compile(r"/def14a"),
+    "424b": re.compile(r"/424b"),
+    "s1": re.compile(r"/s-?1"),
+    "s3": re.compile(r"/s-?3"),
+    "f1": re.compile(r"/f-?1"),
+    "f3": re.compile(r"/f-?3"),
+    "8a12b": re.compile(r"/8-a12b"),
+}
+
+_CATALYST_ITEM_LABELS = {
+    "1.01": "Material Agreement",
+    "2.02": "Earnings Results",
+    "3.02": "Unregistered Sales",
+    "7.01": "Reg FD",
+    "8.01": "Other Events",
+}
+
+_CATALYST_KEYWORD_LABELS = [
+    (re.compile(r"guidance"), "Guidance"),
+    (re.compile(r"contract|award|partnership"), "Commercial Update"),
+    (re.compile(r"regulatory|approval|clearance|adcom|pdufa"), "Regulatory"),
+    (re.compile(r"bankruptcy|restructuring"), "Restructuring"),
+    (re.compile(r"buyback"), "Buyback"),
+    (re.compile(r"uplist|downlist"), "Listing Change"),
+]
 
 
 def _progress_log_path() -> str:
@@ -149,7 +245,51 @@ def _clean_text(value: object) -> str:
     return text
 
 
-def _parse_timestamp(value: object) -> Optional[pd.Timestamp]:
+def _round_half_up_number(value: Optional[float], digits: int = 2) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        quant = Decimal("1").scaleb(-digits)
+        return float(Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP))
+    except (InvalidOperation, ValueError):
+        return float(value)
+
+
+def _normalize_form_name(value: str) -> str:
+    text = _clean_text(value)
+    if not text:
+        return ""
+    text = text.upper()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _form_guard_key(value: str) -> str:
+    text = _normalize_form_name(value)
+    if text.startswith("FORM "):
+        text = text[5:]
+    text = text.replace(" ", "")
+    if text.endswith("/A"):
+        text = text[:-2]
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def _is_manager_form(value: str) -> bool:
+    text = _normalize_form_name(value)
+    return any(text.startswith(prefix) for prefix in _MANAGER_FORM_PREFIXES)
+
+
+def _url_matches_form(form: str, url: str) -> bool:
+    if not form or not url:
+        return True
+    key = _form_guard_key(form)
+    pattern = next((regex for prefix, regex in _FORM_URL_PATTERNS.items() if key.startswith(prefix)), None)
+    if pattern is None:
+        return True
+    return bool(pattern.search(url.lower()))
+
+
+def _parse_date_value(value: object) -> Optional[pd.Timestamp]:
     text = _clean_text(value)
     if not text:
         return None
@@ -159,30 +299,143 @@ def _parse_timestamp(value: object) -> Optional[pd.Timestamp]:
         return None
     if ts is None or pd.isna(ts):
         return None
+    if isinstance(ts, pd.Series):
+        if ts.empty:
+            return None
+        ts = ts.iloc[0]
     if ts.tzinfo is None:
         ts = ts.tz_localize("UTC")
-    else:
-        ts = ts.tz_convert("UTC")
-    return ts
+    return ts.normalize()
 
 
-def _format_timestamp(ts: Optional[pd.Timestamp]) -> str:
+def _format_date(ts: Optional[pd.Timestamp]) -> str:
     if ts is None:
         return ""
-    return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return ts.strftime("%Y-%m-%d")
 
 
-def _format_days_ago(ts: Optional[pd.Timestamp], now: pd.Timestamp) -> str:
+def _compute_days_ago(ts: Optional[pd.Timestamp], now: pd.Timestamp) -> str:
     if ts is None:
         return ""
     delta = now - ts
     if pd.isna(delta):
         return ""
     try:
-        days = int(delta.days)
+        return str(int(delta.days))
     except Exception:
         return ""
-    return str(days)
+
+
+def _select_primary_entry(entries: list[dict]) -> Optional[dict]:
+    if not entries:
+        return None
+
+    def sort_key(entry: dict) -> tuple[int, pd.Timestamp, int]:
+        date_val = entry.get("date_value")
+        has_date = 1 if isinstance(date_val, pd.Timestamp) else 0
+        sortable = date_val if isinstance(date_val, pd.Timestamp) else pd.Timestamp.min.tz_localize("UTC")
+        has_url = 1 if entry.get("url") else 0
+        return (has_date, sortable, has_url)
+
+    ordered = sorted(entries, key=sort_key, reverse=True)
+    return ordered[0] if ordered else None
+
+
+def _entry_to_text(entry: dict) -> str:
+    date_str = entry.get("date") or ""
+    form = entry.get("form") or ""
+    url = entry.get("url") or ""
+    parts = [part for part in [date_str, form, url] if part]
+    return " ".join(parts)
+
+
+def _format_evidence_entries(entries: list[dict]) -> str:
+    formatted: list[str] = []
+    seen: set[str] = set()
+    for entry in entries:
+        text = _entry_to_text(entry)
+        if not text:
+            continue
+        if text not in seen:
+            seen.add(text)
+            formatted.append(text)
+    return "; ".join(formatted)
+
+
+def _enforce_form_url_guard(
+    ticker: str,
+    subscore: str,
+    summary: dict,
+    entries: list[dict],
+    now: pd.Timestamp,
+    progress_fn: ProgressFn,
+) -> dict:
+    form = summary.get("primary_form", "")
+    url = summary.get("primary_url", "")
+    if not form or not url:
+        return summary
+
+    if _url_matches_form(form, url):
+        return summary
+
+    message = f"Fix(FormURLMismatch): {ticker} {subscore} expected={form} gotURL={url}"
+
+    for entry in entries:
+        candidate_form = entry.get("form") or ""
+        candidate_url = entry.get("url") or ""
+        if candidate_form and candidate_url and _url_matches_form(candidate_form, candidate_url):
+            summary["primary_entry"] = entry
+            summary["primary_form"] = candidate_form
+            summary["primary_date"] = entry.get("date", "")
+            summary["primary_days_ago"] = _compute_days_ago(entry.get("date_value"), now)
+            summary["primary_url"] = candidate_url
+            summary["primary_text"] = _entry_to_text(entry)
+            summary["primary_raw"] = entry.get("raw", "")
+            summary["status"] = "Pass"
+            _emit("WARN", message, progress_fn)
+            return summary
+
+    _emit("WARN", message, progress_fn)
+    return summary
+
+
+def _extract_urls_list(text: str) -> list[str]:
+    urls = _URL_RE.findall(text)
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            ordered.append(url)
+    return ordered
+
+
+def _infer_catalyst_type(entries: list[dict], fallback_form: str, fallback_text: str) -> str:
+    for entry in entries:
+        lower_text = entry.get("lower", "")
+        for item, label in _CATALYST_ITEM_LABELS.items():
+            if f"item {item.lower()}" in lower_text:
+                return label
+        for pattern, label in _CATALYST_KEYWORD_LABELS:
+            if pattern.search(lower_text):
+                return label
+
+    form = _normalize_form_name(fallback_form)
+    if form in {"10-Q", "10-K", "20-F", "40-F"}:
+        return "Earnings/Financial update"
+
+    lower_fallback = fallback_text.lower()
+    for pattern, label in _CATALYST_KEYWORD_LABELS:
+        if pattern.search(lower_fallback):
+            return label
+    return ""
+
+
+def _is_status_pass(status: str) -> bool:
+    text = _clean_text(status).lower()
+    if not text:
+        return False
+    return text.startswith("pass") or text.startswith("overhang")
 
 
 def _parse_evidence_entries(text: str) -> list[dict]:
@@ -195,40 +448,45 @@ def _parse_evidence_entries(text: str) -> list[dict]:
         if not raw:
             continue
 
-        date_match = _DATE_RE.search(raw)
-        date_str = date_match.group(1) if date_match else ""
-        date_val: Optional[pd.Timestamp] = None
-        if date_str:
-            try:
-                date_val = pd.to_datetime(date_str, utc=True)
-            except Exception:
-                date_val = None
-
         url_match = _URL_RE.search(raw)
         url = url_match.group(0) if url_match else ""
 
+        date_match = _DATE_RE.search(raw)
+        date_val = _parse_date_value(date_match.group(1)) if date_match else None
+
+        remainder = raw
         if date_match:
-            after = raw[date_match.end() :].lstrip(" |")
-        else:
-            after = raw
-        primary_segment = ""
-        if after:
-            primary_segment = after.split("|")[0].strip()
-        if not primary_segment and after:
-            primary_segment = after.split()[0] if after.split() else ""
+            remainder = raw[date_match.end() :].lstrip(" |") or remainder
+
+        candidate_segment = remainder.split("|")[0].strip()
+        if candidate_segment:
+            http_pos = candidate_segment.lower().find("http")
+            if http_pos != -1:
+                candidate_segment = candidate_segment[:http_pos].rstrip()
+
         form = ""
-        if primary_segment:
-            match = re.match(r"([A-Za-z0-9./-]+)", primary_segment)
+        if candidate_segment:
+            match = re.match(r"([A-Za-z0-9./-]+(?:\s+[A-Za-z0-9.-]+)?)", candidate_segment)
             if match:
                 form = match.group(1)
+
+        normalized_form = _normalize_form_name(form)
+
+        if date_val is None:
+            # attempt to parse the leading token if a date wasn't captured by regex
+            leading_token = candidate_segment.split()[0] if candidate_segment else ""
+            alt_date = _parse_date_value(leading_token)
+            if alt_date is not None:
+                date_val = alt_date
 
         entries.append(
             {
                 "raw": raw,
-                "date": date_str,
+                "date": _format_date(date_val),
                 "date_value": date_val,
-                "form": form,
+                "form": normalized_form,
                 "url": url,
+                "lower": raw.lower(),
             }
         )
 
@@ -251,43 +509,30 @@ def _first_url(text: str) -> str:
     return ""
 
 
-def _summarize_category(entries: list[dict], fallback_text: str, now: pd.Timestamp) -> dict:
+def _summarize_category(entries: list[dict], now: pd.Timestamp) -> dict:
     summary = {
         "status": "Missing",
-        "primary": "",
+        "primary_text": "",
+        "primary_raw": "",
         "primary_form": "",
         "primary_date": "",
         "primary_days_ago": "",
         "primary_url": "",
-        "evidence": "",
+        "primary_entry": None,
     }
 
-    cleaned_fallback = _clean_text(fallback_text)
-
-    def sort_key(entry: dict) -> tuple[int, Optional[pd.Timestamp]]:
-        date_val = entry.get("date_value")
-        return (0 if date_val is None else 1, date_val)
-
-    if entries:
-        ordered = sorted(entries, key=sort_key, reverse=True)
-        primary = ordered[0]
-        summary["status"] = "Pass"
-        summary["primary"] = primary.get("raw", "")
-        summary["primary_form"] = primary.get("form", "")
-        summary["primary_date"] = primary.get("date", "")
-        date_val = primary.get("date_value")
-        if isinstance(date_val, pd.Timestamp):
-            summary["primary_days_ago"] = _format_days_ago(date_val, now)
-        summary["primary_url"] = primary.get("url", "")
-        summary["evidence"] = "; ".join(entry.get("raw", "") for entry in ordered if entry.get("raw"))
+    primary = _select_primary_entry(entries)
+    if not primary:
         return summary
 
-    if cleaned_fallback:
-        summary["status"] = "Pass"
-        summary["primary"] = cleaned_fallback
-        summary["evidence"] = cleaned_fallback
-        return summary
-
+    summary["status"] = "Pass"
+    summary["primary_entry"] = primary
+    summary["primary_form"] = primary.get("form", "")
+    summary["primary_date"] = primary.get("date", "")
+    summary["primary_days_ago"] = _compute_days_ago(primary.get("date_value"), now)
+    summary["primary_url"] = primary.get("url", "")
+    summary["primary_text"] = _entry_to_text(primary)
+    summary["primary_raw"] = primary.get("raw", "")
     return summary
 
 
@@ -480,6 +725,12 @@ def run(
         if idx == 1 or idx % 25 == 0 or idx == total_rows:
             _emit("INFO", f"build_watchlist: processing row {idx} of {total_rows}", progress_fn)
 
+        ticker_value = _clean_text(getattr(row, "Ticker", ""))
+        cik_value = _normalize_cik(getattr(row, "CIK", ""))
+        identifier = ticker_value or cik_value
+        company_value = getattr(row, "Company", "")
+        sector_text = _clean_text(getattr(row, "Sector", ""))
+
         price_val = _to_float(getattr(row, "Price", None))
         market_cap_val = _to_float(getattr(row, "MarketCap", None))
         adv_val = _to_float(getattr(row, "ADV20", None))
@@ -491,79 +742,183 @@ def run(
         if adv_val is None or adv_val < 40_000:
             continue
 
-        runway_raw = getattr(row, "RunwayQuarters", "")
-        if pd.isna(runway_raw):
+        runway_quarters_raw = _to_float(getattr(row, "RunwayQuartersRaw", None))
+        if runway_quarters_raw is None:
+            runway_quarters_raw = _to_float(getattr(row, "RunwayQuarters", None))
+        runway_quarters = _round_half_up_number(runway_quarters_raw)
+        if runway_quarters is None or runway_quarters <= 0:
             continue
-        runway_text = str(runway_raw).strip()
-        if not runway_text or runway_text.lower() == "nan":
+
+        runway_cash_raw = _to_float(getattr(row, "RunwayCashRaw", None))
+        if runway_cash_raw is None:
+            runway_cash_raw = _to_float(getattr(row, "RunwayCash", None))
+        runway_cash = _round_half_up_number(_to_float(getattr(row, "RunwayCash", runway_cash_raw)))
+
+        runway_burn_raw = _to_float(getattr(row, "RunwayQuarterlyBurnRaw", None))
+        if runway_burn_raw is None:
+            runway_burn_raw = _to_float(getattr(row, "RunwayQuarterlyBurn", None))
+        runway_burn = _round_half_up_number(_to_float(getattr(row, "RunwayQuarterlyBurn", runway_burn_raw)))
+
+        runway_estimate = _clean_text(getattr(row, "RunwayEstimate", ""))
+        runway_notes = _clean_text(getattr(row, "RunwayNotes", ""))
+        runway_source_form = _clean_text(getattr(row, "RunwaySourceForm", ""))
+        runway_source_date_ts = _parse_date_value(getattr(row, "RunwaySourceDate", ""))
+        if runway_source_date_ts is None:
+            notes_match = _DATE_RE.search(runway_notes)
+            if notes_match:
+                runway_source_date_ts = _parse_date_value(notes_match.group(1))
+        runway_source_date = _format_date(runway_source_date_ts)
+        runway_source_url = _clean_text(getattr(row, "RunwaySourceURL", "")) or _first_url(runway_notes)
+        runway_source_days = _compute_days_ago(runway_source_date_ts, now_utc)
+
+        if runway_source_date_ts is None:
+            _emit("WARN", f"Dropped: No Q10/K runway source ({identifier})", progress_fn)
             continue
-        runway_val = _to_float(runway_text)
-        if runway_val is not None and runway_val <= 0:
+        if (now_utc - runway_source_date_ts).days > 465:
+            _emit("WARN", f"Dropped: Runway filing stale ({identifier})", progress_fn)
             continue
 
         catalyst_text = _clean_text(getattr(row, "Catalyst", ""))
         if not catalyst_text or catalyst_text.upper() == "TBD":
+            _emit("WARN", f"Dropped: Catalyst evidence missing ({identifier})", progress_fn)
             continue
 
-        dilution_text_raw = getattr(row, "Dilution", "")
-        dilution_text = _clean_text(dilution_text_raw)
-        dilution_lower = dilution_text.lower()
-        if any(term in dilution_lower for term in _NEGATIVE_DILUTION_TERMS):
+        dilution_text = _clean_text(getattr(row, "Dilution", ""))
+        if any(term in dilution_text.lower() for term in _NEGATIVE_DILUTION_TERMS):
             continue
 
-        governance_raw = getattr(row, "Governance", "")
-        if pd.isna(governance_raw):
-            continue
-        governance_text = _clean_text(governance_raw)
-        if governance_text.lower() == "nan":
+        governance_text = _clean_text(getattr(row, "Governance", ""))
+        if not governance_text:
             continue
 
-        risk_flag = ""
-        if "watch" in dilution_lower:
-            risk_flag = "Dilution Watch"
-        elif "watch" in governance_text.lower():
-            risk_flag = "Governance Watch"
+        filings_summary_text = _clean_text(getattr(row, "FilingsSummary", ""))
+        filing_entries = [
+            entry
+            for entry in _parse_evidence_entries(filings_summary_text)
+            if not _is_manager_form(entry.get("form", ""))
+        ]
 
-        sector_text = _clean_text(getattr(row, "Sector", ""))
-        latest_form = _clean_text(getattr(row, "LatestForm", ""))
-        filed_at_ts = _parse_timestamp(getattr(row, "FiledAt", None))
-        latest_filed_at = _format_timestamp(filed_at_ts)
-        latest_filed_age_days = _format_days_ago(filed_at_ts, now_utc)
+        latest_entry = _select_primary_entry(filing_entries)
+        latest_form = _normalize_form_name(latest_entry.get("form", "")) if latest_entry else ""
+        if not latest_form:
+            fallback_form = _normalize_form_name(_clean_text(getattr(row, "LatestForm", "")))
+            if fallback_form and not _is_manager_form(fallback_form):
+                latest_form = fallback_form
+        latest_filed_ts = latest_entry.get("date_value") if latest_entry else None
+        filed_at_fallback = _parse_date_value(getattr(row, "FiledAt", None))
+        if latest_filed_ts is None:
+            latest_filed_ts = filed_at_fallback
+        latest_filed_at = _format_date(latest_filed_ts)
+        latest_filed_age_days = _compute_days_ago(latest_filed_ts, now_utc)
 
         catalyst_entries = _parse_evidence_entries(catalyst_text)
-        catalyst_summary = _summarize_category(catalyst_entries, catalyst_text, now_utc)
-        catalyst_primary_url = (
-            _clean_text(getattr(row, "CatalystPrimaryLink", ""))
-            or catalyst_summary.get("primary_url", "")
-        )
+        catalyst_summary = _summarize_category(catalyst_entries, now_utc)
+        catalyst_summary = _enforce_form_url_guard(identifier, "Catalyst", catalyst_summary, catalyst_entries, now_utc, progress_fn)
+        if catalyst_summary.get("status") != "Pass":
+            _emit("WARN", f"Dropped: Catalyst evidence missing ({identifier})", progress_fn)
+            continue
+        catalyst_primary_url = catalyst_summary.get("primary_url") or _clean_text(getattr(row, "CatalystPrimaryLink", ""))
+        if catalyst_primary_url:
+            catalyst_summary["primary_url"] = catalyst_primary_url
+        catalyst_evidence = _format_evidence_entries(catalyst_entries) or catalyst_text
+        catalyst_field = catalyst_summary.get("primary_text") or catalyst_text
+        catalyst_type = _infer_catalyst_type(
+            catalyst_entries,
+            catalyst_summary.get("primary_form", ""),
+            catalyst_text,
+        ) or _clean_text(getattr(row, "CatalystType", ""))
 
         dilution_entries = _parse_evidence_entries(dilution_text)
-        dilution_summary = _summarize_category(dilution_entries, dilution_text, now_utc)
-        dilution_primary_url = (
-            dilution_summary.get("primary_url", "")
-            or _first_url(_clean_text(getattr(row, "DilutionLinks", "")))
+        dilution_summary = _summarize_category(dilution_entries, now_utc)
+        dilution_summary = _enforce_form_url_guard(identifier, "Dilution", dilution_summary, dilution_entries, now_utc, progress_fn)
+        dilution_primary_url = dilution_summary.get("primary_url") or _first_url(_clean_text(getattr(row, "DilutionLinks", "")))
+        if dilution_primary_url:
+            dilution_summary["primary_url"] = dilution_primary_url
+        dilution_forms_hit = list(
+            dict.fromkeys(
+                [
+                    entry.get("form", "")
+                    for entry in dilution_entries
+                    if entry.get("form")
+                    and any(entry.get("form", "").startswith(prefix) for prefix in _DILUTION_FORM_PREFIXES)
+                ]
+            )
         )
+        dilution_keywords_raw: list[str] = []
+        has_keyword_filing = False
+        for entry in dilution_entries:
+            lower_text = entry.get("lower", "")
+            form_name = entry.get("form", "") or ""
+            if form_name.startswith(("8-K", "6-K")) and any(keyword in lower_text for keyword in _DILUTION_KEYWORDS):
+                has_keyword_filing = True
+            for keyword in _DILUTION_KEYWORDS:
+                if keyword in lower_text:
+                    dilution_keywords_raw.append(keyword)
+        dilution_keywords_hit = list(dict.fromkeys(dilution_keywords_raw))
+        has_offering_form = any(
+            entry.get("form", "").startswith(prefix)
+            for entry in dilution_entries
+            for prefix in _DILUTION_OFFERING_PREFIXES
+        )
+        has_s8_only = bool(dilution_forms_hit) and all(form.startswith("S-8") for form in dilution_forms_hit)
+        dilution_flag = bool(dilution_forms_hit or dilution_keywords_hit or has_keyword_filing)
+        if (has_offering_form and dilution_keywords_hit) or has_keyword_filing:
+            dilution_status = "Pass (Offering)"
+        elif has_s8_only:
+            dilution_status = "Overhang (S-8)"
+        elif dilution_flag:
+            dilution_status = "None"
+        else:
+            dilution_status = "Missing"
+        if not dilution_flag:
+            _emit("WARN", f"Dropped: Dilution filing missing ({identifier})", progress_fn)
+            continue
+        dilution_evidence = _format_evidence_entries(dilution_entries) or dilution_text
+        dilution_field = dilution_summary.get("primary_text") or dilution_text
 
         governance_entries = _parse_evidence_entries(governance_text)
-        governance_summary = _summarize_category(governance_entries, governance_text, now_utc)
+        governance_summary = _summarize_category(governance_entries, now_utc)
+        governance_summary = _enforce_form_url_guard(identifier, "Governance", governance_summary, governance_entries, now_utc, progress_fn)
+        governance_primary_url = governance_summary.get("primary_url") or _first_url(governance_text)
+        if governance_primary_url:
+            governance_summary["primary_url"] = governance_primary_url
+        governance_evidence = _format_evidence_entries(governance_entries) or governance_text
+        governance_field = governance_summary.get("primary_text") or governance_text
+        governance_notes = governance_summary.get("primary_raw") or governance_text
+        gov_lower = governance_text.lower()
+        has_going_concern = "going concern" in gov_lower
+        has_material_weakness = "material weakness" in gov_lower
+        auditor_text = _clean_text(getattr(row, "Auditor", ""))
 
-        runway_cash_text = _clean_text(getattr(row, "RunwayCash", ""))
-        runway_burn_text = _clean_text(getattr(row, "RunwayQuarterlyBurn", ""))
-        runway_notes = _clean_text(getattr(row, "RunwayNotes", ""))
-        runway_status = "Pass" if runway_val is None or runway_val > 0 else "Missing"
-        runway_source_date = latest_filed_at
-        runway_source_days = latest_filed_age_days
+        risk_flag = ""
+        dilution_lower = dilution_text.lower()
+        if "watch" in dilution_lower:
+            risk_flag = "Dilution Watch"
+        elif "watch" in gov_lower:
+            risk_flag = "Governance Watch"
 
         insider_text = _clean_text(getattr(row, "Insider", ""))
         ownership_text = _clean_text(getattr(row, "Ownership", ""))
+        insider_links = _extract_urls_list(insider_text)
+        ownership_links = _extract_urls_list(ownership_text)
+        insider_buy_count_val = _to_float(getattr(row, "InsiderBuyCount", None))
+        insider_buy_count = int(insider_buy_count_val) if insider_buy_count_val is not None else 0
+        has_insider_cluster_raw = getattr(row, "HasInsiderCluster", False)
+        if isinstance(has_insider_cluster_raw, str):
+            has_insider_cluster = has_insider_cluster_raw.strip().lower() in {"true", "1", "yes"}
+        else:
+            has_insider_cluster = bool(has_insider_cluster_raw)
 
         materiality_text = _clean_text(getattr(row, "Materiality", ""))
         subscores_text = _clean_text(getattr(row, "SubscoresEvidenced", ""))
+        subscores_count = int(getattr(row, "SubscoresEvidencedCount", 0) or 0)
         status_text = _clean_text(getattr(row, "Status", ""))
+
+        runway_status = "Pass" if runway_quarters and runway_quarters > 0 else "Missing"
 
         checklist_items = [
             ("Catalyst", catalyst_summary.get("status", "")),
-            ("Dilution", dilution_summary.get("status", "")),
+            ("Dilution", dilution_status),
             ("Runway", runway_status),
             ("Governance", governance_summary.get("status", "")),
             ("Insider", "Placeholder"),
@@ -573,7 +928,7 @@ def run(
         passed_count = 0
         for name, status_value in checklist_items:
             status_norm = _clean_text(status_value).lower()
-            if status_norm == "pass":
+            if _is_status_pass(status_value):
                 symbol = "✅"
                 passed_count += 1
             elif status_norm == "placeholder":
@@ -585,52 +940,93 @@ def run(
         checklist_summary = "; ".join(checklist_summary_parts)
         checklist_total = len(checklist_items)
 
+        mandatory_pass = (
+            _is_status_pass(catalyst_summary.get("status", ""))
+            and _is_status_pass(dilution_status)
+            and _is_status_pass(runway_status)
+        )
+        if not mandatory_pass:
+            status_text = "TBD — exclude"
+
+        catalyst_primary_form = catalyst_summary.get("primary_form", "")
+        catalyst_primary_date = catalyst_summary.get("primary_date", "")
+        catalyst_primary_days = catalyst_summary.get("primary_days_ago", "")
+        catalyst_primary_url = catalyst_summary.get("primary_url", "")
+
+        dilution_primary_form = dilution_summary.get("primary_form", "")
+        dilution_primary_date = dilution_summary.get("primary_date", "")
+        dilution_primary_days = dilution_summary.get("primary_days_ago", "")
+        dilution_primary_url = dilution_summary.get("primary_url", "")
+
+        governance_primary_form = governance_summary.get("primary_form", "")
+        governance_primary_date = governance_summary.get("primary_date", "")
+        governance_primary_days = governance_summary.get("primary_days_ago", "")
+        governance_primary_url = governance_summary.get("primary_url", "")
+
         record = {
-            "Ticker": getattr(row, "Ticker", ""),
-            "Company": getattr(row, "Company", ""),
+            "Ticker": ticker_value,
+            "Company": company_value,
             "Sector": sector_text,
-            "CIK": getattr(row, "CIK", ""),
+            "CIK": cik_value,
             "Price": price_val,
             "MarketCap": market_cap_val,
             "ADV20": adv_val,
             "LatestForm": latest_form,
             "LatestFiledAt": latest_filed_at,
             "LatestFiledAgeDays": latest_filed_age_days,
-            "Catalyst": catalyst_summary.get("primary", catalyst_text),
+            "CatalystType": catalyst_type,
+            "Catalyst": catalyst_field,
             "CatalystStatus": catalyst_summary.get("status", ""),
-            "CatalystPrimaryForm": catalyst_summary.get("primary_form", ""),
-            "CatalystPrimaryDate": catalyst_summary.get("primary_date", ""),
-            "CatalystPrimaryDaysAgo": catalyst_summary.get("primary_days_ago", ""),
+            "CatalystPrimaryForm": catalyst_primary_form,
+            "CatalystPrimaryDate": catalyst_primary_date,
+            "CatalystPrimaryDaysAgo": catalyst_primary_days,
             "CatalystPrimaryURL": catalyst_primary_url,
-            "CatalystEvidenceAll": catalyst_summary.get("evidence", catalyst_text),
-            "RunwayQuarters": runway_text,
-            "RunwayCash": runway_cash_text,
-            "RunwayQuarterlyBurn": runway_burn_text,
+            "CatalystEvidenceAll": catalyst_evidence,
+            "RunwayQuartersRaw": runway_quarters_raw,
+            "RunwayQuarters": runway_quarters,
+            "RunwayCashRaw": runway_cash_raw,
+            "RunwayCash": runway_cash,
+            "RunwayQuarterlyBurnRaw": runway_burn_raw,
+            "RunwayQuarterlyBurn": runway_burn,
+            "RunwayEstimate": runway_estimate,
             "RunwayNotes": runway_notes,
-            "RunwayStatus": runway_status,
+            "RunwaySourceForm": _normalize_form_name(runway_source_form),
             "RunwaySourceDate": runway_source_date,
             "RunwaySourceDaysAgo": runway_source_days,
-            "Dilution": dilution_summary.get("primary", dilution_text),
-            "DilutionStatus": dilution_summary.get("status", ""),
-            "DilutionPrimaryForm": dilution_summary.get("primary_form", ""),
-            "DilutionPrimaryDate": dilution_summary.get("primary_date", ""),
-            "DilutionPrimaryDaysAgo": dilution_summary.get("primary_days_ago", ""),
+            "RunwaySourceURL": runway_source_url,
+            "RunwayStatus": runway_status,
+            "DilutionFlag": dilution_flag,
+            "Dilution": dilution_field,
+            "DilutionStatus": dilution_status,
+            "DilutionFormsHit": "; ".join(dilution_forms_hit),
+            "DilutionKeywordsHit": "; ".join(dilution_keywords_hit),
+            "DilutionPrimaryForm": dilution_primary_form,
+            "DilutionPrimaryDate": dilution_primary_date,
+            "DilutionPrimaryDaysAgo": dilution_primary_days,
             "DilutionPrimaryURL": dilution_primary_url,
-            "DilutionEvidenceAll": dilution_summary.get("evidence", dilution_text),
-            "Governance": governance_summary.get("primary", governance_text),
+            "DilutionEvidenceAll": dilution_evidence,
+            "Governance": governance_field,
             "GovernanceStatus": governance_summary.get("status", ""),
-            "GovernancePrimaryForm": governance_summary.get("primary_form", ""),
-            "GovernancePrimaryDate": governance_summary.get("primary_date", ""),
-            "GovernancePrimaryDaysAgo": governance_summary.get("primary_days_ago", ""),
-            "GovernancePrimaryURL": governance_summary.get("primary_url", ""),
-            "GovernanceEvidenceAll": governance_summary.get("evidence", governance_text),
+            "GovernancePrimaryForm": governance_primary_form,
+            "GovernancePrimaryDate": governance_primary_date,
+            "GovernancePrimaryDaysAgo": governance_primary_days,
+            "GovernancePrimaryURL": governance_primary_url,
+            "GovernanceEvidenceAll": governance_evidence,
+            "GovernanceNotes": governance_notes,
+            "HasGoingConcern": has_going_concern,
+            "HasMaterialWeakness": has_material_weakness,
+            "Auditor": auditor_text,
             "Insider": insider_text,
             "InsiderStatus": "Placeholder",
+            "InsiderForms345Links": "; ".join(insider_links),
+            "InsiderBuyCount": insider_buy_count,
+            "HasInsiderCluster": has_insider_cluster,
             "Ownership": ownership_text,
             "OwnershipStatus": "Placeholder",
+            "OwnershipLinks": "; ".join(ownership_links),
             "Materiality": materiality_text,
             "SubscoresEvidenced": subscores_text,
-            "SubscoresEvidencedCount": getattr(row, "SubscoresEvidencedCount", 0),
+            "SubscoresEvidencedCount": subscores_count,
             "Status": status_text,
             "ChecklistPassed": passed_count,
             "ChecklistTotal": checklist_total,

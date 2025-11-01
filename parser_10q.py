@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from datetime import datetime, timezone
 from typing import Iterable, Optional
 from urllib import request
@@ -77,6 +78,20 @@ _FACT_DATE_FORMATS = [
     "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%d %H:%M:%S",
 ]
+
+
+def _round_half_up(value: Optional[float], digits: int = 2) -> Optional[float]:
+    """Round a float using classic half-up semantics."""
+
+    if value is None:
+        return None
+
+    try:
+        quant = Decimal("1").scaleb(-digits)
+        rounded = Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return float(value)
+    return float(rounded)
 
 
 def _to_float(num_str: str) -> float:
@@ -348,37 +363,77 @@ def _derive_from_xbrl(
             raise RuntimeError("; ".join(errors))
         return None, form_type
 
-    quarterly_burn: Optional[float]
+    quarterly_burn_raw: Optional[float]
     if burn is None:
-        quarterly_burn = None
+        quarterly_burn_raw = None
     else:
-        quarterly_burn = abs(float(burn))
-        if quarterly_burn == 0:
-            quarterly_burn = 0.0
+        quarterly_burn_raw = abs(float(burn))
+        if quarterly_burn_raw == 0:
+            quarterly_burn_raw = 0.0
 
     if (
         form_type
         and form_type.upper() in {"10-K", "20-F", "40-F"}
-        and quarterly_burn is not None
+        and quarterly_burn_raw is not None
     ):
-        quarterly_burn = quarterly_burn / 4.0
+        quarterly_burn_raw = quarterly_burn_raw / 4.0
 
-    runway_quarters: Optional[float]
-    if cash is not None and quarterly_burn not in (None, 0.0):
-        runway_quarters = float(cash) / float(quarterly_burn)
+    runway_quarters_raw: Optional[float]
+    if cash is not None and quarterly_burn_raw not in (None, 0.0):
+        runway_quarters_raw = float(cash) / float(quarterly_burn_raw)
     else:
-        runway_quarters = None
+        runway_quarters_raw = None
 
     cash_value = float(cash) if cash is not None else None
-    result = {
-        "cash": round(cash_value, 2) if cash_value is not None else None,
-        "quarterly_burn": round(quarterly_burn, 2) if quarterly_burn is not None else None,
-        "runway_quarters": round(runway_quarters, 2) if runway_quarters is not None else None,
-        "note": f"values parsed from XBRL: {filing_url}",
-    }
+    result = _finalize_runway_result(
+        cash_value,
+        quarterly_burn_raw,
+        runway_quarters_raw,
+        f"values parsed from XBRL: {filing_url}",
+        form_type,
+    )
     if cash is None or burn is None:
         result["note"] += " (partial XBRL data)"
     return result, form_type
+
+
+def _infer_runway_estimate(form_type: Optional[str]) -> str:
+    """Infer the estimate annotation for the runway metrics."""
+
+    if not form_type:
+        return ""
+
+    normalized = form_type.upper()
+    if normalized.startswith(("10-K", "20-F", "40-F")):
+        return "annual_div4"
+    if normalized.startswith("6-K"):
+        return "interim"
+    return "interim"
+
+
+def _finalize_runway_result(
+    cash: Optional[float],
+    quarterly_burn: Optional[float],
+    runway_quarters: Optional[float],
+    note: str,
+    form_type: Optional[str],
+) -> dict:
+    estimate = _infer_runway_estimate(form_type)
+
+    result: dict = {
+        "cash_raw": cash,
+        "quarterly_burn_raw": quarterly_burn,
+        "runway_quarters_raw": runway_quarters,
+        "note": note,
+        "estimate": estimate,
+    }
+
+    result["cash"] = _round_half_up(cash)
+    result["quarterly_burn"] = _round_half_up(quarterly_burn)
+    result["runway_quarters"] = _round_half_up(runway_quarters)
+    if form_type:
+        result["form_type"] = form_type
+    return result
 
 
 def get_runway_from_filing(filing_url: str) -> dict:
@@ -443,6 +498,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
         ],
     )
 
+    quarterly_burn_raw: Optional[float]
     if burn_value is None:
         provided_value = _extract_number_after_keyword(
             text,
@@ -452,16 +508,13 @@ def get_runway_from_filing(filing_url: str) -> dict:
                 "Net cash provided by operating activities - continuing operations",
             ],
         )
-        if provided_value is not None:
-            quarterly_burn = 0.0
-        else:
-            quarterly_burn = None
+        quarterly_burn_raw = 0.0 if provided_value is not None else None
     else:
         if burn_value > 0:
             provided_value = burn_value
-            quarterly_burn = 0.0
+            quarterly_burn_raw = 0.0
         else:
-            quarterly_burn = abs(burn_value)
+            quarterly_burn_raw = abs(float(burn_value))
 
     _log_debug(f"runway_html: cash_keywords matched -> {cash_value}")
     _log_debug(
@@ -471,34 +524,33 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     cash = float(cash_value) if cash_value is not None else None
 
-    if quarterly_burn is not None and quarterly_burn <= 0:
-        quarterly_burn = None
+    if quarterly_burn_raw is not None and quarterly_burn_raw <= 0:
+        quarterly_burn_raw = None
 
     if (
         form_type
         and form_type.upper() in {"10-K", "20-F", "40-F"}
-        and quarterly_burn is not None
+        and quarterly_burn_raw is not None
     ):
-        quarterly_burn = quarterly_burn / 4.0
+        quarterly_burn_raw = quarterly_burn_raw / 4.0
 
-    runway_quarters: Optional[float]
-    if cash is not None and quarterly_burn is not None and quarterly_burn > 0:
-        runway_quarters = cash / quarterly_burn
+    runway_quarters_raw: Optional[float]
+    if cash is not None and quarterly_burn_raw not in (None, 0.0):
+        runway_quarters_raw = cash / quarterly_burn_raw
     else:
-        runway_quarters = None
+        runway_quarters_raw = None
 
     note_parts = [f"values parsed from 10-Q/10-K HTML: {filing_url}"]
     if xbrl_error:
         note_parts.append(xbrl_error)
 
-    return {
-        "cash": round(cash, 2) if cash is not None else None,
-        "quarterly_burn": round(quarterly_burn, 2) if quarterly_burn is not None else None,
-        "runway_quarters": round(runway_quarters, 2)
-        if runway_quarters is not None
-        else None,
-        "note": "; ".join(note_parts),
-    }
+    return _finalize_runway_result(
+        cash,
+        quarterly_burn_raw,
+        runway_quarters_raw,
+        "; ".join(note_parts),
+        form_type,
+    )
 
 
 __all__ = ["get_runway_from_filing"]
