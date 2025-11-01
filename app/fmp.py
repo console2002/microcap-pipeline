@@ -29,7 +29,7 @@ def normalize_exchange(raw: str) -> str:
         "AMEX": "NYSEAM",
     }
 
-    return mapping.get(upper, "")
+    return mapping.get(upper, upper)
 
 
 def _check_cancel(stop_flag: Optional[dict]):
@@ -120,6 +120,8 @@ def fetch_profiles(
         if norm:
             allowed_exchange_norms.add(norm)
 
+    default_exchange_norms = {"NASDAQ", "NYSE", "NYSEAM"}
+
     otc_pattern = re.compile(r"(?i)\b(?:OTC|OTCQX|OTCQB|PINK|GREY)\b")
 
     for idx, batch in enumerate(batches, start=1):
@@ -156,10 +158,13 @@ def fetch_profiles(
             # hard gate filters
             if otc_pattern.search(exchange):
                 continue
-            if exch_norm not in {"NASDAQ", "NYSE", "NYSEAM"}:
-                continue
-            if allowed_exchange_norms and exch_norm not in allowed_exchange_norms:
-                continue
+
+            if allowed_exchange_norms:
+                if exch_norm not in allowed_exchange_norms:
+                    continue
+            else:
+                if exch_norm not in default_exchange_norms:
+                    continue
             if price is not None and price < cfg["HardGates"]["MinPrice"]:
                 continue
             if mcap is not None and mcap < cfg["HardGates"]["CapMin"]:
