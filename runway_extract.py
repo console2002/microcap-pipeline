@@ -6,7 +6,7 @@ import os
 import re
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
@@ -326,6 +326,7 @@ def run(data_dir: str | None = None) -> None:
         final_info: Optional[dict] = None
         partial_result: Optional[dict] = None
         partial_info: Optional[dict] = None
+        partial_rank: Optional[Tuple[int, datetime]] = None
         status_history: List[str] = []
         note_history: List[str] = []
 
@@ -401,8 +402,19 @@ def run(data_dir: str | None = None) -> None:
                         note_history.append(result_status)
                     break
 
-                partial_result = result
-                partial_info = info
+                candidate_priority = info.get("priority", 9)
+                filed_at_rank = filed_at_dt or datetime.min
+                candidate_rank: Tuple[int, datetime] = (
+                    candidate_priority,
+                    filed_at_rank,
+                )
+                if partial_rank is None or candidate_priority < partial_rank[0] or (
+                    candidate_priority == partial_rank[0]
+                    and filed_at_rank > partial_rank[1]
+                ):
+                    partial_result = result
+                    partial_info = info
+                    partial_rank = candidate_rank
                 status_history.append(result_status)
                 if note_text:
                     note_history.append(note_text)
