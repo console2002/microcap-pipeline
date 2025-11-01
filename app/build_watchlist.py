@@ -147,19 +147,19 @@ _DILUTION_KEYWORDS = [
 ]
 
 _FORM_URL_PATTERNS = {
-    "10q": re.compile(r"/10-?q"),
-    "10k": re.compile(r"/10-?k"),
-    "8k": re.compile(r"/8-?k"),
-    "6k": re.compile(r"/6-?k"),
-    "20f": re.compile(r"/20-?f"),
-    "40f": re.compile(r"/40-?f"),
-    "def14a": re.compile(r"/def14a"),
-    "424b": re.compile(r"/424b"),
-    "s1": re.compile(r"/s-?1"),
-    "s3": re.compile(r"/s-?3"),
-    "f1": re.compile(r"/f-?1"),
-    "f3": re.compile(r"/f-?3"),
-    "8a12b": re.compile(r"/8-a12b"),
+    "10q": re.compile(r"/[^/]*10-?q"),
+    "10k": re.compile(r"/[^/]*10-?k"),
+    "8k": re.compile(r"/[^/]*8-?k"),
+    "6k": re.compile(r"/[^/]*6-?k"),
+    "20f": re.compile(r"/[^/]*20-?f"),
+    "40f": re.compile(r"/[^/]*40-?f"),
+    "def14a": re.compile(r"/[^/]*def14a"),
+    "424b": re.compile(r"/[^/]*424b"),
+    "s1": re.compile(r"/[^/]*s-?1"),
+    "s3": re.compile(r"/[^/]*s-?3"),
+    "f1": re.compile(r"/[^/]*f-?1"),
+    "f3": re.compile(r"/[^/]*f-?3"),
+    "8a12b": re.compile(r"/[^/]*8a12b"),
 }
 
 _CATALYST_ITEM_LABELS = {
