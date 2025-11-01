@@ -5,6 +5,7 @@ import csv
 import os
 import re
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Dict, Iterable, List, Optional
 
 from app.config import load_config
@@ -151,19 +152,52 @@ def _normalize_cik_value(value: object) -> str:
     return digits.zfill(10)
 
 
-def _build_latest_filing_map(filings: Iterable[dict]) -> Dict[str, dict]:
-    latest: Dict[str, dict] = {}
+def _canonical_form_name(form: str | None) -> str:
+    if not form:
+        return ""
+    upper = (form or "").strip().upper()
+    if upper.endswith("/A"):
+        upper = upper[:-2]
+    for prefix in (
+        "10-QT",
+        "10-Q",
+        "10-KT",
+        "10-K",
+        "20-F",
+        "40-F",
+        "6-K",
+    ):
+        if upper.startswith(prefix):
+            if prefix == "10-QT":
+                return "10-Q"
+            if prefix == "10-KT":
+                return "10-K"
+            return prefix
+    return upper
+
+
+def _form_priority(form: str) -> int:
+    priorities = {
+        "10-Q": 0,
+        "10-K": 1,
+        "20-F": 2,
+        "40-F": 2,
+        "6-K": 3,
+    }
+    return priorities.get(form, 9)
+
+
+def _group_filings_by_cik(filings: Iterable[dict]) -> Dict[str, List[dict]]:
+    grouped: Dict[str, List[dict]] = {}
     for row in filings:
         cik_normalized = _normalize_cik_value(row.get("CIK"))
         if not cik_normalized:
             continue
-        cik_keys = {cik_normalized}
-        trimmed = cik_normalized.lstrip("0")
-        if trimmed:
-            cik_keys.add(trimmed)
-        form = (row.get("Form") or "").strip()
-        if not _is_relevant_form(form):
+        form_original = (row.get("Form") or "").strip()
+        if not _is_relevant_form(form_original):
             continue
+
+        canonical_form = _canonical_form_name(form_original)
 
         filed_at_raw = row.get("FiledAt")
         filed_at = _parse_filed_at(filed_at_raw)
@@ -182,20 +216,45 @@ def _build_latest_filing_map(filings: Iterable[dict]) -> Dict[str, dict]:
         info = {
             "filed_at": filed_at,
             "filing_url": filing_url,
-            "form": form,
+            "form": canonical_form,
+            "original_form": form_original,
+            "priority": _form_priority(canonical_form),
         }
 
+        cik_keys = {cik_normalized}
+        trimmed = cik_normalized.lstrip("0")
+        if trimmed:
+            cik_keys.add(trimmed)
+
         for key in cik_keys:
-            current = latest.get(key)
-            if current is None or filed_at > current["filed_at"]:
-                latest[key] = info
-    return latest
+            grouped.setdefault(key, []).append(info)
+
+    for key, items in grouped.items():
+        items.sort(key=lambda entry: entry.get("filed_at") or datetime.min, reverse=True)
+        items.sort(key=lambda entry: entry.get("priority", 9))
+    return grouped
 
 
-def _format_numeric(value: Optional[float]) -> str:
+def _round_half_up(value: float, digits: int = 2) -> float:
+    try:
+        quant = Decimal("1").scaleb(-digits)
+        rounded = Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return value
+    return float(rounded)
+
+
+def _format_display_value(value: Optional[float]) -> str:
     if value is None:
         return ""
-    return str(value)
+    rounded = _round_half_up(value, 2)
+    return f"{rounded:.2f}"
+
+
+def _format_raw_value(value: Optional[float]) -> str:
+    if value is None:
+        return ""
+    return format(value, "f")
 
 
 def run(data_dir: str | None = None) -> None:
@@ -205,7 +264,7 @@ def run(data_dir: str | None = None) -> None:
     research_rows, fieldnames = _read_csv_rows(research_path)
     filings_rows, _ = _read_csv_rows(filings_path)
 
-    latest_filing_map = _build_latest_filing_map(filings_rows)
+    filings_by_cik = _group_filings_by_cik(filings_rows)
 
     output_rows: List[dict] = []
 
@@ -238,96 +297,222 @@ def run(data_dir: str | None = None) -> None:
         runway_quarters: Optional[float] = None
         runway_quarters_raw: Optional[float] = None
         runway_estimate: str = ""
-        note: Optional[str] = None
         source_form = ""
         source_date = ""
         source_url = ""
+        runway_status = "No eligible filing"
+        runway_assumption = ""
+        ocf_period_months: Optional[int] = None
+        ocf_raw: Optional[float] = None
+        units_scale: Optional[int] = None
+        source_days_ago = ""
 
-        filing_info = latest_filing_map.get(cik)
-        if filing_info and filing_info.get("filing_url"):
-            filing_url = filing_info["filing_url"]
-            filed_at_dt = filing_info.get("filed_at")
-            filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
-            form_name = filing_info.get("form") or "?"
-            source_form = form_name
-            if filed_at_dt:
-                source_date = filed_at_dt.date().isoformat()
-            source_url = filing_url
-            progress(
-                "INFO",
-                f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}",
-            )
-            try:
-                result = parser_10q.get_runway_from_filing(filing_url)
-            except Exception as exc:
-                error_msg = (
-                    f"{ticker} fetch failed: {exc.__class__.__name__}: {exc} "
-                    f"(url: {filing_url}; catalyst_link: {catalyst_link or 'n/a'})"
-                )
-                progress("ERROR", error_msg)
-                result = None
-                note = (
-                    "failed to fetch 10-Q/10-K "
-                    f"({exc.__class__.__name__}: {exc}) – {filing_url}"
-                )
-            else:
-                if result:
-                    cash = result.get("cash")
-                    cash_raw = result.get("cash_raw")
-                    quarterly_burn = result.get("quarterly_burn")
-                    quarterly_burn_raw = result.get("quarterly_burn_raw")
-                    runway_quarters = result.get("runway_quarters")
-                    runway_quarters_raw = result.get("runway_quarters_raw")
-                    runway_estimate = result.get("estimate", "") or ""
-                    note = (result.get("note") or "")
-                    detected_form = result.get("form_type")
-                    if detected_form:
-                        source_form = detected_form
-                else:
-                    note = ""
-        elif filing_info:
-            note = None
-            filed_at_dt = filing_info.get("filed_at")
-            filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
-            form_name = filing_info.get("form") or "?"
+        candidate_infos: List[dict] = []
+        if cik:
+            keys = [cik]
+            trimmed_key = cik.lstrip("0")
+            if trimmed_key and trimmed_key != cik:
+                keys.append(trimmed_key)
+            seen_filing_keys: set[tuple] = set()
+            for key in keys:
+                for info in filings_by_cik.get(key, []):
+                    filing_key = (info.get("filing_url"), info.get("filed_at"))
+                    if filing_key in seen_filing_keys:
+                        continue
+                    seen_filing_keys.add(filing_key)
+                    candidate_infos.append(info)
+
+        final_result: Optional[dict] = None
+        final_info: Optional[dict] = None
+        partial_result: Optional[dict] = None
+        partial_info: Optional[dict] = None
+        status_history: List[str] = []
+        note_history: List[str] = []
+
+        if not candidate_infos:
+            status_history.append("No eligible filing")
+            note_history.append("No eligible filing")
             progress(
                 "WARN",
-                f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
+                f"{ticker} no eligible filing in filings.csv (CIK {cik or 'n/a'})",
             )
         else:
-            note = None
-            progress(
-                "WARN",
-                f"{ticker} no recent 10-Q/10-K filing in filings.csv (CIK {cik or 'n/a'})",
-            )
+            for info in candidate_infos:
+                form_name = info.get("form") or info.get("original_form") or "?"
+                filing_url = info.get("filing_url") or ""
+                filed_at_dt = info.get("filed_at")
+                filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
 
-        if not note:
-            note = "no 10-Q/10-K found"
+                if not filing_url:
+                    status_history.append("Fetch error")
+                    note_history.append(f"{form_name} {filed_at_text} missing filing URL")
+                    progress(
+                        "WARN",
+                        f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
+                    )
+                    continue
+
+                if not parser_10q.url_matches_form(filing_url, form_name):
+                    status_history.append("Form/URL mismatch")
+                    note_history.append(f"{form_name} URL mismatch: {filing_url}")
+                    progress(
+                        "WARN",
+                        f"{ticker} form/url mismatch for {form_name} {filing_url}",
+                    )
+                    continue
+
+                progress(
+                    "INFO",
+                    f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}",
+                )
+                try:
+                    result = parser_10q.get_runway_from_filing(filing_url)
+                except Exception as exc:
+                    status_history.append("Fetch error")
+                    detail = (
+                        f"{form_name} fetch failed: {exc.__class__.__name__}: {exc}"
+                    )
+                    note_history.append(detail)
+                    progress(
+                        "ERROR",
+                        f"{ticker} fetch failed: {exc.__class__.__name__}: {exc} "
+                        f"(url: {filing_url}; catalyst_link: {catalyst_link or 'n/a'})",
+                    )
+                    continue
+
+                if not result:
+                    status_history.append("Fetch error")
+                    note_history.append(f"{form_name} parser returned no data")
+                    continue
+
+                if not result.get("form_type") and form_name:
+                    result["form_type"] = form_name
+
+                result_status = result.get("status") or "OK"
+                note_text = result.get("note") or ""
+
+                if result.get("complete"):
+                    final_result = result
+                    final_info = info
+                    status_history.append(result_status)
+                    if note_text:
+                        note_history.append(note_text)
+                    else:
+                        note_history.append(result_status)
+                    break
+
+                partial_result = result
+                partial_info = info
+                status_history.append(result_status)
+                if note_text:
+                    note_history.append(note_text)
+                else:
+                    note_history.append(result_status)
+                progress(
+                    "WARN",
+                    f"{ticker} {form_name} incomplete: {result_status}",
+                )
+
+        result_to_use = final_result or partial_result
+        info_to_use = final_info or partial_info
+
+        if result_to_use:
+            cash = result_to_use.get("cash")
+            cash_raw = result_to_use.get("cash_raw")
+            quarterly_burn = result_to_use.get("quarterly_burn")
+            quarterly_burn_raw = result_to_use.get("quarterly_burn_raw")
+            runway_quarters = result_to_use.get("runway_quarters")
+            runway_quarters_raw = result_to_use.get("runway_quarters_raw")
+            runway_estimate = result_to_use.get("estimate", "") or ""
+            source_form = result_to_use.get("form_type") or source_form
+            runway_status = result_to_use.get("status") or "OK"
+            runway_assumption = result_to_use.get("assumption") or ""
+            ocf_period_months = result_to_use.get("period_months")
+            ocf_raw = result_to_use.get("ocf_raw")
+            units_scale = result_to_use.get("units_scale")
+        else:
+            runway_estimate = ""
+            runway_status = status_history[-1] if status_history else "No eligible filing"
+            runway_assumption = ""
+            ocf_period_months = None
+            ocf_raw = None
+            units_scale = None
+
+        if info_to_use:
+            filed_at_dt = info_to_use.get("filed_at")
+            if filed_at_dt:
+                source_date = filed_at_dt.date().isoformat()
+                days_delta = datetime.utcnow().date() - filed_at_dt.date()
+                source_days_ago = str(days_delta.days)
+            source_form = result_to_use.get("form_type") or info_to_use.get("form") or source_form
+            source_url = info_to_use.get("filing_url") or source_url
+        else:
+            source_days_ago = ""
+
+        note_parts: List[str] = []
+        seen_notes: set[str] = set()
+        for entry in note_history:
+            if entry and entry not in seen_notes:
+                note_parts.append(entry)
+                seen_notes.add(entry)
 
         evidence_stub_parts = [part for part in [source_date, source_form, source_url] if part]
         evidence_stub = " ".join(evidence_stub_parts)
-        if evidence_stub:
-            if note:
-                note = f"{evidence_stub} | {note}"
-            else:
-                note = evidence_stub
+        if evidence_stub and evidence_stub not in seen_notes:
+            note_parts.insert(0, evidence_stub)
+            seen_notes.add(evidence_stub)
 
-        row["RunwayCash"] = _format_numeric(cash)
-        row["RunwayCashRaw"] = _format_numeric(cash_raw)
-        row["RunwayQuarterlyBurn"] = _format_numeric(quarterly_burn)
-        row["RunwayQuarterlyBurnRaw"] = _format_numeric(quarterly_burn_raw)
-        row["RunwayQuarters"] = _format_numeric(runway_quarters)
-        row["RunwayQuartersRaw"] = _format_numeric(runway_quarters_raw)
+        note = " | ".join(part for part in note_parts if part)
+
+        row["RunwayCash"] = _format_display_value(cash)
+        row["RunwayCashRaw"] = _format_raw_value(cash_raw)
+        row["RunwayQuarterlyBurn"] = _format_display_value(quarterly_burn)
+        row["RunwayQuarterlyBurnRaw"] = _format_raw_value(quarterly_burn_raw)
+        row["RunwayQuarters"] = _format_display_value(runway_quarters)
+        row["RunwayQuartersRaw"] = _format_raw_value(runway_quarters_raw)
         row["RunwayEstimate"] = runway_estimate
         row["RunwayNotes"] = note
         row["RunwaySourceForm"] = source_form
         row["RunwaySourceDate"] = source_date
         row["RunwaySourceURL"] = source_url
+        row["RunwayStatus"] = runway_status
+        row["RunwayAssumption"] = runway_assumption
+        row["RunwayOCFPeriodMonths"] = str(ocf_period_months or "")
+        row["RunwayOCFRaw"] = _format_raw_value(ocf_raw)
+        row["RunwayUnitsScale"] = str(units_scale or "")
+        row["RunwaySourceDaysAgo"] = source_days_ago
 
-        if runway_quarters is not None:
+        telemetry_cash_str = _format_raw_value(
+            result_to_use.get("cash_raw") if result_to_use else None
+        )
+        telemetry_ocf_str = _format_raw_value(
+            result_to_use.get("ocf_raw") if result_to_use else None
+        )
+        telemetry_months = (
+            str(result_to_use.get("period_months"))
+            if result_to_use and result_to_use.get("period_months") is not None
+            else ""
+        )
+        telemetry_scale = (
+            str(result_to_use.get("units_scale"))
+            if result_to_use and result_to_use.get("units_scale") is not None
+            else ""
+        )
+        telemetry_estimate = result_to_use.get("estimate") if result_to_use else ""
+        telemetry_form = row.get("RunwaySourceForm", "")
+        telemetry_date = row.get("RunwaySourceDate", "")
+        progress(
+            "INFO",
+            "compute_runway: "
+            f"{ticker} cash={telemetry_cash_str} ocf={telemetry_ocf_str} "
+            f"months={telemetry_months} scale={telemetry_scale} "
+            f"est={telemetry_estimate} form={telemetry_form} date={telemetry_date}",
+        )
+
+        if runway_status == "OK" and runway_quarters is not None:
             progress("OK", f"{ticker} runway {runway_quarters:.2f} qtrs")
         else:
-            progress("WARN", f"{ticker} runway missing")
+            progress("WARN", f"{ticker} runway status {runway_status}")
 
         output_rows.append(row)
 
@@ -349,9 +534,15 @@ def run(data_dir: str | None = None) -> None:
         "RunwayQuartersRaw",
         "RunwayEstimate",
         "RunwayNotes",
+        "RunwayStatus",
+        "RunwayAssumption",
+        "RunwayOCFPeriodMonths",
+        "RunwayOCFRaw",
+        "RunwayUnitsScale",
         "RunwaySourceForm",
         "RunwaySourceDate",
         "RunwaySourceURL",
+        "RunwaySourceDaysAgo",
     ]:
         if col not in fieldnames_out:
             fieldnames_out.append(col)

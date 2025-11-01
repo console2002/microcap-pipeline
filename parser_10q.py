@@ -72,12 +72,40 @@ def _fetch_json(url: str) -> dict:
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
 _NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
+_SCALE_PATTERN = re.compile(r"\(in\s+(thousands|millions)\)", re.IGNORECASE)
 _FACT_DATE_FORMATS = [
     "%Y-%m-%d",
     "%Y-%m-%dT%H:%M:%S",
     "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%d %H:%M:%S",
 ]
+_PERIOD_TEXT_PATTERNS = [
+    (re.compile(r"three\s+months\s+ended", re.IGNORECASE), 3),
+    (re.compile(r"six\s+months\s+ended", re.IGNORECASE), 6),
+    (re.compile(r"nine\s+months\s+ended", re.IGNORECASE), 9),
+    (re.compile(r"twelve\s+months\s+ended", re.IGNORECASE), 12),
+    (re.compile(r"twelve\s+month\s+period", re.IGNORECASE), 12),
+    (re.compile(r"year\s+ended", re.IGNORECASE), 12),
+]
+
+_PERIOD_MONTH_MAP = {
+    "Q1": 3,
+    "Q2": 6,
+    "Q3": 9,
+    "Q4": 12,
+    "FY": 12,
+    "HY": 6,
+    "H1": 6,
+    "H2": 6,
+    "YTD": 12,
+}
+
+_SCALE_MULTIPLIER = {
+    "thousands": 1_000,
+    "thousand": 1_000,
+    "millions": 1_000_000,
+    "million": 1_000_000,
+}
 
 
 def _round_half_up(value: Optional[float], digits: int = 2) -> Optional[float]:
@@ -92,6 +120,75 @@ def _round_half_up(value: Optional[float], digits: int = 2) -> Optional[float]:
     except (InvalidOperation, ValueError):
         return float(value)
     return float(rounded)
+
+
+def _months_between(start: Optional[datetime], end: Optional[datetime]) -> Optional[int]:
+    if not start or not end:
+        return None
+    delta_days = (end - start).days
+    if delta_days <= 0:
+        return None
+    approx_months = delta_days / 30.4375
+    if approx_months <= 0:
+        return None
+    rounded = int(round(approx_months))
+    # snap to common SEC reporting periods
+    for target in (3, 6, 9, 12):
+        if abs(rounded - target) <= 1:
+            return target
+    return rounded
+
+
+def _infer_period_months(fact: Optional[dict], form_type: Optional[str]) -> Optional[int]:
+    if fact:
+        fp_value = str(fact.get("fp") or "").upper()
+        if fp_value in _PERIOD_MONTH_MAP:
+            months = _PERIOD_MONTH_MAP[fp_value]
+            if months in {3, 6, 9, 12}:
+                return months
+        start = _parse_fact_timestamp(fact.get("start"))
+        end = _parse_fact_timestamp(fact.get("end") or fact.get("instant"))
+        months = _months_between(start, end)
+        if months:
+            return months
+
+    if not form_type:
+        return None
+
+    normalized = form_type.upper()
+    if normalized in {"10-K", "20-F", "40-F"}:
+        return 12
+    if normalized.startswith("10-Q") or normalized == "6-K":
+        return 3
+
+    return None
+
+
+def _normalize_ocf_value(
+    value: Optional[float],
+    period_months: Optional[int],
+) -> tuple[Optional[float], Optional[int], Optional[str]]:
+    if value is None:
+        return None, period_months, None
+
+    if period_months in {3, 6, 9, 12}:
+        divisor_map = {3: 1, 6: 2, 9: 3, 12: 4}
+        assumption_map = {3: "quarter", 6: "6m/2", 9: "9m/3", 12: "annual/4"}
+        divisor = divisor_map[period_months]
+        normalized_value = float(value) / float(divisor)
+        return normalized_value, period_months, assumption_map[period_months]
+
+    return float(value) if value is not None else None, period_months, None
+
+
+def _detect_scale_multiplier(text: Optional[str]) -> Optional[int]:
+    if not text:
+        return None
+    match = _SCALE_PATTERN.search(text)
+    if not match:
+        return None
+    keyword = match.group(1).lower()
+    return _SCALE_MULTIPLIER.get(keyword)
 
 
 def _to_float(num_str: str) -> float:
@@ -150,6 +247,25 @@ def _strip_html(html_text: str) -> str:
     without_tags = re.sub(r"<[^>]+>", " ", html_text)
     normalized = " ".join(without_tags.split())
     return normalized
+
+
+def _extract_html_section(html_text: str, headers: Iterable[str], window: int = 20000) -> Optional[str]:
+    lower = html_text.lower()
+    for header in headers:
+        idx = lower.find(header.lower())
+        if idx != -1:
+            end = min(len(html_text), idx + window)
+            return html_text[idx:end]
+    return None
+
+
+def _infer_months_from_text(text: Optional[str]) -> Optional[int]:
+    if not text:
+        return None
+    for pattern, months in _PERIOD_TEXT_PATTERNS:
+        if pattern.search(text):
+            return months
+    return None
 
 
 def _normalize_digits(value: str) -> str:
@@ -221,6 +337,23 @@ def _infer_form_type_from_text(text: str) -> Optional[str]:
     return _normalize_form_type(text)
 
 
+def url_matches_form(url: str, form: str | None) -> bool:
+    normalized = _normalize_form_type(form)
+    if not normalized:
+        return False
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    components = [parsed.path or ""]
+    query = parse_qs(parsed.query)
+    for values in query.values():
+        components.extend(values)
+    combined = " ".join(components).upper().replace("-", "")
+    target = normalized.upper().replace("-", "")
+    return target in combined
+
+
 def _parse_fact_timestamp(value: object) -> Optional[datetime]:
     if value is None:
         return None
@@ -251,9 +384,10 @@ def _parse_fact_timestamp(value: object) -> Optional[datetime]:
 
 def _select_best_fact(
     facts: Iterable[dict], accession: str
-) -> tuple[Optional[float], Optional[str]]:
+) -> tuple[Optional[float], Optional[str], Optional[dict]]:
     best_value: Optional[float] = None
     best_form: Optional[str] = None
+    best_fact: Optional[dict] = None
     best_key: tuple[int, datetime, int] | None = None
     for fact in facts:
         val = fact.get("val")
@@ -276,33 +410,34 @@ def _select_best_fact(
             best_key = key
             best_value = float(val)
             best_form = _normalize_form_type(fact.get("form"))
-    return best_value, best_form
+            best_fact = fact
+    return best_value, best_form, best_fact
 
 
 def _extract_fact_value(
     units: dict, accession: str
-) -> tuple[Optional[float], Optional[str]]:
+) -> tuple[Optional[float], Optional[str], Optional[dict]]:
     preferred_units = ["USD", "USD ", "USD millions", "USDm", "USD $", "USD $ millions"]
     for unit_name in preferred_units:
         facts = units.get(unit_name)
         if not facts:
             continue
-        value, form_type = _select_best_fact(facts, accession)
+        value, form_type, fact = _select_best_fact(facts, accession)
         if value is not None:
-            return value, form_type
+            return value, form_type, fact
 
     # fallback to any available facts, preferring matching accession / newest data
     all_facts: list[dict] = []
     for facts in units.values():
         all_facts.extend(facts)
     if not all_facts:
-        return None, None
+        return None, None, None
     return _select_best_fact(all_facts, accession)
 
 
 def _fetch_xbrl_value(
     cik: str, accession: str, concept: str
-) -> tuple[Optional[float], Optional[str]]:
+) -> tuple[Optional[float], Optional[str], Optional[dict]]:
     base_url = "https://data.sec.gov/api/xbrl/companyconcept"
     url = f"{base_url}/CIK{cik}/us-gaap/{concept}.json"
     data = _fetch_json(url)
@@ -319,6 +454,7 @@ def _derive_from_xbrl(
 
     cash = None
     form_type = form_type_hint
+    cash_fact: Optional[dict] = None
     cash_concepts = [
         "CashAndCashEquivalentsAtCarryingValue",
         "CashAndCashEquivalents",
@@ -329,7 +465,7 @@ def _derive_from_xbrl(
 
     for concept in cash_concepts:
         try:
-            cash_value, value_form = _fetch_xbrl_value(cik, accession, concept)
+            cash_value, value_form, fact = _fetch_xbrl_value(cik, accession, concept)
         except Exception as exc:
             errors.append(f"{concept}: {exc}")
             continue
@@ -337,9 +473,11 @@ def _derive_from_xbrl(
             cash = cash_value
             if form_type is None and value_form:
                 form_type = value_form
+            cash_fact = fact
             break
 
     burn = None
+    burn_fact: Optional[dict] = None
     burn_concepts = [
         "NetCashProvidedByUsedInOperatingActivities",
         "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
@@ -348,7 +486,7 @@ def _derive_from_xbrl(
     ]
     for concept in burn_concepts:
         try:
-            burn_value, value_form = _fetch_xbrl_value(cik, accession, concept)
+            burn_value, value_form, fact = _fetch_xbrl_value(cik, accession, concept)
         except Exception as exc:
             errors.append(f"{concept}: {exc}")
             continue
@@ -356,6 +494,7 @@ def _derive_from_xbrl(
             burn = burn_value
             if form_type is None and value_form:
                 form_type = value_form
+            burn_fact = fact
             break
 
     if cash is None and burn is None:
@@ -363,37 +502,29 @@ def _derive_from_xbrl(
             raise RuntimeError("; ".join(errors))
         return None, form_type
 
-    quarterly_burn_raw: Optional[float]
-    if burn is None:
-        quarterly_burn_raw = None
-    else:
-        quarterly_burn_raw = abs(float(burn))
-        if quarterly_burn_raw == 0:
-            quarterly_burn_raw = 0.0
+    period_months = _infer_period_months(burn_fact, form_type)
+    ocf_normalized, period_months, assumption = _normalize_ocf_value(burn, period_months)
 
-    if (
-        form_type
-        and form_type.upper() in {"10-K", "20-F", "40-F"}
-        and quarterly_burn_raw is not None
-    ):
-        quarterly_burn_raw = quarterly_burn_raw / 4.0
-
-    runway_quarters_raw: Optional[float]
-    if cash is not None and quarterly_burn_raw not in (None, 0.0):
-        runway_quarters_raw = float(cash) / float(quarterly_burn_raw)
-    else:
-        runway_quarters_raw = None
-
-    cash_value = float(cash) if cash is not None else None
-    result = _finalize_runway_result(
-        cash_value,
-        quarterly_burn_raw,
-        runway_quarters_raw,
-        f"values parsed from XBRL: {filing_url}",
-        form_type,
-    )
+    note = f"values parsed from XBRL: {filing_url}"
     if cash is None or burn is None:
-        result["note"] += " (partial XBRL data)"
+        note += " (partial XBRL data)"
+
+    status = "OK"
+    if ocf_normalized is None:
+        status = "Missing OCF"
+    elif period_months not in {3, 6, 9, 12}:
+        status = "Missing OCF period"
+
+    result = _finalize_runway_result(
+        cash=float(cash) if cash is not None else None,
+        ocf_raw=ocf_normalized,
+        period_months=period_months,
+        assumption=assumption,
+        note=note,
+        form_type=form_type,
+        units_scale=1,
+        status=status,
+    )
     return result, form_type
 
 
@@ -406,33 +537,79 @@ def _infer_runway_estimate(form_type: Optional[str]) -> str:
     normalized = form_type.upper()
     if normalized.startswith(("10-K", "20-F", "40-F")):
         return "annual_div4"
-    if normalized.startswith("6-K"):
-        return "interim"
     return "interim"
 
 
 def _finalize_runway_result(
+    *,
     cash: Optional[float],
-    quarterly_burn: Optional[float],
-    runway_quarters: Optional[float],
+    ocf_raw: Optional[float],
+    period_months: Optional[int],
+    assumption: Optional[str],
     note: str,
     form_type: Optional[str],
+    units_scale: Optional[int],
+    status: str,
 ) -> dict:
     estimate = _infer_runway_estimate(form_type)
 
+    status_final = status or "OK"
+
+    quarterly_burn_raw: Optional[float]
+    runway_quarters_raw: Optional[float] = None
+    show_quarters = True
+
+    if ocf_raw is None:
+        quarterly_burn_raw = None
+        show_quarters = False
+    else:
+        if ocf_raw >= 0:
+            quarterly_burn_raw = 0.0
+            status_final = "OCF positive (self-funding)"
+            show_quarters = False
+        else:
+            quarterly_burn_raw = abs(float(ocf_raw))
+            if cash is not None and quarterly_burn_raw > 0:
+                runway_quarters_raw = float(cash) / float(quarterly_burn_raw)
+            if quarterly_burn_raw < 100_000 and status_final in {"", "OK"}:
+                status_final = "Non-burn / Near-zero OCF"
+                show_quarters = False
+
+    cash_value = float(cash) if cash is not None else None
+
     result: dict = {
-        "cash_raw": cash,
-        "quarterly_burn_raw": quarterly_burn,
-        "runway_quarters_raw": runway_quarters,
+        "cash_raw": cash_value,
+        "ocf_raw": ocf_raw,
+        "quarterly_burn_raw": quarterly_burn_raw,
+        "runway_quarters_raw": runway_quarters_raw,
         "note": note,
         "estimate": estimate,
+        "status": status_final,
+        "assumption": assumption or "",
+        "period_months": period_months,
+        "units_scale": units_scale or 1,
     }
 
-    result["cash"] = _round_half_up(cash)
-    result["quarterly_burn"] = _round_half_up(quarterly_burn)
-    result["runway_quarters"] = _round_half_up(runway_quarters)
+    result["cash"] = _round_half_up(cash_value)
+    if quarterly_burn_raw is not None:
+        result["quarterly_burn"] = _round_half_up(quarterly_burn_raw)
+    else:
+        result["quarterly_burn"] = None
+
+    if show_quarters and runway_quarters_raw is not None:
+        result["runway_quarters"] = _round_half_up(runway_quarters_raw)
+    else:
+        result["runway_quarters"] = None
+
     if form_type:
         result["form_type"] = form_type
+
+    months_valid = period_months in {3, 6, 9, 12}
+    result["complete"] = (
+        cash_value is not None
+        and ocf_raw is not None
+        and months_valid
+    )
     return result
 
 
@@ -477,80 +654,108 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if form_type is None:
         form_type = _infer_form_type_from_text(text)
 
-    cash_keywords = [
+    balance_headers = [
+        "CONSOLIDATED BALANCE SHEETS",
+        "CONDENSED CONSOLIDATED BALANCE SHEETS",
+        "BALANCE SHEETS",
+    ]
+    cashflow_headers = [
+        "CONSOLIDATED STATEMENTS OF CASH FLOWS",
+        "CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
+        "STATEMENTS OF CASH FLOWS",
+    ]
+
+    balance_section_html = _extract_html_section(html_text, balance_headers)
+    cashflow_section_html = _extract_html_section(html_text, cashflow_headers)
+
+    balance_section_text = _strip_html(balance_section_html) if balance_section_html else None
+    cashflow_section_text = _strip_html(cashflow_section_html) if cashflow_section_html else None
+
+    scale_multiplier = 1
+    for candidate in (balance_section_html, cashflow_section_html, html_text):
+        detected = _detect_scale_multiplier(candidate)
+        if detected:
+            scale_multiplier = detected
+            break
+
+    cash_keywords_balance = [
+        "Cash and cash equivalents",
+        "Cash, cash equivalents and restricted cash",
+    ]
+    cash_keywords_flow = [
         "Cash and cash equivalents, end of period",
         "Cash and cash equivalents at end of period",
         "Cash, cash equivalents and restricted cash, end of period",
         "Cash and cash equivalents, including restricted cash, end of period",
-        "Cash and cash equivalents",
     ]
-    cash_value = _extract_number_after_keyword(text, cash_keywords)
 
-    provided_value: Optional[float] = None
-    burn_value = _extract_number_after_keyword(
-        text,
-        [
-            "Net cash used in operating activities",
-            "Net cash (used in) provided by operating activities",
-            "Net cash flows from operating activities",
-            "Net cash used in operating activities — continuing operations",
-            "Net cash used in operating activities - continuing operations",
-        ],
-    )
+    cash_value = None
+    if balance_section_text:
+        cash_value = _extract_number_after_keyword(balance_section_text, cash_keywords_balance)
+    if cash_value is None and cashflow_section_text:
+        cash_value = _extract_number_after_keyword(cashflow_section_text, cash_keywords_flow)
+    if cash_value is None:
+        cash_value = _extract_number_after_keyword(text, cash_keywords_flow)
 
-    quarterly_burn_raw: Optional[float]
-    if burn_value is None:
-        provided_value = _extract_number_after_keyword(
-            text,
-            [
-                "Net cash provided by operating activities",
-                "Net cash provided by operating activities — continuing operations",
-                "Net cash provided by operating activities - continuing operations",
-            ],
-        )
-        quarterly_burn_raw = 0.0 if provided_value is not None else None
-    else:
-        if burn_value > 0:
-            provided_value = burn_value
-            quarterly_burn_raw = 0.0
-        else:
-            quarterly_burn_raw = abs(float(burn_value))
+    burn_keywords = [
+        "Net cash used in operating activities",
+        "Net cash (used in) provided by operating activities",
+        "Net cash flows from operating activities",
+        "Net cash used in operating activities — continuing operations",
+        "Net cash used in operating activities - continuing operations",
+    ]
+    provided_keywords = [
+        "Net cash provided by operating activities",
+        "Net cash provided by operating activities — continuing operations",
+        "Net cash provided by operating activities - continuing operations",
+    ]
 
-    _log_debug(f"runway_html: cash_keywords matched -> {cash_value}")
-    _log_debug(
-        "runway_html: burn_keywords matched -> "
-        f"{burn_value if burn_value is not None else provided_value}"
-    )
+    ocf_text_source = cashflow_section_text or text
+    burn_value = _extract_number_after_keyword(ocf_text_source, burn_keywords)
+    ocf_value = burn_value
+    if ocf_value is None:
+        ocf_value = _extract_number_after_keyword(ocf_text_source, provided_keywords)
+    elif ocf_value > 0:
+        ocf_value = -abs(ocf_value)
 
-    cash = float(cash_value) if cash_value is not None else None
+    if ocf_value is None:
+        provided_value = _extract_number_after_keyword(ocf_text_source, provided_keywords)
+        if provided_value is not None:
+            ocf_value = provided_value
 
-    if quarterly_burn_raw is not None and quarterly_burn_raw <= 0:
-        quarterly_burn_raw = None
+    if cash_value is not None:
+        cash_value = float(cash_value) * float(scale_multiplier)
+    if ocf_value is not None:
+        ocf_value = float(ocf_value) * float(scale_multiplier)
 
-    if (
-        form_type
-        and form_type.upper() in {"10-K", "20-F", "40-F"}
-        and quarterly_burn_raw is not None
-    ):
-        quarterly_burn_raw = quarterly_burn_raw / 4.0
+    period_months = _infer_months_from_text(cashflow_section_text)
+    if period_months is None:
+        period_months = _infer_period_months(None, form_type)
 
-    runway_quarters_raw: Optional[float]
-    if cash is not None and quarterly_burn_raw not in (None, 0.0):
-        runway_quarters_raw = cash / quarterly_burn_raw
-    else:
-        runway_quarters_raw = None
+    ocf_normalized, period_months, assumption = _normalize_ocf_value(ocf_value, period_months)
+
+    status_hint = "OK"
+    if ocf_value is None:
+        status_hint = "Missing OCF"
+        if form_type and form_type.upper().startswith("6-K"):
+            status_hint = "6-K missing OCF"
+    elif period_months not in {3, 6, 9, 12}:
+        status_hint = "Missing OCF period"
 
     note_parts = [f"values parsed from 10-Q/10-K HTML: {filing_url}"]
     if xbrl_error:
         note_parts.append(xbrl_error)
 
     return _finalize_runway_result(
-        cash,
-        quarterly_burn_raw,
-        runway_quarters_raw,
-        "; ".join(note_parts),
-        form_type,
+        cash=cash_value,
+        ocf_raw=ocf_normalized,
+        period_months=period_months,
+        assumption=assumption,
+        note="; ".join(note_parts),
+        form_type=form_type,
+        units_scale=scale_multiplier,
+        status=status_hint,
     )
 
 
-__all__ = ["get_runway_from_filing"]
+__all__ = ["get_runway_from_filing", "url_matches_form"]
