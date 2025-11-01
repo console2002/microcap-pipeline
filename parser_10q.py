@@ -439,10 +439,23 @@ def _fetch_xbrl_value(
     cik: str, accession: str, concept: str
 ) -> tuple[Optional[float], Optional[str], Optional[dict]]:
     base_url = "https://data.sec.gov/api/xbrl/companyconcept"
-    url = f"{base_url}/CIK{cik}/us-gaap/{concept}.json"
-    data = _fetch_json(url)
-    units = data.get("units") or {}
-    return _extract_fact_value(units, accession)
+    taxonomies = ["us-gaap", "ifrs-full"]
+    for taxonomy in taxonomies:
+        url = f"{base_url}/CIK{cik}/{taxonomy}/{concept}.json"
+        try:
+            data = _fetch_json(url)
+        except RuntimeError as exc:
+            message = str(exc)
+            if "HTTP error fetching JSON (404)" in message:
+                continue
+            raise
+
+        units = data.get("units") or {}
+        value, form_type, fact = _extract_fact_value(units, accession)
+        if value is not None:
+            return value, form_type, fact
+
+    return None, None, None
 
 
 def _derive_from_xbrl(
@@ -460,6 +473,7 @@ def _derive_from_xbrl(
         "CashAndCashEquivalents",
         "CashAndCashEquivalentsAndShortTermInvestments",
         "CashAndCashEquivalentsIncludingRestrictedCashCurrent",
+        "CashAndCashEquivalentsAndOtherShortTermInvestments",
     ]
     errors: list[str] = []
 
@@ -483,6 +497,9 @@ def _derive_from_xbrl(
         "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
         "NetCashProvidedByUsedInOperatingActivitiesExcludingDiscontinuedOperations",
         "NetCashProvidedByUsedInOperatingActivitiesConverted",
+        "NetCashFlowsFromUsedInOperatingActivities",
+        "NetCashFlowsFromOperatingActivities",
+        "NetCashFlowsFromOperations",
     ]
     for concept in burn_concepts:
         try:
