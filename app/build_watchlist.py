@@ -255,7 +255,7 @@ def _clean_text(value: object) -> str:
 
 
 def _round_half_up_number(value: Optional[float], digits: int = 2) -> Optional[float]:
-    if value is None:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
     try:
         quant = Decimal("1").scaleb(-digits)
@@ -596,18 +596,26 @@ def _to_float(value: object) -> Optional[float]:
     if value is None:
         return None
     if isinstance(value, (int, float)):
+        if isinstance(value, float) and pd.isna(value):
+            return None
         try:
-            return float(value)
+            result = float(value)
         except (TypeError, ValueError):
             return None
+        if pd.isna(result):
+            return None
+        return result
     text = str(value).strip()
     if not text:
         return None
     text = text.replace(",", "")
     try:
-        return float(text)
+        result = float(text)
     except ValueError:
         return None
+    if pd.isna(result):
+        return None
+    return result
 
 
 def _select_column(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
