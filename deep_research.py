@@ -226,11 +226,13 @@ def build_bundle_for_row(row: dict) -> dict:
     fda_date = normalize_text(row.get("FDA_Date"))
     fda_url = normalize_text(row.get("FDA_URL"))
     fda_urls_all = split_semicolon_list(row.get("FDA_URLsAll"))
+    fda_summary = normalize_text(row.get("FDA_Summary"))
 
     filing_form = normalize_text(row.get("LatestForm"))
     filed_at = normalize_text(row.get("FiledAt"))
     filing_url = normalize_text(row.get("FilingURL"))
     filing_urls_all = split_semicolon_list(row.get("FilingURLsAll"))
+    filings_summary = normalize_text(row.get("FilingsSummary"))
 
     primary_link = fda_url if fda_event else filing_url
     catalyst_type = _determine_catalyst_type(filing_form, fda_event)
@@ -269,6 +271,16 @@ def build_bundle_for_row(row: dict) -> dict:
             "runway_quarters": None,
             "notes": "TODO: parse 10-Q/10-K to compute runway",
         },
+        "latest_form": filing_form,
+        "filed_at": filed_at,
+        "filing_url": filing_url,
+        "filings_summary": filings_summary,
+        "filing_urls_all": filing_urls_all,
+        "fda_event_type": fda_event,
+        "fda_date": fda_date,
+        "fda_url": fda_url,
+        "fda_urls_all": fda_urls_all,
+        "fda_summary": fda_summary,
     }
 
 
@@ -292,6 +304,16 @@ def write_research_results(bundles: Sequence[dict], path: str = "research_result
         "RunwayQuarterlyBurn",
         "RunwayQuarters",
         "RunwayNotes",
+        "LatestForm",
+        "FiledAt",
+        "FilingURL",
+        "FilingsSummary",
+        "FilingURLsAll",
+        "FDA_EventType",
+        "FDA_Date",
+        "FDA_URL",
+        "FDA_URLsAll",
+        "FDA_Summary",
     ]
 
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -320,6 +342,16 @@ def write_research_results(bundles: Sequence[dict], path: str = "research_result
                 "RunwayQuarterlyBurn": runway["quarterly_burn"] if runway["quarterly_burn"] is not None else "",
                 "RunwayQuarters": runway["runway_quarters"] if runway["runway_quarters"] is not None else "",
                 "RunwayNotes": runway["notes"],
+                "LatestForm": bundle.get("latest_form", ""),
+                "FiledAt": bundle.get("filed_at", ""),
+                "FilingURL": bundle.get("filing_url", ""),
+                "FilingsSummary": bundle.get("filings_summary", ""),
+                "FilingURLsAll": "; ".join(bundle.get("filing_urls_all", [])),
+                "FDA_EventType": bundle.get("fda_event_type", ""),
+                "FDA_Date": bundle.get("fda_date", ""),
+                "FDA_URL": bundle.get("fda_url", ""),
+                "FDA_URLsAll": "; ".join(bundle.get("fda_urls_all", [])),
+                "FDA_Summary": bundle.get("fda_summary", ""),
             })
 
 
