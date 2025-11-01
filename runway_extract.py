@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
@@ -187,6 +188,29 @@ def _form_priority(form: str) -> int:
     return priorities.get(form, 9)
 
 
+def _normalize_filing_url(url: object) -> str:
+    """Return a canonical SEC filing URL with an explicit scheme."""
+
+    text = str(url or "").strip()
+    if not text:
+        return ""
+
+    if text.startswith("//"):
+        return "https:" + text
+
+    if "://" in text:
+        return text
+
+    if text.startswith("/"):
+        return "https://www.sec.gov" + text
+
+    parsed = urlparse("https://" + text)
+    if parsed.netloc:
+        return "https://" + text
+
+    return text
+
+
 def _group_filings_by_cik(filings: Iterable[dict]) -> Dict[str, List[dict]]:
     grouped: Dict[str, List[dict]] = {}
     for row in filings:
@@ -204,14 +228,13 @@ def _group_filings_by_cik(filings: Iterable[dict]) -> Dict[str, List[dict]]:
         if filed_at is None:
             continue
 
-        filing_url = (
+        filing_url = _normalize_filing_url(
             row.get("FilingURL")
             or row.get("FilingUrl")
             or row.get("URL")
             or row.get("Url")
             or ""
         )
-        filing_url = str(filing_url).strip()
 
         info = {
             "filed_at": filed_at,
