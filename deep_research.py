@@ -96,12 +96,21 @@ def normalize_text(value: str | float | None) -> str:
             return ""
         return str(value).strip()
     text = str(value).strip()
-    if text.lower() in {"", "nan", "none", "null"}:
+    if not text:
+        return ""
+    # Many upstream CSV exports use Windows line endings (``\r\n``). If we only
+    # split on ``\n`` later, the stray ``\r`` characters survive and end up
+    # embedded inside URLs (e.g. ``https:\r//``).  When pandas writes those
+    # values back out, the carriage return causes downstream CSV readers to
+    # misalign the columns.  Normalize all carriage returns here so subsequent
+    # parsing logic can safely split on ``\n``.
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if text.lower() in {"nan", "none", "null"}:
         return ""
     return text
 
 
-_EVIDENCE_SPLIT_RE = re.compile(r"[;\n]+")
+_EVIDENCE_SPLIT_RE = re.compile(r"[;\r\n]+")
 
 
 def _split_evidence_entries(text: str) -> list[str]:
