@@ -317,7 +317,10 @@ def _parse_date_value(value: object) -> Optional[pd.Timestamp]:
     if not text:
         return None
     try:
-        ts = pd.to_datetime(text, utc=True, errors="coerce", dayfirst=True)
+        if _is_iso_date_string(text):
+            ts = pd.to_datetime(text, utc=True, errors="coerce", format="%Y-%m-%d")
+        else:
+            ts = pd.to_datetime(text, utc=True, errors="coerce", dayfirst=True)
     except Exception:
         return None
     if ts is None or pd.isna(ts):
