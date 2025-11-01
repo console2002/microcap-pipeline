@@ -351,7 +351,22 @@ def url_matches_form(url: str, form: str | None) -> bool:
         components.extend(values)
     combined = " ".join(components).upper().replace("-", "")
     target = normalized.upper().replace("-", "")
-    return target in combined
+    if target in combined:
+        return True
+
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+
+    # Inline XBRL viewer URLs served by the SEC (e.g., https://www.sec.gov/ix?doc=...)
+    # often omit the form type token entirely. These URLs are authoritative and the
+    # form metadata passed to the parser has already been validated upstream, so we
+    # accept them even when the strict substring check fails.
+    if host.endswith("sec.gov"):
+        inline_viewer_prefixes = ("/ix", "/ixviewer", "/cgi-bin/viewer")
+        if any(path.startswith(prefix) for prefix in inline_viewer_prefixes):
+            return True
+
+    return False
 
 
 def _parse_fact_timestamp(value: object) -> Optional[datetime]:
