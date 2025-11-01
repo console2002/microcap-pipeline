@@ -3,6 +3,7 @@ from typing import Callable, Optional
 from app.http import HttpClient
 from app.cancel import CancelledRun
 from app.config import filings_form_lookbacks, filings_max_lookback
+from app.universe_filters import load_drop_filters, should_drop_record
 
 FMP_HOST = "https://financialmodelingprep.com"
 
@@ -84,7 +85,7 @@ def fetch_profiles(
     key       = cfg["FMPKey"]
     bs        = cfg["BatchSizes"]["Profiles"]
     ratelimit = cfg["RateLimitsPerMin"]["FMP"]
-    drop_patterns = [p.upper() for p in cfg["Universe"].get("DropPatterns", [])]
+    substring_patterns, word_patterns = load_drop_filters(cfg)
 
     batches = list(_chunk(tickers, bs))
     total_batches = len(batches)
@@ -116,8 +117,7 @@ def fetch_profiles(
             price    = rec.get("price")
             mcap     = rec.get("mktCap") or rec.get("marketCap")
 
-            haystack = f"{company} {ticker}".upper().strip()
-            if drop_patterns and any(p in haystack for p in drop_patterns):
+            if should_drop_record(company, ticker, substring_patterns, word_patterns):
                 continue
 
             # hard gate filters

@@ -38,7 +38,28 @@
       "ADR",
       "FUND",
       "TRUST",
-      "PREF"
+      "PREF",
+      ".U",
+      "-U",
+      ".WS",
+      "-WS",
+      ".W",
+      "-W"
+    ],
+    "DropWordPatterns": [
+      "UNIT",
+      "UNITS",
+      "WARRANT",
+      "WARRANTS",
+      "WTS",
+      "WRT",
+      "RTS",
+      "RIGHT",
+      "RIGHTS",
+      "SPAC",
+      "SPACS",
+      "ACQ",
+      "STAPLED"
     ],
     "NormalizeTicker": true
   },

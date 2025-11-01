@@ -1,5 +1,6 @@
 import json
 from app.http import HttpClient
+from app.universe_filters import load_drop_filters, should_drop_record
 
 SEC_URL = "https://www.sec.gov/files/company_tickers.json"
 
@@ -35,11 +36,10 @@ def load_sec_universe(client: HttpClient, cfg: dict) -> list[dict]:
                 rec["Ticker"] = rec["Ticker"][:-3]
 
     # drop obvious junk patterns
-    drop_patterns = [p.upper() for p in cfg["Universe"].get("DropPatterns", [])]
+    substring_patterns, word_patterns = load_drop_filters(cfg)
     clean = []
     for rec in records:
-        haystack = f"{rec['Company']} {rec['Ticker']}".upper().strip()
-        if drop_patterns and any(p in haystack for p in drop_patterns):
+        if should_drop_record(rec["Company"], rec["Ticker"], substring_patterns, word_patterns):
             continue
         clean.append(rec)
 
