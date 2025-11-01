@@ -958,14 +958,18 @@ def run(
 
         governance_entries = _parse_evidence_entries(governance_text)
         governance_summary = _summarize_category(governance_entries, now_utc)
-        governance_summary = _enforce_form_url_guard(identifier, "Governance", governance_summary, governance_entries, now_utc, progress_fn)
+        governance_summary = _enforce_form_url_guard(
+            identifier, "Governance", governance_summary, governance_entries, now_utc, progress_fn
+        )
         governance_primary_url = governance_summary.get("primary_url") or _first_url(governance_text)
         if governance_primary_url:
             governance_summary["primary_url"] = governance_primary_url
+        invalid_governance_form = False
         if (
             governance_summary.get("primary_form")
             and governance_summary["primary_form"] not in _GOVERNANCE_VALID_FORMS
         ):
+            invalid_governance_form = True
             governance_summary["status"] = "Missing"
             governance_summary["primary_form"] = ""
             governance_summary["primary_date"] = ""
@@ -1058,7 +1062,9 @@ def run(
             if not _url_matches_form(dilution_primary_form, dilution_primary_url):
                 validation_errors.append("DilutionPrimaryURL")
 
-        if governance_primary_form and governance_primary_form not in _GOVERNANCE_VALID_FORMS:
+        if invalid_governance_form or (
+            governance_primary_form and governance_primary_form not in _GOVERNANCE_VALID_FORMS
+        ):
             validation_errors.append("GovernancePrimaryForm")
 
         if dilution_flag and dilution_status not in {"Pass (Offering)", "Overhang (S-8)"}:
