@@ -82,6 +82,12 @@ _OUTPUT_COLUMNS = [
     "Status",
     "ChecklistPassed",
     "ChecklistTotal",
+    "ChecklistCatalyst",
+    "ChecklistDilution",
+    "ChecklistRunway",
+    "ChecklistGovernance",
+    "ChecklistInsider",
+    "ChecklistOwnership",
     "ChecklistSummary",
     "RiskFlag",
 ]
@@ -436,6 +442,21 @@ def _is_status_pass(status: str) -> bool:
     if not text:
         return False
     return text.startswith("pass") or text.startswith("overhang")
+
+
+def _normalize_checklist_status(status_value: object) -> str:
+    text = _clean_text(status_value)
+    if not text:
+        return "Missing"
+
+    if _is_status_pass(text):
+        return "Pass"
+
+    lowered = text.lower()
+    if lowered in {"missing", "placeholder", "tbd", "n/a", "na", "not available"}:
+        return "Missing"
+
+    return "Fail"
 
 
 def _parse_evidence_entries(text: str) -> list[dict]:
@@ -916,34 +937,28 @@ def run(
 
         runway_status = "Pass" if runway_quarters and runway_quarters > 0 else "Missing"
 
-        checklist_items = [
-            ("Catalyst", catalyst_summary.get("status", "")),
-            ("Dilution", dilution_status),
-            ("Runway", runway_status),
-            ("Governance", governance_summary.get("status", "")),
-            ("Insider", "Placeholder"),
-            ("Ownership", "Placeholder"),
-        ]
-        checklist_summary_parts: list[str] = []
-        passed_count = 0
-        for name, status_value in checklist_items:
-            status_norm = _clean_text(status_value).lower()
-            if _is_status_pass(status_value):
-                symbol = "✅"
-                passed_count += 1
-            elif status_norm == "placeholder":
-                symbol = "⬜"
-            else:
-                symbol = "❌"
-            checklist_summary_parts.append(f"{name}{symbol}")
+        insider_status_label = _normalize_checklist_status(getattr(row, "InsiderStatus", ""))
+        ownership_status_label = _normalize_checklist_status(getattr(row, "OwnershipStatus", ""))
 
-        checklist_summary = "; ".join(checklist_summary_parts)
-        checklist_total = len(checklist_items)
+        checklist_statuses = {
+            "Catalyst": _normalize_checklist_status(catalyst_summary.get("status", "")),
+            "Dilution": _normalize_checklist_status(dilution_status),
+            "Runway": _normalize_checklist_status(runway_status),
+            "Governance": _normalize_checklist_status(governance_summary.get("status", "")),
+            "Insider": insider_status_label,
+            "Ownership": ownership_status_label,
+        }
+
+        passed_count = sum(1 for status in checklist_statuses.values() if status == "Pass")
+        checklist_total = len(checklist_statuses)
+        checklist_summary = "; ".join(
+            f"{name}={status}" for name, status in checklist_statuses.items()
+        )
 
         mandatory_pass = (
-            _is_status_pass(catalyst_summary.get("status", ""))
-            and _is_status_pass(dilution_status)
-            and _is_status_pass(runway_status)
+            checklist_statuses["Catalyst"] == "Pass"
+            and checklist_statuses["Dilution"] == "Pass"
+            and checklist_statuses["Runway"] == "Pass"
         )
         if not mandatory_pass:
             status_text = "TBD — exclude"
@@ -1017,12 +1032,12 @@ def run(
             "HasMaterialWeakness": has_material_weakness,
             "Auditor": auditor_text,
             "Insider": insider_text,
-            "InsiderStatus": "Placeholder",
+            "InsiderStatus": insider_status_label,
             "InsiderForms345Links": "; ".join(insider_links),
             "InsiderBuyCount": insider_buy_count,
             "HasInsiderCluster": has_insider_cluster,
             "Ownership": ownership_text,
-            "OwnershipStatus": "Placeholder",
+            "OwnershipStatus": ownership_status_label,
             "OwnershipLinks": "; ".join(ownership_links),
             "Materiality": materiality_text,
             "SubscoresEvidenced": subscores_text,
@@ -1030,6 +1045,12 @@ def run(
             "Status": status_text,
             "ChecklistPassed": passed_count,
             "ChecklistTotal": checklist_total,
+            "ChecklistCatalyst": checklist_statuses["Catalyst"],
+            "ChecklistDilution": checklist_statuses["Dilution"],
+            "ChecklistRunway": checklist_statuses["Runway"],
+            "ChecklistGovernance": checklist_statuses["Governance"],
+            "ChecklistInsider": checklist_statuses["Insider"],
+            "ChecklistOwnership": checklist_statuses["Ownership"],
             "ChecklistSummary": checklist_summary,
             "RiskFlag": risk_flag,
         }
