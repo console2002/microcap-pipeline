@@ -1,11 +1,35 @@
 from datetime import date, timedelta, datetime
 from typing import Callable, Optional
+import re
 from app.http import HttpClient
 from app.cancel import CancelledRun
 from app.config import filings_form_lookbacks, filings_max_lookback
 from app.universe_filters import load_drop_filters, should_drop_record
 
 FMP_HOST = "https://financialmodelingprep.com"
+
+
+def normalize_exchange(raw: str) -> str:
+    if not raw:
+        return ""
+
+    cleaned = raw.strip()
+    if not cleaned:
+        return ""
+
+    upper = cleaned.upper()
+
+    mapping = {
+        "NASDAQ": "NASDAQ",
+        "NASDAQGS": "NASDAQ",
+        "NASDAQGM": "NASDAQ",
+        "NASDAQCM": "NASDAQ",
+        "NYSE": "NYSE",
+        "NYSE AMERICAN": "NYSEAM",
+        "AMEX": "NYSEAM",
+    }
+
+    return mapping.get(upper, upper)
 
 
 def _check_cancel(stop_flag: Optional[dict]):
@@ -90,6 +114,16 @@ def fetch_profiles(
     batches = list(_chunk(tickers, bs))
     total_batches = len(batches)
 
+    allowed_exchange_norms: set[str] = set()
+    for exch in cfg["Universe"]["Exchanges"] or []:
+        norm = normalize_exchange(exch)
+        if norm:
+            allowed_exchange_norms.add(norm)
+
+    default_exchange_norms = {"NASDAQ", "NYSE", "NYSEAM"}
+
+    otc_pattern = re.compile(r"(?i)\b(?:OTC|OTCQX|OTCQB|PINK|GREY)\b")
+
     for idx, batch in enumerate(batches, start=1):
         _check_cancel(stop_flag)
 
@@ -112,6 +146,7 @@ def fetch_profiles(
             cik_txt = str(cik_val).zfill(10) if cik_val else ""
 
             exchange = rec.get("exchangeShortName") or rec.get("exchange") or ""
+            exch_norm = normalize_exchange(exchange)
             company  = rec.get("companyName") or ""
             country  = rec.get("country") or ""
             price    = rec.get("price")
@@ -121,19 +156,21 @@ def fetch_profiles(
                 continue
 
             # hard gate filters
-            if cfg["Universe"]["Exchanges"] and exchange not in cfg["Universe"]["Exchanges"]:
+            if otc_pattern.search(exchange):
                 continue
+
+            if allowed_exchange_norms:
+                if exch_norm not in allowed_exchange_norms:
+                    continue
+            else:
+                if exch_norm not in default_exchange_norms:
+                    continue
             if price is not None and price < cfg["HardGates"]["MinPrice"]:
                 continue
             if mcap is not None and mcap < cfg["HardGates"]["CapMin"]:
                 continue
             if mcap is not None and mcap > cfg["HardGates"]["CapMax"]:
                 continue
-            if country:
-                cu = country.upper()
-                if cu not in ("US", "USA", "UNITED STATES"):
-                    if exchange not in cfg["Universe"]["Exchanges"]:
-                        continue
 
             out.append({
                 "Ticker": ticker,
