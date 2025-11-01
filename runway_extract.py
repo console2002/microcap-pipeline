@@ -232,9 +232,16 @@ def run(data_dir: str | None = None) -> None:
         catalyst_link = (row.get("CatalystPrimaryLink") or "").strip()
 
         cash: Optional[float] = None
+        cash_raw: Optional[float] = None
         quarterly_burn: Optional[float] = None
+        quarterly_burn_raw: Optional[float] = None
         runway_quarters: Optional[float] = None
+        runway_quarters_raw: Optional[float] = None
+        runway_estimate: str = ""
         note: Optional[str] = None
+        source_form = ""
+        source_date = ""
+        source_url = ""
 
         filing_info = latest_filing_map.get(cik)
         if filing_info and filing_info.get("filing_url"):
@@ -242,6 +249,10 @@ def run(data_dir: str | None = None) -> None:
             filed_at_dt = filing_info.get("filed_at")
             filed_at_text = filed_at_dt.isoformat() if filed_at_dt else "?"
             form_name = filing_info.get("form") or "?"
+            source_form = form_name
+            if filed_at_dt:
+                source_date = filed_at_dt.date().isoformat()
+            source_url = filing_url
             progress(
                 "INFO",
                 f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}",
@@ -260,10 +271,20 @@ def run(data_dir: str | None = None) -> None:
                     f"({exc.__class__.__name__}: {exc}) – {filing_url}"
                 )
             else:
-                cash = result.get("cash") if result else None
-                quarterly_burn = result.get("quarterly_burn") if result else None
-                runway_quarters = result.get("runway_quarters") if result else None
-                note = (result.get("note") if result else None) or ""
+                if result:
+                    cash = result.get("cash")
+                    cash_raw = result.get("cash_raw")
+                    quarterly_burn = result.get("quarterly_burn")
+                    quarterly_burn_raw = result.get("quarterly_burn_raw")
+                    runway_quarters = result.get("runway_quarters")
+                    runway_quarters_raw = result.get("runway_quarters_raw")
+                    runway_estimate = result.get("estimate", "") or ""
+                    note = (result.get("note") or "")
+                    detected_form = result.get("form_type")
+                    if detected_form:
+                        source_form = detected_form
+                else:
+                    note = ""
         elif filing_info:
             note = None
             filed_at_dt = filing_info.get("filed_at")
@@ -283,10 +304,25 @@ def run(data_dir: str | None = None) -> None:
         if not note:
             note = "no 10-Q/10-K found"
 
+        evidence_stub_parts = [part for part in [source_date, source_form, source_url] if part]
+        evidence_stub = " ".join(evidence_stub_parts)
+        if evidence_stub:
+            if note:
+                note = f"{evidence_stub} | {note}"
+            else:
+                note = evidence_stub
+
         row["RunwayCash"] = _format_numeric(cash)
+        row["RunwayCashRaw"] = _format_numeric(cash_raw)
         row["RunwayQuarterlyBurn"] = _format_numeric(quarterly_burn)
+        row["RunwayQuarterlyBurnRaw"] = _format_numeric(quarterly_burn_raw)
         row["RunwayQuarters"] = _format_numeric(runway_quarters)
+        row["RunwayQuartersRaw"] = _format_numeric(runway_quarters_raw)
+        row["RunwayEstimate"] = runway_estimate
         row["RunwayNotes"] = note
+        row["RunwaySourceForm"] = source_form
+        row["RunwaySourceDate"] = source_date
+        row["RunwaySourceURL"] = source_url
 
         if runway_quarters is not None:
             progress("OK", f"{ticker} runway {runway_quarters:.2f} qtrs")
@@ -306,9 +342,16 @@ def run(data_dir: str | None = None) -> None:
     fieldnames_out = list(fieldnames)
     for col in [
         "RunwayCash",
+        "RunwayCashRaw",
         "RunwayQuarterlyBurn",
+        "RunwayQuarterlyBurnRaw",
         "RunwayQuarters",
+        "RunwayQuartersRaw",
+        "RunwayEstimate",
         "RunwayNotes",
+        "RunwaySourceForm",
+        "RunwaySourceDate",
+        "RunwaySourceURL",
     ]:
         if col not in fieldnames_out:
             fieldnames_out.append(col)
