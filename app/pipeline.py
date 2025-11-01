@@ -840,7 +840,12 @@ def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     return rows_written
 
 
-def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "universe"):
+def run_weekly_pipeline(
+    stop_flag=None,
+    progress_fn=None,
+    start_stage: str = "universe",
+    skip_fda: bool = False,
+):
     """Run the weekly pipeline starting from the requested stage."""
     if stop_flag is None:
         stop_flag = {"stop": False}
@@ -924,10 +929,13 @@ def run_weekly_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "un
             _emit(progress_fn, "prices: skipped (starting later stage)")
 
         if start_idx <= stages.index("fda"):
-            if df_fil is None:
-                df_fil = _load_cached_dataframe(cfg, "filings")
-                _emit(progress_fn, "fda: using cached filings.csv")
-            _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
+            if skip_fda:
+                _emit(progress_fn, "fda: skipped (option selected)")
+            else:
+                if df_fil is None:
+                    df_fil = _load_cached_dataframe(cfg, "filings")
+                    _emit(progress_fn, "fda: using cached filings.csv")
+                _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
         else:
             _emit(progress_fn, "fda: skipped (starting later stage)")
 
