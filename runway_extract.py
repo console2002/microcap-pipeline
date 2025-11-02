@@ -16,8 +16,6 @@ import parser_10q
 
 
 _PROGRESS_CALLBACK: Callable[[str, str], None] | None = None
-
-
 _PROGRESS_LOG_PATH: str | None = None
 
 
@@ -71,8 +69,8 @@ _DATE_FORMATS = [
     "%Y-%m-%dT%H:%M:%S.%f",
 ]
 
-
 _ISO_TZ_RE = re.compile(r"([+-]\d{2})(\d{2})$")
+
 
 def _resolve_path(filename: str, base_dir: str | None = None) -> str:
     candidates = []
@@ -140,16 +138,13 @@ def _is_relevant_form(form: str | None) -> bool:
 def _normalize_cik_value(value: object) -> str:
     if value is None:
         return ""
-
     text = str(value).strip()
     if not text:
         return ""
-
     text = re.sub(r"\.0+$", "", text)
     digits = re.sub(r"\D", "", text)
     if not digits:
         return ""
-
     return digits.zfill(10)
 
 
@@ -190,24 +185,18 @@ def _form_priority(form: str) -> int:
 
 def _normalize_filing_url(url: object) -> str:
     """Return a canonical SEC filing URL with an explicit scheme."""
-
     text = str(url or "").strip()
     if not text:
         return ""
-
     if text.startswith("//"):
         return "https:" + text
-
     if "://" in text:
         return text
-
     if text.startswith("/"):
         return "https://www.sec.gov" + text
-
     parsed = urlparse("https://" + text)
     if parsed.netloc:
         return "https://" + text
-
     return text
 
 
@@ -289,6 +278,10 @@ def run(data_dir: str | None = None) -> None:
 
     filings_by_cik = _group_filings_by_cik(filings_rows)
 
+    # NEW: optional hard-drop gate (default False, enable in config)
+    cfg = load_config()
+    drop_if_incomplete = bool(cfg.get("Runway", {}).get("DropIfNoRunway", False))
+
     output_rows: List[dict] = []
 
     total_rows = len(research_rows)
@@ -356,10 +349,7 @@ def run(data_dir: str | None = None) -> None:
         if not candidate_infos:
             status_history.append("No eligible filing")
             note_history.append("No eligible filing")
-            progress(
-                "WARN",
-                f"{ticker} no eligible filing in filings.csv (CIK {cik or 'n/a'})",
-            )
+            progress("WARN", f"{ticker} no eligible filing in filings.csv (CIK {cik or 'n/a'})")
         else:
             for info in candidate_infos:
                 form_name = info.get("form") or info.get("original_form") or "?"
@@ -370,32 +360,21 @@ def run(data_dir: str | None = None) -> None:
                 if not filing_url:
                     status_history.append("Fetch error")
                     note_history.append(f"{form_name} {filed_at_text} missing filing URL")
-                    progress(
-                        "WARN",
-                        f"{ticker} missing filing URL for {form_name} filed {filed_at_text}",
-                    )
+                    progress("WARN", f"{ticker} missing filing URL for {form_name} filed {filed_at_text}")
                     continue
 
                 if not parser_10q.url_matches_form(filing_url, form_name):
                     status_history.append("Form/URL mismatch")
                     note_history.append(f"{form_name} URL mismatch: {filing_url}")
-                    progress(
-                        "WARN",
-                        f"{ticker} form/url mismatch for {form_name} {filing_url}",
-                    )
+                    progress("WARN", f"{ticker} form/url mismatch for {form_name} {filing_url}")
                     continue
 
-                progress(
-                    "INFO",
-                    f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}",
-                )
+                progress("INFO", f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}")
                 try:
                     result = parser_10q.get_runway_from_filing(filing_url)
                 except Exception as exc:
                     status_history.append("Fetch error")
-                    detail = (
-                        f"{form_name} fetch failed: {exc.__class__.__name__}: {exc}"
-                    )
+                    detail = f"{form_name} fetch failed: {exc.__class__.__name__}: {exc}"
                     note_history.append(detail)
                     progress(
                         "ERROR",
@@ -427,13 +406,9 @@ def run(data_dir: str | None = None) -> None:
 
                 candidate_priority = info.get("priority", 9)
                 filed_at_rank = filed_at_dt or datetime.min
-                candidate_rank: Tuple[int, datetime] = (
-                    candidate_priority,
-                    filed_at_rank,
-                )
+                candidate_rank: Tuple[int, datetime] = (candidate_priority, filed_at_rank)
                 if partial_rank is None or candidate_priority < partial_rank[0] or (
-                    candidate_priority == partial_rank[0]
-                    and filed_at_rank > partial_rank[1]
+                    candidate_priority == partial_rank[0] and filed_at_rank > partial_rank[1]
                 ):
                     partial_result = result
                     partial_info = info
@@ -443,13 +418,18 @@ def run(data_dir: str | None = None) -> None:
                     note_history.append(note_text)
                 else:
                     note_history.append(result_status)
-                progress(
-                    "WARN",
-                    f"{ticker} {form_name} incomplete: {result_status}",
-                )
+                progress("WARN", f"{ticker} {form_name} incomplete: {result_status}")
 
         result_to_use = final_result or partial_result
         info_to_use = final_info or partial_info
+
+        # NEW: optional hard-drop — only when computation is incomplete (no runway).
+        if drop_if_incomplete:
+            if not result_to_use or not result_to_use.get("complete"):
+                drop_reason = (result_to_use.get("status") if result_to_use else "no parsable filing")
+                progress("DROP", f"{ticker} dropped (no runway): {drop_reason}")
+                emit_progress(index, ticker)
+                continue
 
         if result_to_use:
             cash = result_to_use.get("cash")
@@ -479,7 +459,7 @@ def run(data_dir: str | None = None) -> None:
                 source_date = filed_at_dt.date().isoformat()
                 days_delta = datetime.utcnow().date() - filed_at_dt.date()
                 source_days_ago = str(days_delta.days)
-            source_form = result_to_use.get("form_type") or info_to_use.get("form") or source_form
+            source_form = result_to_use.get("form_type") if result_to_use else (info_to_use.get("form") or source_form)
             source_url = info_to_use.get("filing_url") or source_url
         else:
             source_days_ago = ""
@@ -517,21 +497,13 @@ def run(data_dir: str | None = None) -> None:
         row["RunwayUnitsScale"] = str(units_scale or "")
         row["RunwaySourceDaysAgo"] = source_days_ago
 
-        telemetry_cash_str = _format_raw_value(
-            result_to_use.get("cash_raw") if result_to_use else None
-        )
-        telemetry_ocf_str = _format_raw_value(
-            result_to_use.get("ocf_raw") if result_to_use else None
-        )
+        telemetry_cash_str = _format_raw_value(result_to_use.get("cash_raw") if result_to_use else None)
+        telemetry_ocf_str = _format_raw_value(result_to_use.get("ocf_raw") if result_to_use else None)
         telemetry_months = (
-            str(result_to_use.get("period_months"))
-            if result_to_use and result_to_use.get("period_months") is not None
-            else ""
+            str(result_to_use.get("period_months")) if result_to_use and result_to_use.get("period_months") is not None else ""
         )
         telemetry_scale = (
-            str(result_to_use.get("units_scale"))
-            if result_to_use and result_to_use.get("units_scale") is not None
-            else ""
+            str(result_to_use.get("units_scale")) if result_to_use and result_to_use.get("units_scale") is not None else ""
         )
         telemetry_estimate = result_to_use.get("estimate") if result_to_use else ""
         telemetry_form = row.get("RunwaySourceForm", "")
@@ -550,7 +522,6 @@ def run(data_dir: str | None = None) -> None:
             progress("WARN", f"{ticker} runway status {runway_status}")
 
         output_rows.append(row)
-
         emit_progress(index, ticker)
 
     output_dir = data_dir or os.path.dirname(research_path)
