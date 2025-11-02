@@ -214,39 +214,35 @@ def _to_float(num_str: str) -> float:
 
 
 def _normalize_for_match(text: str) -> str:
-    """Normalize typography so literal-string keyword search is robust."""
     if not text:
         return text
     # NBSP -> space
     text = text.replace("\u00A0", " ")
-    # All Unicode dashes -> ASCII hyphen
-    text = re.sub(r"[\u2010\u2011\u2012\u2013\u2014\u2015]", "-", text)
-    # Collapse "-/-" or similar to "-"
+    # unify unicode dashes to ASCII hyphen
+    text = re.sub(r"[\u2010-\u2015]", "-", text)
+    # collapse "- / -" -> "-"
     text = re.sub(r"-\s*/\s*-", "-", text)
-    # Trim repeated spaces
-    text = re.sub(r"\s+", " ", text)
-    return text
+    # squeeze whitespace
+    return re.sub(r"\s+", " ", text)
 
 
 def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optional[float]:
-    """Find the first numeric value that appears after any keyword."""
     if not text:
         return None
     norm_text = _normalize_for_match(text)
     for keyword in keywords:
-        pattern = re.compile(re.escape(_normalize_for_match(keyword)), re.IGNORECASE)
-        match = pattern.search(norm_text)
-        if not match:
+        k = _normalize_for_match(keyword)
+        pattern = re.compile(re.escape(k), re.IGNORECASE)
+        m = pattern.search(norm_text)
+        if not m:
             continue
-        remainder = norm_text[match.end():match.end() + 1000]
-        tokens = remainder.split()
-        for token in tokens[:12]:
-            if not _NUMERIC_TOKEN_PATTERN.search(token):
-                continue
-            try:
-                return _to_float(token)
-            except ValueError:
-                continue
+        remainder = norm_text[m.end() : m.end() + 1000]
+        for token in remainder.split()[:12]:
+            if _NUMERIC_TOKEN_PATTERN.search(token):
+                try:
+                    return _to_float(token)
+                except ValueError:
+                    continue
     return None
 
 
@@ -709,6 +705,11 @@ def get_runway_from_filing(filing_url: str) -> dict:
         "Cash, cash equivalents and restricted cash, end of period",
         "Cash and cash equivalents, including restricted cash, end of period",
         "Cash, end of period",
+        "Cash - End of period",              # ASCII hyphen
+        "Cash – End of period",              # en-dash form (normalized anyway)
+        "Cash end of period",                # no punctuation
+        "Cash at end of period",
+        "Cash at period end",
     ]
 
     cash_value = None
@@ -722,34 +723,27 @@ def get_runway_from_filing(filing_url: str) -> dict:
     # --- OCF keyword coverage (restored + expanded) ---
     # Priority 1: explicit continuing-ops lines first (avoid picking discontinued ops)
     burn_keywords = [
-        # negative (used in) — continuing operations
         "Net cash used in operating activities - continuing operations",
         "Net cash used in operating activities — continuing operations",
-        "Net cash used in operating activities from continuing operations",
         "Net cash used for operating activities - continuing operations",
-        "Net cash used for operating activities — continuing operations",
         "Net cash (used in) operating activities - continuing operations",
         "Net cash (used in) operating activities — continuing operations",
-        # baseline negative (used in)
         "Net cash used in operating activities",
         "Net cash used for operating activities",
         "Net cash (used in) operating activities",
-        # IFRS/legacy phrasing sometimes classed as negative/neutral
-        "Net cash flows used in operating activities",
+        "Net cash flows used in operating activities",   # RESTORED (IFRS)
     ]
     provided_keywords = [
-        # positive (provided by) — continuing operations
         "Net cash provided by operating activities - continuing operations",
         "Net cash provided by operating activities — continuing operations",
         "Net cash provided by (used in) operating activities - continuing operations",
         "Net cash provided by (used in) operating activities — continuing operations",
         "Net cash from operating activities - continuing operations",
         "Net cash from operating activities — continuing operations",
-        # baseline positive/neutral
         "Net cash provided by operating activities",
         "Net cash provided by (used in) operating activities",
-        "Net cash flows from operating activities",      # RESTORED (IFRS common)
-        "Net cash from operating activities",            # IFRS neutral form
+        "Net cash flows from operating activities",      # RESTORED (IFRS)
+        "Net cash from operating activities",            # IFRS neutral
     ]
 
     ocf_text_source = cashflow_section_text or text
