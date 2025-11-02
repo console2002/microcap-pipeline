@@ -20,7 +20,6 @@ _FORM_TYPE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -34,15 +33,12 @@ def _user_agent() -> str:
     if _USER_AGENT is None:
         try:
             from app.config import load_config
-
             cfg = load_config()
             user_agent = str(cfg.get("UserAgent", "")).strip()
         except Exception:
             user_agent = ""
-
         if not user_agent:
             user_agent = "microcap-pipeline/1.0"
-
         _USER_AGENT = user_agent
     return _USER_AGENT
 
@@ -72,7 +68,9 @@ def _fetch_json(url: str) -> dict:
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
 _NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
-_SCALE_PATTERN = re.compile(r"\(in\s+(thousands|millions)\)", re.IGNORECASE)
+# More permissive: "(... in thousands ...)" or "(Unaudited, in millions ...)"
+_SCALE_PATTERN = re.compile(r"\([^)]*?\bin\s+(thousands|millions)\b[^)]*\)", re.IGNORECASE)
+
 _FACT_DATE_FORMATS = [
     "%Y-%m-%d",
     "%Y-%m-%dT%H:%M:%S",
@@ -110,10 +108,8 @@ _SCALE_MULTIPLIER = {
 
 def _round_half_up(value: Optional[float], digits: int = 2) -> Optional[float]:
     """Round a float using classic half-up semantics."""
-
     if value is None:
         return None
-
     try:
         quant = Decimal("1").scaleb(-digits)
         rounded = Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP)
@@ -357,10 +353,7 @@ def url_matches_form(url: str, form: str | None) -> bool:
     host = (parsed.netloc or "").lower()
     path = (parsed.path or "").lower()
 
-    # Inline XBRL viewer URLs served by the SEC (e.g., https://www.sec.gov/ix?doc=...)
-    # often omit the form type token entirely. These URLs are authoritative and the
-    # form metadata passed to the parser has already been validated upstream, so we
-    # accept them even when the strict substring check fails.
+    # Accept SEC inline viewer URLs (ix / ixviewer / cgi-bin/viewer).
     if host.endswith("sec.gov"):
         inline_viewer_prefixes = ("/ix", "/ixviewer", "/cgi-bin/viewer")
         if any(path.startswith(prefix) for prefix in inline_viewer_prefixes):
@@ -537,10 +530,6 @@ def _derive_from_xbrl(
     period_months = _infer_period_months(burn_fact, form_type)
     ocf_normalized, period_months, assumption = _normalize_ocf_value(burn, period_months)
 
-    note = f"values parsed from XBRL: {filing_url}"
-    if cash is None or burn is None:
-        note += " (partial XBRL data)"
-
     status = "OK"
     if ocf_normalized is None:
         status = "Missing OCF"
@@ -552,7 +541,7 @@ def _derive_from_xbrl(
         ocf_raw=ocf_normalized,
         period_months=period_months,
         assumption=assumption,
-        note=note,
+        note=f"values parsed from XBRL: {filing_url}" + (" (partial XBRL data)" if cash is None or burn is None else ""),
         form_type=form_type,
         units_scale=1,
         status=status,
@@ -562,10 +551,8 @@ def _derive_from_xbrl(
 
 def _infer_runway_estimate(form_type: Optional[str]) -> str:
     """Infer the estimate annotation for the runway metrics."""
-
     if not form_type:
         return ""
-
     normalized = form_type.upper()
     if normalized.startswith(("10-K", "20-F", "40-F")):
         return "annual_div4"
@@ -609,6 +596,7 @@ def _finalize_runway_result(
 
     cash_value = float(cash) if cash is not None else None
 
+    # Build result (status may be adjusted after 'complete' computed)
     result: dict = {
         "cash_raw": cash_value,
         "ocf_raw": ocf_raw,
@@ -623,25 +611,20 @@ def _finalize_runway_result(
     }
 
     result["cash"] = _round_half_up(cash_value)
-    if quarterly_burn_raw is not None:
-        result["quarterly_burn"] = _round_half_up(quarterly_burn_raw)
-    else:
-        result["quarterly_burn"] = None
-
-    if show_quarters and runway_quarters_raw is not None:
-        result["runway_quarters"] = _round_half_up(runway_quarters_raw)
-    else:
-        result["runway_quarters"] = None
+    result["quarterly_burn"] = _round_half_up(quarterly_burn_raw) if quarterly_burn_raw is not None else None
+    result["runway_quarters"] = _round_half_up(runway_quarters_raw) if show_quarters and runway_quarters_raw is not None else None
 
     if form_type:
         result["form_type"] = form_type
 
     months_valid = period_months in {3, 6, 9, 12}
-    result["complete"] = (
-        cash_value is not None
-        and ocf_raw is not None
-        and months_valid
-    )
+    complete = (cash_value is not None and ocf_raw is not None and months_valid)
+    result["complete"] = complete
+
+    # Ensure we never report "OK" when incomplete.
+    if not complete and result["status"] == "OK":
+        result["status"] = "Incomplete"
+
     return result
 
 
@@ -679,6 +662,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
         raise RuntimeError(
             f"Unexpected error fetching filing: {filing_url} ({exc.__class__.__name__}: {exc})"
         ) from exc
+
     html_text = raw_bytes.decode("utf-8", errors="ignore")
     text = _strip_html(html_text)
 
@@ -710,15 +694,20 @@ def get_runway_from_filing(filing_url: str) -> dict:
             scale_multiplier = detected
             break
 
+    # Expanded balance-sheet cash label variants
     cash_keywords_balance = [
         "Cash and cash equivalents",
+        "Cash and cash equivalents, current",
+        "Cash",
         "Cash, cash equivalents and restricted cash",
+        "Cash and cash equivalents including restricted cash",
     ]
     cash_keywords_flow = [
         "Cash and cash equivalents, end of period",
         "Cash and cash equivalents at end of period",
         "Cash, cash equivalents and restricted cash, end of period",
         "Cash and cash equivalents, including restricted cash, end of period",
+        "Cash, end of period",
     ]
 
     cash_value = None
@@ -729,15 +718,15 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if cash_value is None:
         cash_value = _extract_number_after_keyword(text, cash_keywords_flow)
 
+    # OCF variants (expanded)
     burn_keywords = [
         "Net cash used in operating activities",
+        "Net cash used for operating activities",
         "Net cash (used in) provided by operating activities",
-        "Net cash flows from operating activities",
-        "Net cash used in operating activities — continuing operations",
-        "Net cash used in operating activities - continuing operations",
     ]
     provided_keywords = [
         "Net cash provided by operating activities",
+        "Net cash provided by (used in) operating activities",
         "Net cash provided by operating activities — continuing operations",
         "Net cash provided by operating activities - continuing operations",
     ]
