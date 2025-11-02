@@ -24,7 +24,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _log_debug(message: str) -> None:
-    """Log debug messages without requiring callers to handle logging setup."""
     _LOGGER.debug(message)
 
 
@@ -68,7 +67,6 @@ def _fetch_json(url: str) -> dict:
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
 _NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
-# More permissive: "(... in thousands ...)" or "(Unaudited, in millions ...)"
 _SCALE_PATTERN = re.compile(r"\([^)]*?\bin\s+(thousands|millions)\b[^)]*\)", re.IGNORECASE)
 
 _FACT_DATE_FORMATS = [
@@ -107,7 +105,6 @@ _SCALE_MULTIPLIER = {
 
 
 def _round_half_up(value: Optional[float], digits: int = 2) -> Optional[float]:
-    """Round a float using classic half-up semantics."""
     if value is None:
         return None
     try:
@@ -128,7 +125,6 @@ def _months_between(start: Optional[datetime], end: Optional[datetime]) -> Optio
     if approx_months <= 0:
         return None
     rounded = int(round(approx_months))
-    # snap to common SEC reporting periods
     for target in (3, 6, 9, 12):
         if abs(rounded - target) <= 1:
             return target
@@ -188,7 +184,6 @@ def _detect_scale_multiplier(text: Optional[str]) -> Optional[int]:
 
 
 def _to_float(num_str: str) -> float:
-    """Convert a numeric string that may contain formatting into a float."""
     text = num_str.strip()
     match = _NUMBER_SEARCH_PATTERN.search(text)
     if not match:
@@ -218,15 +213,32 @@ def _to_float(num_str: str) -> float:
     return number
 
 
+def _normalize_for_match(text: str) -> str:
+    """Normalize typography so literal-string keyword search is robust."""
+    if not text:
+        return text
+    # NBSP -> space
+    text = text.replace("\u00A0", " ")
+    # All Unicode dashes -> ASCII hyphen
+    text = re.sub(r"[\u2010\u2011\u2012\u2013\u2014\u2015]", "-", text)
+    # Collapse "-/-" or similar to "-"
+    text = re.sub(r"-\s*/\s*-", "-", text)
+    # Trim repeated spaces
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
 def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optional[float]:
     """Find the first numeric value that appears after any keyword."""
+    if not text:
+        return None
+    norm_text = _normalize_for_match(text)
     for keyword in keywords:
-        pattern = re.compile(re.escape(keyword), re.IGNORECASE)
-        match = pattern.search(text)
+        pattern = re.compile(re.escape(_normalize_for_match(keyword)), re.IGNORECASE)
+        match = pattern.search(norm_text)
         if not match:
             continue
-
-        remainder = text[match.end():match.end() + 1000]
+        remainder = norm_text[match.end():match.end() + 1000]
         tokens = remainder.split()
         for token in tokens[:12]:
             if not _NUMERIC_TOKEN_PATTERN.search(token):
@@ -239,13 +251,13 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
 
 
 def _strip_html(html_text: str) -> str:
-    """Remove HTML tags and normalize whitespace."""
-    without_tags = re.sub(r"<[^>]+>", " ", html_text)
-    normalized = " ".join(without_tags.split())
-    return normalized
+    without_tags = re.sub(r"<[^>]+>", " ", html_text or "")
+    return " ".join(without_tags.split())
 
 
 def _extract_html_section(html_text: str, headers: Iterable[str], window: int = 20000) -> Optional[str]:
+    if not html_text:
+        return None
     lower = html_text.lower()
     for header in headers:
         idx = lower.find(header.lower())
@@ -265,8 +277,7 @@ def _infer_months_from_text(text: Optional[str]) -> Optional[int]:
 
 
 def _normalize_digits(value: str) -> str:
-    digits = re.sub(r"\D", "", value or "")
-    return digits
+    return re.sub(r"\D", "", value or "")
 
 
 def _extract_filing_identifiers(filing_url: str) -> tuple[Optional[str], Optional[str]]:
@@ -278,9 +289,7 @@ def _extract_filing_identifiers(filing_url: str) -> tuple[Optional[str], Optiona
         doc_path = query["doc"][0]
     doc_path = unquote(doc_path)
 
-    match = _ACCESSION_RE.search(doc_path)
-    if not match:
-        match = _ACCESSION_RE.search(path)
+    match = _ACCESSION_RE.search(doc_path) or _ACCESSION_RE.search(path)
     if not match:
         return None, None
 
@@ -353,10 +362,8 @@ def url_matches_form(url: str, form: str | None) -> bool:
     host = (parsed.netloc or "").lower()
     path = (parsed.path or "").lower()
 
-    # Accept SEC inline viewer URLs (ix / ixviewer / cgi-bin/viewer).
     if host.endswith("sec.gov"):
-        inline_viewer_prefixes = ("/ix", "/ixviewer", "/cgi-bin/viewer")
-        if any(path.startswith(prefix) for prefix in inline_viewer_prefixes):
+        if any(path.startswith(prefix) for prefix in ("/ix", "/ixviewer", "/cgi-bin/viewer")):
             return True
 
     return False
@@ -434,7 +441,6 @@ def _extract_fact_value(
         if value is not None:
             return value, form_type, fact
 
-    # fallback to any available facts, preferring matching accession / newest data
     all_facts: list[dict] = []
     for facts in units.values():
         all_facts.extend(facts)
@@ -550,7 +556,6 @@ def _derive_from_xbrl(
 
 
 def _infer_runway_estimate(form_type: Optional[str]) -> str:
-    """Infer the estimate annotation for the runway metrics."""
     if not form_type:
         return ""
     normalized = form_type.upper()
@@ -596,7 +601,6 @@ def _finalize_runway_result(
 
     cash_value = float(cash) if cash is not None else None
 
-    # Build result (status may be adjusted after 'complete' computed)
     result: dict = {
         "cash_raw": cash_value,
         "ocf_raw": ocf_raw,
@@ -621,7 +625,6 @@ def _finalize_runway_result(
     complete = (cash_value is not None and ocf_raw is not None and months_valid)
     result["complete"] = complete
 
-    # Ensure we never report "OK" when incomplete.
     if not complete and result["status"] == "OK":
         result["status"] = "Incomplete"
 
@@ -629,8 +632,6 @@ def _finalize_runway_result(
 
 
 def get_runway_from_filing(filing_url: str) -> dict:
-    """Fetch a filing URL and estimate the cash runway metrics."""
-
     form_type = _infer_form_type_from_url(filing_url)
 
     xbrl_result: Optional[dict] = None
@@ -694,7 +695,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
             scale_multiplier = detected
             break
 
-    # Expanded balance-sheet cash label variants
+    # Balance-sheet cash label variants
     cash_keywords_balance = [
         "Cash and cash equivalents",
         "Cash and cash equivalents, current",
@@ -718,17 +719,37 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if cash_value is None:
         cash_value = _extract_number_after_keyword(text, cash_keywords_flow)
 
-    # OCF variants (expanded)
+    # --- OCF keyword coverage (restored + expanded) ---
+    # Priority 1: explicit continuing-ops lines first (avoid picking discontinued ops)
     burn_keywords = [
+        # negative (used in) — continuing operations
+        "Net cash used in operating activities - continuing operations",
+        "Net cash used in operating activities — continuing operations",
+        "Net cash used in operating activities from continuing operations",
+        "Net cash used for operating activities - continuing operations",
+        "Net cash used for operating activities — continuing operations",
+        "Net cash (used in) operating activities - continuing operations",
+        "Net cash (used in) operating activities — continuing operations",
+        # baseline negative (used in)
         "Net cash used in operating activities",
         "Net cash used for operating activities",
-        "Net cash (used in) provided by operating activities",
+        "Net cash (used in) operating activities",
+        # IFRS/legacy phrasing sometimes classed as negative/neutral
+        "Net cash flows used in operating activities",
     ]
     provided_keywords = [
+        # positive (provided by) — continuing operations
+        "Net cash provided by operating activities - continuing operations",
+        "Net cash provided by operating activities — continuing operations",
+        "Net cash provided by (used in) operating activities - continuing operations",
+        "Net cash provided by (used in) operating activities — continuing operations",
+        "Net cash from operating activities - continuing operations",
+        "Net cash from operating activities — continuing operations",
+        # baseline positive/neutral
         "Net cash provided by operating activities",
         "Net cash provided by (used in) operating activities",
-        "Net cash provided by operating activities — continuing operations",
-        "Net cash provided by operating activities - continuing operations",
+        "Net cash flows from operating activities",      # RESTORED (IFRS common)
+        "Net cash from operating activities",            # IFRS neutral form
     ]
 
     ocf_text_source = cashflow_section_text or text
@@ -737,6 +758,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if ocf_value is None:
         ocf_value = _extract_number_after_keyword(ocf_text_source, provided_keywords)
     elif ocf_value > 0:
+        # if we matched a “used in …” caption but the value is positive, flip sign
         ocf_value = -abs(ocf_value)
 
     if ocf_value is None:
