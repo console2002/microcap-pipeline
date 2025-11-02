@@ -725,6 +725,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     burn_keywords = [
         "Net cash used in operating activities - continuing operations",
         "Net cash used in operating activities — continuing operations",
+        "Net cash used in operating activities from continuing operations",
         "Net cash used for operating activities - continuing operations",
         "Net cash (used in) operating activities - continuing operations",
         "Net cash (used in) operating activities — continuing operations",
@@ -736,6 +737,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     provided_keywords = [
         "Net cash provided by operating activities - continuing operations",
         "Net cash provided by operating activities — continuing operations",
+        "Net cash provided by operating activities from continuing operations",
         "Net cash provided by (used in) operating activities - continuing operations",
         "Net cash provided by (used in) operating activities — continuing operations",
         "Net cash from operating activities - continuing operations",
