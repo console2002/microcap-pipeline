@@ -1,4 +1,7 @@
 import os, time, pandas as pd
+from dataclasses import dataclass
+from typing import Any
+
 import runway_extract
 from app import dr_populate
 from app.build_watchlist import run as build_watchlist_run
@@ -14,6 +17,101 @@ from app.shortlist import build_shortlist
 from app.lockfile import is_locked, create_lock, clear_lock
 from app.cancel import CancelledRun
 from deep_research import run as deep_research_run
+
+
+@dataclass
+class RunwayDropDetail:
+    ticker: str
+    reason: str
+    forms: list[str]
+    urls: list[str]
+    country: str
+    notes: list[str]
+
+
+def _normalize_detail_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() == "nan":
+        return None
+    compact = " ".join(text.split())
+    if len(compact) > 160:
+        compact = f"{compact[:157]}..."
+    return compact
+
+
+def _format_values_for_log(values, limit: int = 3) -> str:
+    seen: list[str] = []
+    for value in values:
+        text = str(value).strip()
+        if not text:
+            continue
+        if text not in seen:
+            seen.append(text)
+    if not seen:
+        return "none"
+    if len(seen) <= limit:
+        return ", ".join(seen)
+    head = ", ".join(seen[:limit])
+    return f"{head} (+{len(seen) - limit} more)"
+
+
+def _make_runway_drop_detail(
+    ticker: str,
+    reason: str,
+    info: dict[str, Any] | None,
+    country: str,
+    normalized_forms: set[str] | None = None,
+) -> RunwayDropDetail:
+    forms_raw = sorted(info.get("forms_raw", [])) if info else []
+    forms_normalized = sorted(normalized_forms or [])
+    forms = forms_raw or forms_normalized
+
+    urls = list(info.get("urls", [])) if info else []
+
+    notes_map = info.get("notes", {}) if info else {}
+    notes: list[str] = []
+    for col, values in notes_map.items():
+        valid_values = [val for val in sorted(values) if val]
+        if not valid_values:
+            continue
+        snippet = "; ".join(valid_values[:2])
+        if len(valid_values) > 2:
+            snippet = f"{snippet} (+{len(valid_values) - 2} more)"
+        notes.append(f"{col}={snippet}")
+    notes.sort()
+
+    return RunwayDropDetail(
+        ticker=ticker,
+        reason=reason or "",
+        forms=forms[:5],
+        urls=urls[:5],
+        country=country or "",
+        notes=notes[:3],
+    )
+
+
+def _runway_drop_message(detail: RunwayDropDetail) -> str:
+    parts: list[str] = []
+    reason = detail.reason or "filtered out by runway gate"
+    parts.append(reason)
+    if detail.country:
+        parts.append(f"country={detail.country}")
+
+    forms_display = _format_values_for_log(detail.forms, limit=4)
+    parts.append(f"forms={forms_display}")
+
+    if detail.urls:
+        url_display = _format_values_for_log(detail.urls, limit=1)
+        parts.append(f"url={url_display}")
+
+    if detail.notes:
+        note_display = _format_values_for_log(detail.notes, limit=2)
+        parts.append(f"notes={note_display}")
+
+    joined = "; ".join(parts)
+    return f"filings: runway drop {detail.ticker} – {joined}"
 
 
 def init_logs(cfg: dict):
@@ -171,19 +269,19 @@ def _normalize_filings_tickers(df_filings: pd.DataFrame, cik_to_ticker: dict[str
     return df
 
 
-def _forms_support_runway(forms: set[str], country: str) -> bool:
+def _forms_support_runway(forms: set[str], country: str) -> tuple[bool, str]:
     if not forms:
-        return False
+        return False, "no filings in lookback window"
 
     normalized_forms = {str(f).strip().upper() for f in forms if str(f).strip()}
     if not normalized_forms:
-        return False
+        return False, "filings missing form codes"
 
     has_us_form = any(
         form.startswith(prefix) for prefix in US_RUNWAY_FORM_PREFIXES for form in normalized_forms
     )
     if has_us_form:
-        return True
+        return True, ""
 
     has_fpi_annual = any(
         form.startswith(prefix) for prefix in FPI_ANNUAL_FORM_PREFIXES for form in normalized_forms
@@ -193,12 +291,15 @@ def _forms_support_runway(forms: set[str], country: str) -> bool:
     )
 
     if has_fpi_annual and has_fpi_interim:
-        return True
+        return True, ""
 
-    if not _is_us_country(country) and has_fpi_annual:
-        return False
+    if has_fpi_annual and not has_fpi_interim:
+        return False, "missing 6-K alongside annual FPI filing"
 
-    return False
+    if has_fpi_interim and not has_fpi_annual:
+        return False, "missing 20-F/40-F alongside 6-K"
+
+    return False, "no qualifying core filing forms"
 
 
 def _apply_runway_gate_to_filings(
@@ -207,9 +308,9 @@ def _apply_runway_gate_to_filings(
     progress_fn,
     *,
     log: bool = True,
-) -> tuple[pd.DataFrame, set[str]]:
+) -> tuple[pd.DataFrame, set[str], dict[str, RunwayDropDetail]]:
     if df_filings is None:
-        return pd.DataFrame(), set()
+        return pd.DataFrame(), set(), {}
 
     ticker_to_country, cik_to_ticker, prof_tickers = _profile_lookup(df_prof)
     df_normalized = _normalize_filings_tickers(df_filings, cik_to_ticker)
@@ -217,41 +318,86 @@ def _apply_runway_gate_to_filings(
     if df_normalized.empty or "Form" not in df_normalized.columns:
         if log and prof_tickers:
             _emit(progress_fn, "filings: runway gate removed all tickers (no filings available)")
-        return df_normalized.iloc[0:0], set()
+        return df_normalized.iloc[0:0], set(), {}
 
+    detail_columns = [
+        col
+        for col in df_normalized.columns
+        if col not in {"CIK", "Ticker", "Company", "Form", "FiledAt", "URL"}
+        and any(keyword in col.lower() for keyword in ("status", "reason", "error"))
+    ]
+
+    ticker_details: dict[str, dict[str, Any]] = {}
     form_map: dict[str, set[str]] = {}
     for row in df_normalized.itertuples(index=False):
         ticker = getattr(row, "Ticker", "")
-        form = getattr(row, "Form", "")
-        if not ticker or not form:
+        if not ticker:
             continue
         ticker_upper = str(ticker).strip().upper()
-        form_upper = str(form).strip().upper()
-        if not ticker_upper or not form_upper:
+        if not ticker_upper:
             continue
-        form_map.setdefault(ticker_upper, set()).add(form_upper)
+
+        info = ticker_details.setdefault(
+            ticker_upper,
+            {"forms_raw": set(), "forms_normalized": set(), "urls": [], "notes": {}},
+        )
+
+        form = getattr(row, "Form", "")
+        form_text = str(form).strip()
+        form_upper = form_text.upper()
+        if form_upper:
+            info["forms_raw"].add(form_text)
+            info["forms_normalized"].add(form_upper)
+            form_map.setdefault(ticker_upper, set()).add(form_upper)
+        else:
+            # retain awareness that a filing existed but lacked a recognizable form
+            info.setdefault("notes", {}).setdefault("FormStatus", set()).add("missing form code")
+
+        url_value = getattr(row, "URL", "")
+        url_text = str(url_value).strip()
+        if url_text and url_text not in info["urls"]:
+            info["urls"].append(url_text)
+
+        for col in detail_columns:
+            value = getattr(row, col, None)
+            text = _normalize_detail_text(value)
+            if text:
+                info.setdefault("notes", {}).setdefault(col, set()).add(text)
+
+    for ticker in ticker_details.keys():
+        form_map.setdefault(ticker, set())
 
     candidate_tickers = set(prof_tickers) if prof_tickers else set(form_map.keys())
 
     eligible: set[str] = set()
-    dropped: set[str] = set()
+    drop_details: dict[str, RunwayDropDetail] = {}
+
+    def _evaluate_ticker(ticker: str) -> None:
+        forms = form_map.get(ticker) or set()
+        country = ticker_to_country.get(ticker, "")
+        passed, reason = _forms_support_runway(forms, country)
+        if passed:
+            eligible.add(ticker)
+            return
+
+        info = ticker_details.setdefault(
+            ticker,
+            {"forms_raw": set(), "forms_normalized": set(), "urls": [], "notes": {}},
+        )
+        drop_details[ticker] = _make_runway_drop_detail(
+            ticker,
+            reason,
+            info,
+            country,
+            normalized_forms=forms,
+        )
 
     for ticker in candidate_tickers:
-        forms = form_map.get(ticker, set())
-        country = ticker_to_country.get(ticker, "")
-        if _forms_support_runway(forms, country):
-            eligible.add(ticker)
-        else:
-            dropped.add(ticker)
+        _evaluate_ticker(ticker)
 
     extra_tickers = set(form_map.keys()) - candidate_tickers
     for ticker in extra_tickers:
-        forms = form_map.get(ticker, set())
-        country = ticker_to_country.get(ticker, "")
-        if _forms_support_runway(forms, country):
-            eligible.add(ticker)
-        else:
-            dropped.add(ticker)
+        _evaluate_ticker(ticker)
 
     filtered = (
         df_normalized[df_normalized["Ticker"].isin(eligible)].copy()
@@ -266,16 +412,16 @@ def _apply_runway_gate_to_filings(
                 progress_fn,
                 "filings: runway gate retained {} tickers, dropped {} lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(
                     len(eligible),
-                    len(dropped),
+                    len(drop_details),
                 ),
             )
-        elif dropped:
+        elif drop_details:
             _emit(
                 progress_fn,
-                "filings: runway gate dropped {} tickers lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(len(dropped)),
+                "filings: runway gate dropped {} tickers lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(len(drop_details)),
             )
 
-    return filtered, eligible
+    return filtered, eligible, drop_details
 
 
 def _restrict_profiles_to_core_filings(
@@ -283,16 +429,24 @@ def _restrict_profiles_to_core_filings(
     df_filings: pd.DataFrame,
     progress_fn,
     eligible_tickers: set[str] | None = None,
+    drop_details: dict[str, RunwayDropDetail] | None = None,
 ):
     """Filter profiles to tickers that passed the core filings requirement."""
 
     if df_prof is None or df_prof.empty:
         return df_prof
 
-    if eligible_tickers is None:
-        _, eligible_tickers = _apply_runway_gate_to_filings(
+    if eligible_tickers is None or drop_details is None:
+        _, eligible_from_gate, detail_map = _apply_runway_gate_to_filings(
             df_filings, df_prof, progress_fn, log=False
         )
+        if eligible_tickers is None:
+            eligible_tickers = eligible_from_gate
+        if drop_details is None:
+            drop_details = detail_map
+
+    eligible_tickers = eligible_tickers or set()
+    drop_details = drop_details or {}
 
     if not eligible_tickers:
         _emit(progress_fn, "filings: no tickers have recent core filings; downstream stages will have 0 tickers")
@@ -301,8 +455,10 @@ def _restrict_profiles_to_core_filings(
     original_count = len(df_prof)
 
     df_filtered = df_prof.copy()
+    ticker_series = df_filtered.get("Ticker", pd.Series(dtype="object"))
+    normalized_tickers = ticker_series.fillna("").astype(str).str.upper().str.strip()
     df_filtered["Ticker"] = (
-        df_filtered["Ticker"].fillna("").astype(str).str.upper().str.strip()
+        normalized_tickers
     )
     df_filtered = df_filtered[df_filtered["Ticker"].isin(eligible_tickers)]
 
@@ -312,6 +468,22 @@ def _restrict_profiles_to_core_filings(
             progress_fn,
             f"filings: restricted profiles to {len(df_filtered)} tickers with recent core filings (dropped {dropped})",
         )
+
+        dropped_tickers = sorted(
+            {ticker for ticker in normalized_tickers if ticker and ticker not in eligible_tickers}
+        )
+        for ticker in dropped_tickers:
+            detail = drop_details.get(ticker)
+            if detail is None:
+                detail = RunwayDropDetail(
+                    ticker=ticker,
+                    reason="removed by runway gate",
+                    forms=[],
+                    urls=[],
+                    country="",
+                    notes=[],
+                )
+            _emit(progress_fn, _runway_drop_message(detail))
 
     return df_filtered
 
@@ -429,7 +601,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     df_fil = pd.DataFrame(f_rows)
 
-    df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+    df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
         df_fil, df_prof, progress_fn
     )
 
@@ -550,12 +722,12 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     filings_path = os.path.join(cfg["Paths"]["data"], "filings.csv")
     df_cached = pd.read_csv(filings_path, encoding="utf-8") if os.path.exists(filings_path) else pd.DataFrame()
-    df_cached, eligible_tickers = _apply_runway_gate_to_filings(
+    df_cached, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
         df_cached, df_prof, progress_fn, log=False
     )
     df_cached.to_csv(filings_path, index=False, encoding="utf-8")
 
-    return df_cached, eligible_tickers
+    return df_cached, eligible_tickers, drop_details
 
 
 def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
@@ -900,24 +1072,25 @@ def run_weekly_pipeline(
             _emit(progress_fn, "profiles: skipped (loaded cached profiles.csv)")
 
         eligible_tickers: set[str] | None = None
+        drop_details: dict[str, RunwayDropDetail] | None = None
 
         if start_idx <= stages.index("filings"):
             if df_prof is None:
                 df_prof = _load_cached_dataframe(cfg, "profiles")
                 _emit(progress_fn, "filings: using cached profiles.csv")
-            df_fil, eligible_tickers = filings_step(
+            df_fil, eligible_tickers, drop_details = filings_step(
                 cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
             )
         else:
             df_fil = _load_cached_dataframe(cfg, "filings")
-            df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+            df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
                 df_fil, df_prof, progress_fn
             )
             _emit(progress_fn, "filings: skipped (loaded cached filings.csv)")
 
         if df_fil is not None and df_prof is not None:
             df_prof = _restrict_profiles_to_core_filings(
-                df_prof, df_fil, progress_fn, eligible_tickers
+                df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
 
         if start_idx <= stages.index("prices"):
@@ -1022,11 +1195,11 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
 
             df_prof = pd.read_csv(prof_path, encoding="utf-8")
             df_fil = _load_cached_dataframe(cfg, "filings")
-            df_fil, eligible_tickers = _apply_runway_gate_to_filings(
+            df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
                 df_fil, df_prof, progress_fn
             )
             df_prof = _restrict_profiles_to_core_filings(
-                df_prof, df_fil, progress_fn, eligible_tickers
+                df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
             _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
         else:
