@@ -650,26 +650,67 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
         df_prof = df_prof.merge(df_quotes, how="left", on="Ticker")
 
-        max_spread_pct = cfg.get("HardGates", {}).get("MaxSpreadPercent")
-        if max_spread_pct is not None:
-            try:
-                max_spread_pct_val = float(max_spread_pct)
-            except (TypeError, ValueError):
-                max_spread_pct_val = None
+        hard_gates = cfg.get("HardGates", {}) if cfg else {}
 
-            if max_spread_pct_val is not None:
-                spread_series = pd.to_numeric(df_prof["SpreadPct"], errors="coerce")
-                over_mask = spread_series.notna() & (spread_series > max_spread_pct_val)
-                dropped = int(over_mask.sum())
-                if dropped > 0:
-                    df_prof = df_prof.loc[~over_mask].copy()
-                    _emit(
-                        progress_fn,
-                        "profiles: dropped {} tickers exceeding spread cap {:.2f}%".format(
-                            dropped,
-                            max_spread_pct_val,
-                        ),
-                    )
+        if not df_prof.empty:
+            bid_series = pd.to_numeric(df_prof["BidPrice"], errors="coerce")
+            ask_series = pd.to_numeric(df_prof["AskPrice"], errors="coerce")
+
+            bad_quote_mask = (bid_series <= 0) | (ask_series <= 0) | (ask_series <= bid_series)
+            dropped_bad = int(bad_quote_mask.sum())
+            if dropped_bad > 0:
+                df_prof = df_prof.loc[~bad_quote_mask].copy()
+                _emit(
+                    progress_fn,
+                    f"profiles: dropped {dropped_bad} tickers with bad quote data",
+                )
+
+        spread_drop_rules = hard_gates.get("SpreadDropRules")
+        if spread_drop_rules and not df_prof.empty:
+            bid_series = pd.to_numeric(df_prof["BidPrice"], errors="coerce")
+            ask_series = pd.to_numeric(df_prof["AskPrice"], errors="coerce")
+            spread_series = pd.to_numeric(df_prof["SpreadPct"], errors="coerce")
+            mid_price_series = (ask_series + bid_series) / 2.0
+
+            drop_mask = pd.Series(False, index=df_prof.index)
+
+            for rule in spread_drop_rules:
+                if not isinstance(rule, dict):
+                    continue
+
+                max_pct_raw = rule.get("MaxSpreadPercent")
+                try:
+                    max_pct_val = float(max_pct_raw)
+                except (TypeError, ValueError):
+                    continue
+
+                min_price_raw = rule.get("MinPrice")
+                max_price_raw = rule.get("MaxPrice")
+
+                try:
+                    min_price_val = float(min_price_raw) if min_price_raw is not None else float("-inf")
+                except (TypeError, ValueError):
+                    min_price_val = float("-inf")
+
+                if max_price_raw is None:
+                    max_price_val = float("inf")
+                else:
+                    try:
+                        max_price_val = float(max_price_raw)
+                    except (TypeError, ValueError):
+                        max_price_val = float("inf")
+
+                price_mask = (mid_price_series >= min_price_val) & (mid_price_series < max_price_val)
+                rule_drop_mask = price_mask & spread_series.notna() & (spread_series > max_pct_val)
+                drop_mask = drop_mask | rule_drop_mask
+
+            dropped = int(drop_mask.sum())
+            if dropped > 0:
+                df_prof = df_prof.loc[~drop_mask].copy()
+                _emit(
+                    progress_fn,
+                    f"profiles: dropped {dropped} tickers exceeding spread caps",
+                )
 
         # ensure columns exist for downstream CSV/debugging
         for col in ["BidPrice", "AskPrice", "Spread", "SpreadPct"]:

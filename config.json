@@ -68,7 +68,23 @@
     "CapMin": 25000000,
     "CapMax": 350000000,
     "ADV20_Min": 40000,
-    "MaxSpreadPercent": 20
+    "SpreadDropRules": [
+      {
+        "MinPrice": 1.0,
+        "MaxPrice": 2.0,
+        "MaxSpreadPercent": 20
+      },
+      {
+        "MinPrice": 2.0,
+        "MaxPrice": 5.0,
+        "MaxSpreadPercent": 15
+      },
+      {
+        "MinPrice": 5.0,
+        "MaxPrice": null,
+        "MaxSpreadPercent": 12
+      }
+    ]
   },
   "Windows": {
     "DaysBack_Prices": 60,
