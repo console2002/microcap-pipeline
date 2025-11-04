@@ -656,13 +656,19 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
             bid_series = pd.to_numeric(df_prof["BidPrice"], errors="coerce")
             ask_series = pd.to_numeric(df_prof["AskPrice"], errors="coerce")
 
-            bad_quote_mask = (bid_series <= 0) | (ask_series <= 0) | (ask_series <= bid_series)
+            bad_quote_mask = (
+                bid_series.isna()
+                | ask_series.isna()
+                | (bid_series <= 0)
+                | (ask_series <= 0)
+                | (ask_series <= bid_series)
+            )
             dropped_bad = int(bad_quote_mask.sum())
             if dropped_bad > 0:
                 df_prof = df_prof.loc[~bad_quote_mask].copy()
                 _emit(
                     progress_fn,
-                    f"profiles: dropped {dropped_bad} tickers with bad quote data",
+                    f"profiles: dropped {dropped_bad} tickers with missing/bad quote data",
                 )
 
         spread_drop_rules = hard_gates.get("SpreadDropRules")
@@ -701,7 +707,9 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                         max_price_val = float("inf")
 
                 price_mask = (mid_price_series >= min_price_val) & (mid_price_series < max_price_val)
-                rule_drop_mask = price_mask & spread_series.notna() & (spread_series > max_pct_val)
+                rule_drop_mask = price_mask & (
+                    spread_series.isna() | (spread_series >= max_pct_val)
+                )
                 drop_mask = drop_mask | rule_drop_mask
 
             dropped = int(drop_mask.sum())

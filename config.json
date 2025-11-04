@@ -72,17 +72,17 @@
       {
         "MinPrice": 1.0,
         "MaxPrice": 2.0,
-        "MaxSpreadPercent": 20
+        "MaxSpreadPercent": 5
       },
       {
         "MinPrice": 2.0,
         "MaxPrice": 5.0,
-        "MaxSpreadPercent": 15
+        "MaxSpreadPercent": 3
       },
       {
         "MinPrice": 5.0,
         "MaxPrice": null,
-        "MaxSpreadPercent": 12
+        "MaxSpreadPercent": 2
       }
     ]
   },
