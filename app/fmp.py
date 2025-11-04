@@ -231,7 +231,6 @@ def fetch_aftermarket_quotes(
 
     key = cfg["FMPKey"]
     ratelimit = cfg["RateLimitsPerMin"]["FMP"]
-    batch_size = max(1, cfg.get("BatchSizes", {}).get("Profiles", 100))
 
     normalized = []
     seen: set[str] = set()
@@ -249,35 +248,63 @@ def fetch_aftermarket_quotes(
     if not normalized:
         return []
 
-    batches = list(_chunk(normalized, batch_size))
-    total_batches = len(batches)
+    total = len(normalized)
+    url = f"{FMP_HOST}/stable/aftermarket-quote"
 
     quotes: dict[str, dict] = {}
 
-    for idx, batch in enumerate(batches, start=1):
+    for idx, ticker in enumerate(normalized, start=1):
         _check_cancel(stop_flag)
 
-        symbols_csv = ",".join(batch)
-        url = f"{FMP_HOST}/stable/aftermarket-quote"
-        params = {"apikey": key, "symbol": symbols_csv}
-        resp = client.get(url, params, ratelimit)
+        params = {"apikey": key, "symbol": ticker}
+
+        records: list[dict] = []
+        error_msg: Optional[str] = None
+
+        try:
+            resp = client.get(url, params, ratelimit)
+            payload = resp.json() or {}
+        except Exception as exc:
+            error_msg = str(exc)
+            payload = {}
+        else:
+            if isinstance(payload, list):
+                records = [rec for rec in payload if isinstance(rec, dict)]
+            elif isinstance(payload, dict):
+                lowered = {str(k).lower(): v for k, v in payload.items()}
+                error_msg = next(
+                    (
+                        str(lowered[key])
+                        for key in ("error", "error message", "message")
+                        if key in lowered and lowered[key]
+                    ),
+                    None,
+                )
+                if payload.get("symbol") or payload.get("ticker"):
+                    records = [payload]
+                elif error_msg is None:
+                    records = [payload]
 
         if progress_fn:
-            pct = int((idx / max(total_batches, 1)) * 100)
-            progress_fn(
-                f"[aftermarket] {idx}/{total_batches} batches ({pct}%) {client.stats_string()}"
-            )
+            pct = int((idx / max(total, 1)) * 100)
+            if error_msg:
+                progress_fn(
+                    f"[aftermarket] {idx}/{total} tickers ({pct}%) {client.stats_string()} – {ticker} error: {error_msg}"
+                )
+            else:
+                progress_fn(
+                    f"[aftermarket] {idx}/{total} tickers ({pct}%) {client.stats_string()}"
+                )
 
-        data = resp.json() or []
-        if isinstance(data, dict):
-            data = [data]
+        if error_msg:
+            continue
 
-        for rec in data:
-            if not isinstance(rec, dict):
+        for rec in records:
+            symbol = (rec.get("symbol") or rec.get("ticker") or "").strip().upper()
+            if not symbol:
                 continue
-            ticker = (rec.get("symbol") or "").strip().upper()
-            if not ticker:
-                continue
+            if symbol.endswith(".US"):
+                symbol = symbol[:-3]
 
             bid_price = rec.get("bidPrice")
             ask_price = rec.get("askPrice")
@@ -294,8 +321,8 @@ def fetch_aftermarket_quotes(
                 except (ValueError, OSError, OverflowError, TypeError):
                     ts_iso = ""
 
-            quotes[ticker] = {
-                "Ticker": ticker,
+            quotes[symbol] = {
+                "Ticker": symbol,
                 "BidPrice": bid_price,
                 "AskPrice": ask_price,
                 "BidSize": bid_size,
