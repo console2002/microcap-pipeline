@@ -508,12 +508,17 @@ def run(data_dir: str | None = None) -> None:
         telemetry_estimate = result_to_use.get("estimate") if result_to_use else ""
         telemetry_form = row.get("RunwaySourceForm", "")
         telemetry_date = row.get("RunwaySourceDate", "")
+        merged_tag = ""
+        if result_to_use:
+            tags = result_to_use.get("source_tags") or []
+            if "XBRL" in tags and "HTML" in tags:
+                merged_tag = " merged=XBRL+HTML"
         progress(
             "INFO",
             "compute_runway: "
             f"{ticker} cash={telemetry_cash_str} ocf={telemetry_ocf_str} "
             f"months={telemetry_months} scale={telemetry_scale} "
-            f"est={telemetry_estimate} form={telemetry_form} date={telemetry_date}",
+            f"est={telemetry_estimate} form={telemetry_form} date={telemetry_date}{merged_tag}",
         )
 
         if runway_status == "OK" and runway_quarters is not None:
