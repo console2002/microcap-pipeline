@@ -89,6 +89,8 @@ _OUTPUT_COLUMNS = [
     "ChecklistInsider",
     "ChecklistOwnership",
     "RiskFlag",
+    "Tier1Type",
+    "Tier1Trigger",
 ]
 
 _NEGATIVE_DILUTION_TERMS = (
@@ -371,10 +373,10 @@ def _select_primary_entry(entries: list[dict]) -> Optional[dict]:
     return ordered[0] if ordered else None
 
 
-def _entry_to_text(entry: dict) -> str:
+def _entry_core(entry: dict) -> Optional[tuple[str, str, str]]:
     url = _clean_text(entry.get("url"))
     if not url:
-        return ""
+        return None
 
     date_value = entry.get("date_value")
     if isinstance(date_value, pd.Timestamp):
@@ -388,22 +390,74 @@ def _entry_to_text(entry: dict) -> str:
     form = _normalize_form_name(entry.get("form", ""))
 
     if not (date_str and form):
+        return None
+
+    return date_str, form, url
+
+
+def _extract_entry_description(entry: dict, url: str) -> str:
+    raw_text = entry.get("raw") or ""
+    if not raw_text:
         return ""
 
-    return f"{date_str} {form} {url}"
+    idx = raw_text.find(url) if url else -1
+    if idx != -1:
+        remainder = raw_text[idx + len(url) :]
+    else:
+        match = _URL_RE.search(raw_text)
+        if not match:
+            return ""
+        remainder = raw_text[match.end() :]
+
+    desc_text = remainder.strip(" |")
+    if not desc_text:
+        return ""
+    desc_text = re.sub(r"\s+", " ", desc_text)
+    return desc_text
+
+
+def _entry_to_text(entry: dict) -> str:
+    core = _entry_core(entry)
+    if core is None:
+        return ""
+
+    date_str, form, url = core
+    base_text = f"{date_str} {form} {url}"
+    desc_text = _extract_entry_description(entry, url)
+    if desc_text:
+        return f"{base_text} {desc_text}"
+    return base_text
 
 
 def _format_evidence_entries(entries: list[dict]) -> str:
     formatted: list[str] = []
-    seen: set[str] = set()
+    seen_core: set[str] = set()
     for entry in entries:
-        text = _entry_to_text(entry)
-        if not text:
+        core = _entry_core(entry)
+        if core is None:
             continue
-        if text not in seen:
-            seen.add(text)
+        core_text = f"{core[0]} {core[1]} {core[2]}"
+        if core_text in seen_core:
+            continue
+        seen_core.add(core_text)
+        text = _entry_to_text(entry)
+        if text:
             formatted.append(text)
     return "; ".join(formatted)
+
+
+def detect_tier1(evidence_text: str) -> tuple[str, bool]:
+    text = (evidence_text or "").lower()
+    patterns = [
+        ("FDA", r"(510\(k\)|de ?novo|pdufa|approval|cleared|clearance|crl|complete response letter|adcom vote|ind (accepted|cleared))"),
+        ("GuidanceUp", r"(raises|increases|hikes)\s+guidance|guidance.*(raised|increased)"),
+        ("FundedAward", r"(award|contract).*(obligated|obligation).*\$[0-9]"),
+        ("OverhangRemoval", r"(terminate(d|s)?|withdraw(n|s)?)\s.*(atm|shelf|sales agreement|equity distribution)"),
+    ]
+    for label, pattern in patterns:
+        if re.search(pattern, text, flags=re.I):
+            return label, True
+    return "None", False
 
 
 def _enforce_form_url_guard(
@@ -910,6 +964,7 @@ def run(
         if catalyst_primary_url:
             catalyst_summary["primary_url"] = catalyst_primary_url
         catalyst_field = catalyst_summary.get("primary_text") or catalyst_text
+        catalyst_evidence = _format_evidence_entries(catalyst_entries) or catalyst_text
         catalyst_type = _infer_catalyst_type(
             catalyst_entries,
             catalyst_summary.get("primary_form", ""),
@@ -1037,6 +1092,9 @@ def run(
         passed_count = sum(1 for status in checklist_statuses.values() if status == "Pass")
         total_checks = len(checklist_statuses)
         checklist_passed_value = f"{passed_count}/{total_checks}"
+
+        evidence_text = f"{catalyst_evidence} {dilution_evidence}".strip()
+        tier1_type, tier1_trigger = detect_tier1(evidence_text)
 
         mandatory_pass = (
             checklist_statuses["Catalyst"] == "Pass"
@@ -1166,6 +1224,8 @@ def run(
             "ChecklistInsider": checklist_statuses["Insider"],
             "ChecklistOwnership": checklist_statuses["Ownership"],
             "RiskFlag": risk_flag,
+            "Tier1Type": tier1_type,
+            "Tier1Trigger": tier1_trigger,
         }
 
         survivors.append(record)
