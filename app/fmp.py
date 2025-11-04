@@ -217,6 +217,103 @@ def fetch_profiles(
     return out
 
 
+def fetch_aftermarket_quotes(
+    client: HttpClient,
+    cfg: dict,
+    tickers: list[str],
+    progress_fn: Optional[Callable[[str], None]] = None,
+    stop_flag: Optional[dict] = None,
+) -> list[dict]:
+    """Fetch aftermarket bid/ask quotes for the supplied tickers."""
+
+    if not tickers:
+        return []
+
+    key = cfg["FMPKey"]
+    ratelimit = cfg["RateLimitsPerMin"]["FMP"]
+    batch_size = max(1, cfg.get("BatchSizes", {}).get("Profiles", 100))
+
+    normalized = []
+    seen: set[str] = set()
+    for raw in tickers:
+        if not isinstance(raw, str) and not isinstance(raw, bytes):
+            text = str(raw)
+        else:
+            text = str(raw)
+        ticker = text.strip().upper()
+        if not ticker or ticker in seen:
+            continue
+        seen.add(ticker)
+        normalized.append(ticker)
+
+    if not normalized:
+        return []
+
+    batches = list(_chunk(normalized, batch_size))
+    total_batches = len(batches)
+
+    quotes: dict[str, dict] = {}
+
+    for idx, batch in enumerate(batches, start=1):
+        _check_cancel(stop_flag)
+
+        symbols_csv = ",".join(batch)
+        url = f"{FMP_HOST}/stable/aftermarket-quote"
+        params = {"apikey": key, "symbol": symbols_csv}
+        resp = client.get(url, params, ratelimit)
+
+        if progress_fn:
+            pct = int((idx / max(total_batches, 1)) * 100)
+            progress_fn(
+                f"[aftermarket] {idx}/{total_batches} batches ({pct}%) {client.stats_string()}"
+            )
+
+        data = resp.json() or []
+        if isinstance(data, dict):
+            data = [data]
+
+        for rec in data:
+            if not isinstance(rec, dict):
+                continue
+            ticker = (rec.get("symbol") or "").strip().upper()
+            if not ticker:
+                continue
+
+            bid_price = rec.get("bidPrice")
+            ask_price = rec.get("askPrice")
+            bid_size = rec.get("bidSize")
+            ask_size = rec.get("askSize")
+            volume = rec.get("volume")
+
+            ts_iso = ""
+            ts_val = rec.get("timestamp")
+            if ts_val is not None:
+                try:
+                    ts_num = float(ts_val) / 1000.0
+                    ts_iso = datetime.utcfromtimestamp(ts_num).isoformat() + "Z"
+                except (ValueError, OSError, OverflowError, TypeError):
+                    ts_iso = ""
+
+            quotes[ticker] = {
+                "Ticker": ticker,
+                "BidPrice": bid_price,
+                "AskPrice": ask_price,
+                "BidSize": bid_size,
+                "AskSize": ask_size,
+                "AfterHoursVolume": volume,
+                "QuoteTimestamp": ts_iso,
+            }
+
+    out: list[dict] = []
+    for ticker in normalized:
+        rec = quotes.get(ticker, {"Ticker": ticker})
+        if "Ticker" not in rec:
+            rec["Ticker"] = ticker
+        out.append(rec)
+
+    return out
+
+
 def fetch_filings(
     client: HttpClient,
     cfg: dict,
