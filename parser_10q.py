@@ -65,8 +65,11 @@ def _fetch_json(url: str) -> dict:
         raise RuntimeError(f"Invalid JSON from {url}: {exc}") from exc
 
 
-_NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-]")
-_NUMBER_SEARCH_PATTERN = re.compile(r"[\$\(]*[-+]?\d[\d,]*(?:\.\d+)?\)?")
+_NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-€£¥₩₽₹]")
+_NUMBER_SEARCH_PATTERN = re.compile(
+    r"[\(\[]*(?:[A-Z]{1,4}\$?|[$€£¥₩₽₹])?[-+]?\d[\d,]*(?:\.\d+)?\)?",
+    re.IGNORECASE,
+)
 _SCALE_PATTERN = re.compile(r"\([^)]*?\bin\s+(thousands|millions)\b[^)]*\)", re.IGNORECASE)
 
 FORM_ADAPTERS = {
@@ -296,8 +299,16 @@ def _to_float(num_str: str) -> float:
     if "(" in value and ")" in value:
         negative = True
 
-    cleaned = value.replace("$", "").replace(",", "").replace("(", "").replace(")", "")
-    cleaned = cleaned.replace("−", "-").strip()
+    cleaned = value.replace(",", "").replace("(", "").replace(")", "")
+    cleaned = cleaned.replace("−", "-").replace("\u00A0", "").replace(" ", "").strip()
+
+    # Strip leading currency markers or other prefixes before the numeric portion
+    while cleaned and cleaned[0] not in "+-0123456789":
+        cleaned = cleaned[1:]
+
+    # Strip trailing non-numeric markers (e.g., lingering currency codes)
+    while cleaned and cleaned[-1] not in "0123456789.":
+        cleaned = cleaned[:-1]
 
     if cleaned.startswith("-"):
         negative = True
@@ -338,7 +349,7 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
         if not m:
             continue
         remainder = norm_text[m.end() : m.end() + 1000]
-        for token in remainder.split()[:12]:
+        for token in remainder.split()[:25]:
             if _NUMERIC_TOKEN_PATTERN.search(token):
                 try:
                     return _to_float(token)
