@@ -1,4 +1,5 @@
 import os, time, pandas as pd
+import numpy as np
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,7 +10,12 @@ from app.config import load_config, filings_max_lookback
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
 from app.sec import load_sec_universe
-from app.fmp import fetch_profiles, fetch_prices, fetch_filings
+from app.fmp import (
+    fetch_profiles,
+    fetch_prices,
+    fetch_filings,
+    fetch_aftermarket_quotes,
+)
 from app.fda import fetch_fda_events
 from app.cache import append_antijoin_purge
 from app.hydrate import hydrate_candidates
@@ -575,6 +581,97 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
             df_prof[col] = df_prof[col].replace("", pd.NA)
 
         df_prof = df_prof.dropna()
+
+        tickers = (
+            df_prof.get("Ticker", pd.Series(dtype="object"))
+            .fillna("")
+            .astype(str)
+            .str.upper()
+            .str.strip()
+        )
+        tickers = [ticker for ticker in tickers.tolist() if ticker]
+
+        quote_rows = fetch_aftermarket_quotes(
+            client,
+            cfg,
+            tickers,
+            progress_fn=progress_fn,
+            stop_flag=stop_flag,
+        )
+
+        df_quotes = pd.DataFrame(quote_rows)
+
+        desired_cols = [
+            "Ticker",
+            "BidPrice",
+            "AskPrice",
+            "BidSize",
+            "AskSize",
+            "AfterHoursVolume",
+            "QuoteTimestamp",
+        ]
+
+        if not df_quotes.empty:
+            for col in ["BidPrice", "AskPrice", "BidSize", "AskSize", "AfterHoursVolume"]:
+                if col in df_quotes.columns:
+                    df_quotes[col] = pd.to_numeric(df_quotes[col], errors="coerce")
+
+            if {"BidPrice", "AskPrice"}.issubset(df_quotes.columns):
+                df_quotes["Spread"] = df_quotes["AskPrice"] - df_quotes["BidPrice"]
+            else:
+                df_quotes["Spread"] = pd.NA
+
+            mid_price = (df_quotes["AskPrice"] + df_quotes["BidPrice"]) / 2.0
+            with np.errstate(divide="ignore", invalid="ignore"):
+                df_quotes["SpreadPct"] = np.where(
+                    (mid_price > 0) & df_quotes["Spread"].notna(),
+                    (df_quotes["Spread"] / mid_price) * 100.0,
+                    np.nan,
+                )
+            df_quotes.loc[~np.isfinite(df_quotes["SpreadPct"]), "SpreadPct"] = np.nan
+        else:
+            df_quotes = pd.DataFrame(columns=desired_cols + ["Spread", "SpreadPct"])
+
+        for col in desired_cols:
+            if col not in df_quotes.columns:
+                df_quotes[col] = pd.NA
+
+        if "Spread" not in df_quotes.columns:
+            df_quotes["Spread"] = pd.NA
+        if "SpreadPct" not in df_quotes.columns:
+            df_quotes["SpreadPct"] = pd.NA
+
+        df_quotes = df_quotes[desired_cols + ["Spread", "SpreadPct"]].drop_duplicates(
+            subset=["Ticker"], keep="last"
+        )
+
+        df_prof = df_prof.merge(df_quotes, how="left", on="Ticker")
+
+        max_spread_pct = cfg.get("HardGates", {}).get("MaxSpreadPercent")
+        if max_spread_pct is not None:
+            try:
+                max_spread_pct_val = float(max_spread_pct)
+            except (TypeError, ValueError):
+                max_spread_pct_val = None
+
+            if max_spread_pct_val is not None:
+                spread_series = pd.to_numeric(df_prof["SpreadPct"], errors="coerce")
+                over_mask = spread_series.notna() & (spread_series > max_spread_pct_val)
+                dropped = int(over_mask.sum())
+                if dropped > 0:
+                    df_prof = df_prof.loc[~over_mask].copy()
+                    _emit(
+                        progress_fn,
+                        "profiles: dropped {} tickers exceeding spread cap {:.2f}%".format(
+                            dropped,
+                            max_spread_pct_val,
+                        ),
+                    )
+
+        # ensure columns exist for downstream CSV/debugging
+        for col in ["BidPrice", "AskPrice", "Spread", "SpreadPct"]:
+            if col not in df_prof.columns:
+                df_prof[col] = pd.NA
 
     rows_added = append_antijoin_purge(
         cfg, "profiles", df_prof,
