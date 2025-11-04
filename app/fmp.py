@@ -85,6 +85,34 @@ def _normalize_sec_url(url: str) -> str:
     return cleaned
 
 
+def _extract_filing_description(rec: dict) -> str:
+    if not isinstance(rec, dict):
+        return ""
+
+    candidates = (
+        rec.get("items"),
+        rec.get("documentTitle"),
+        rec.get("primaryDocDescription"),
+        rec.get("primaryDocumentDescription"),
+        rec.get("description"),
+    )
+
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if isinstance(candidate, (list, tuple)):
+            parts = [str(part).strip() for part in candidate if part]
+            candidate_text = " ".join(part for part in parts if part)
+        else:
+            candidate_text = str(candidate)
+
+        candidate_text = re.sub(r"\s+", " ", candidate_text or "").strip()
+        if candidate_text:
+            return candidate_text[:120]
+
+    return ""
+
+
 def fetch_profiles(
     client: HttpClient,
     cfg: dict,
@@ -272,13 +300,16 @@ def fetch_filings(
                 or ""
             )
 
+            desc_text = _extract_filing_description(rec)
+
             out.append({
                 "CIK": cik_txt,
                 "Ticker": (rec.get("symbol") or "").upper(),
                 "Company": rec.get("companyName") or "",
                 "Form": form_raw,
                 "FiledAt": filed_raw,
-                "URL": _normalize_sec_url(source_url)
+                "URL": _normalize_sec_url(source_url),
+                "Desc": desc_text,
             })
 
     return out

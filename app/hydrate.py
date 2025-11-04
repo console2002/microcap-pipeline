@@ -86,7 +86,13 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
             url_txt = str(row.get("URL", "") or "").strip()
             if url_txt:
                 parts.append(url_txt)
-            return " | ".join(parts)
+            base_text = " | ".join(parts)
+            if not base_text:
+                return base_text
+            desc_txt = str(row.get("Desc", "") or "").strip()
+            if desc_txt:
+                return f"{base_text} | {desc_txt}"
+            return base_text
 
         filings_sorted = filings.sort_values(["CIK", "FiledAt"], ascending=[True, False])
         filings_sorted["FilingEntry"] = filings_sorted.apply(_format_filing, axis=1)
