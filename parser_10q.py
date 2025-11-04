@@ -970,7 +970,11 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     final_period = period_from_xbrl or period_from_html or defaults.get("period_months_default")
 
-    period_for_html_normalization = final_period
+    period_for_html_normalization = (
+        html_period_inferred
+        if html_period_inferred in {3, 6, 9, 12}
+        else final_period
+    )
     if period_for_html_normalization is None and html_period_inferred is not None:
         period_for_html_normalization = html_period_inferred
 
@@ -1012,10 +1016,12 @@ def get_runway_from_filing(filing_url: str) -> dict:
     else:
         final_assumption = html_assumption or xbrl_assumption or ""
 
+    if ocf_source == "HTML" and html_period_inferred in {3, 6, 9, 12}:
+        final_period = html_period_inferred
+
     used_html_for_period = False
     if (
-        period_from_xbrl is None
-        and final_period in {3, 6, 9, 12}
+        final_period in {3, 6, 9, 12}
         and html_period_inferred in {3, 6, 9, 12}
         and final_period == html_period_inferred
     ):
