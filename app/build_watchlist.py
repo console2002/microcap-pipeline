@@ -5,6 +5,7 @@ import os
 import re
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Iterable, Optional
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import pandas as pd
 
@@ -307,11 +308,49 @@ def _is_manager_form(value: str) -> bool:
 def _url_matches_form(form: str, url: str) -> bool:
     if not form or not url:
         return True
+
     key = _form_guard_key(form)
-    pattern = next((regex for prefix, regex in _FORM_URL_PATTERNS.items() if key.startswith(prefix)), None)
+    pattern = next(
+        (regex for prefix, regex in _FORM_URL_PATTERNS.items() if key.startswith(prefix)),
+        None,
+    )
     if pattern is None:
         return True
-    return bool(pattern.search(url.lower()))
+
+    parsed = urlsplit(url)
+    lowered_url = url.lower()
+
+    doc_candidates: list[str] = []
+    if parsed.query:
+        query = parse_qs(parsed.query)
+        for candidate_key in ("doc", "filename", "file", "document"):
+            for value in query.get(candidate_key, []):
+                if value:
+                    doc_candidates.append(unquote(value))
+
+    text_to_check = " ".join([lowered_url, *[candidate.lower() for candidate in doc_candidates]])
+    if pattern.search(text_to_check):
+        return True
+
+    for other_prefix, other_pattern in _FORM_URL_PATTERNS.items():
+        if other_prefix == key:
+            continue
+        if other_pattern.search(text_to_check):
+            return False
+
+    netloc = parsed.netloc.lower()
+    path = parsed.path.lower()
+    doc_paths = [candidate.lower() for candidate in doc_candidates]
+
+    if netloc.endswith("sec.gov"):
+        if "/archives/edgar/data/" in path:
+            return True
+        if path.startswith(("/ix", "/cgi-bin/ix", "/cgi-bin/viewer")):
+            return True
+        if any("/archives/edgar/data/" in candidate for candidate in doc_paths):
+            return True
+
+    return False
 
 
 def _parse_date_value(value: object) -> Optional[pd.Timestamp]:
