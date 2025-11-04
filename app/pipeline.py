@@ -616,19 +616,22 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                 if col in df_quotes.columns:
                     df_quotes[col] = pd.to_numeric(df_quotes[col], errors="coerce")
 
-            if {"BidPrice", "AskPrice"}.issubset(df_quotes.columns):
+            has_bid_ask = {"BidPrice", "AskPrice"}.issubset(df_quotes.columns)
+
+            if has_bid_ask:
                 df_quotes["Spread"] = df_quotes["AskPrice"] - df_quotes["BidPrice"]
+
+                mid_price = (df_quotes["AskPrice"] + df_quotes["BidPrice"]) / 2.0
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    df_quotes["SpreadPct"] = np.where(
+                        (mid_price > 0) & df_quotes["Spread"].notna(),
+                        (df_quotes["Spread"] / mid_price) * 100.0,
+                        np.nan,
+                    )
+                df_quotes.loc[~np.isfinite(df_quotes["SpreadPct"]), "SpreadPct"] = np.nan
             else:
                 df_quotes["Spread"] = pd.NA
-
-            mid_price = (df_quotes["AskPrice"] + df_quotes["BidPrice"]) / 2.0
-            with np.errstate(divide="ignore", invalid="ignore"):
-                df_quotes["SpreadPct"] = np.where(
-                    (mid_price > 0) & df_quotes["Spread"].notna(),
-                    (df_quotes["Spread"] / mid_price) * 100.0,
-                    np.nan,
-                )
-            df_quotes.loc[~np.isfinite(df_quotes["SpreadPct"]), "SpreadPct"] = np.nan
+                df_quotes["SpreadPct"] = np.nan
         else:
             df_quotes = pd.DataFrame(columns=desired_cols + ["Spread", "SpreadPct"])
 
