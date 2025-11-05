@@ -1,11 +1,13 @@
 """Parser for extracting cash runway metrics from 10-Q/10-K filings."""
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Iterable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -23,10 +25,6 @@ _FORM_TYPE_PATTERN = re.compile(
 _LOGGER = logging.getLogger(__name__)
 
 
-def _log_debug(message: str) -> None:
-    _LOGGER.debug(message)
-
-
 def _log_parse_event(level: int, message: str, **fields: object) -> None:
     details: list[str] = []
     for key, value in fields.items():
@@ -38,6 +36,38 @@ def _log_parse_event(level: int, message: str, **fields: object) -> None:
     if details:
         message = f"{message} ({', '.join(details)})"
     _LOGGER.log(level, message)
+
+
+def _preview_text(text: str, limit: int = 80) -> str:
+    if not text:
+        return ""
+    sanitized = text.replace("\r", " ").replace("\n", " ")
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+    if len(sanitized) > limit:
+        return sanitized[: limit - 3] + "..."
+    return sanitized
+
+
+def _unescape_html_entities(html_text: str, *, context: Optional[str] = None) -> str:
+    if not html_text:
+        return html_text
+    before = _preview_text(html_text)
+    unescaped = html.unescape(html_text)
+    after = _preview_text(unescaped)
+    _log_parse_event(
+        logging.DEBUG,
+        "html entity unescape",
+        url=context,
+        unescape_before=before,
+        unescape_after=after,
+    )
+    return unescaped
+
+
+def _format_score_tuple(score: Optional[tuple[object, ...]]) -> str:
+    if not score:
+        return "()"
+    return "(" + ", ".join(str(part) for part in score) + ")"
 
 
 def _canonicalize_sec_filing_url(url: str) -> str:
@@ -149,6 +179,11 @@ _NUMBER_SEARCH_PATTERN = re.compile(
     rf"[\(\[]*(?:({_CURRENCY_MARKER_PATTERN})\s*)?[-+]?\d[\d,\.\u00A0\u202F'’]*(?:[\.,]\d+)?(?:\s*({_CURRENCY_MARKER_PATTERN}))?[\)\]]?",
     re.IGNORECASE,
 )
+
+_CURRENCY_CONTEXT_WORDS = {
+    re.sub(r"[^A-Z$€£¥₹₩₽]", "", marker.upper())
+    for marker in _CURRENCY_MARKERS
+}
 
 _GROUP_SEPARATOR_CHARS = " ,.\u00A0\u202F'’"
 _GROUP_SEPARATOR_CLASS = re.escape(_GROUP_SEPARATOR_CHARS)
@@ -398,7 +433,13 @@ def _to_float(num_str: str) -> float:
     cleaned = value.replace("(", "").replace(")", "")
     cleaned = cleaned.replace("−", "-").replace("\u2212", "-")
     cleaned = cleaned.replace("\u2019", "'")
-    cleaned = cleaned.replace("\u00A0", " ").replace("\u202F", " ").replace("\u2009", " ")
+    cleaned = (
+        cleaned.replace("\u00A0", " ")
+        .replace("\u202F", " ")
+        .replace("\u2009", " ")
+        .replace("\u2007", " ")
+        .replace("\u205F", " ")
+    )
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     marker_regex = re.compile(
@@ -510,27 +551,79 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
         for idx, token in enumerate(tokens[:_TOKEN_LOOKAHEAD]):
             if not _NUMERIC_TOKEN_PATTERN.search(token):
                 continue
+            prev_token = tokens[idx - 1] if idx > 0 else ""
+            next_token = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+            next2_token = tokens[idx + 2] if idx + 2 < len(tokens) else ""
             try:
                 value = _to_float(token)
             except ValueError:
                 continue
 
             digit_count = len(re.findall(r"\d", token))
-            is_negative = value < 0 or "(" in token or "-" in token
+            prev_stripped = prev_token.strip()
+            next_stripped = next_token.strip()
+            has_open = (
+                "(" in token
+                or "[" in token
+                or prev_stripped.startswith("(")
+                or prev_stripped.startswith("[")
+            )
+            has_close = (
+                ")" in token
+                or "]" in token
+                or next_stripped.endswith(")")
+                or next_stripped.endswith("]")
+            )
+            is_parenthetical = has_open and has_close
+            is_negative = bool(
+                value < 0
+                or "-" in token
+                or "−" in token
+                or "\u2212" in token
+                or is_parenthetical
+            )
             has_separator = bool(re.search(r"[\.,\u00A0\u202F'’]", token))
             has_currency = any(symbol in token for symbol in "$€£¥₹₩₽")
+            normalized_group = re.sub(r"[^0-9,\.\u00A0\u202F'’]", "", token)
+            prev_has_alpha = bool(re.search(r"[A-Za-z]", prev_token))
+            next_has_alpha = bool(re.search(r"[A-Za-z]", next_token))
+            next2_has_alpha = bool(re.search(r"[A-Za-z]", next2_token))
 
             numeric_tokens.append(
                 {
                     "idx": idx,
                     "token": token,
-                    "value": value,
+                    "value": float(value),
                     "digit_count": digit_count,
                     "is_negative": is_negative,
                     "has_separator": has_separator,
                     "has_currency": has_currency,
+                    "normalized_group": normalized_group,
+                    "prev_has_alpha": prev_has_alpha,
+                    "next_has_alpha": next_has_alpha,
+                    "next2_has_alpha": next2_has_alpha,
+                    "prev_token": prev_token,
+                    "next_token": next_token,
                 }
             )
+
+        previous_idx_val: Optional[int] = None
+        current_block = 0
+        for token_info in numeric_tokens:
+            idx_val = int(token_info["idx"])
+            if previous_idx_val is not None and idx_val - previous_idx_val > 6:
+                current_block += 1
+            token_info["block_id"] = current_block
+            previous_idx_val = idx_val
+
+        matched_fragment = _preview_text(norm_text[m.start() : m.end()])
+        _log_parse_event(
+            logging.DEBUG,
+            "caption_match",
+            keyword=keyword,
+            caption_match=matched_fragment,
+            candidates=len(numeric_tokens),
+        )
 
         if not numeric_tokens:
             continue
@@ -554,11 +647,7 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
             if strong_flags[i]:
                 running += 1
 
-        best_value: Optional[float] = None
-        best_token: Optional[str] = None
-        best_reason: Optional[str] = None
-        best_rank: Optional[tuple[int, int]] = None
-        best_footnote = False
+        scored_tokens: list[dict[str, object]] = []
         for i, token_info in enumerate(numeric_tokens):
             idx = int(token_info["idx"])  # safe cast
             token = str(token_info["token"])
@@ -567,10 +656,25 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
             is_negative = bool(token_info["is_negative"])
             has_separator = bool(token_info["has_separator"])
             has_currency = bool(token_info["has_currency"])
+            normalized_group = str(token_info["normalized_group"])
             strong_remaining = strong_suffix[i]
+            prev_has_alpha = bool(token_info.get("prev_has_alpha"))
+            next_has_alpha = bool(token_info.get("next_has_alpha"))
+            next2_has_alpha = bool(token_info.get("next2_has_alpha"))
+            prev_token_raw = str(token_info.get("prev_token") or "")
+            next_token_raw = str(token_info.get("next_token") or "")
+            prev_clean = re.sub(r"[^A-Za-z$€£¥₹₩₽]", "", prev_token_raw).upper()
+            next_clean = re.sub(r"[^A-Za-z$€£¥₹₩₽]", "", next_token_raw).upper()
+            currency_neighbor = prev_clean in _CURRENCY_CONTEXT_WORDS or next_clean in _CURRENCY_CONTEXT_WORDS
+            block_id = int(token_info.get("block_id", 0))
+
+            thousands_grouped = bool(
+                normalized_group
+                and _GROUPED_THOUSANDS_PATTERN.match(normalized_group)
+            )
 
             footnote_like = False
-            if digit_count <= 2 and not is_negative:
+            if digit_count <= 2 and abs(value) < 100:
                 footnote_like = True
             elif (
                 digit_count == 3
@@ -581,40 +685,93 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
                 and strong_remaining >= 2
             ):
                 footnote_like = True
+            elif (
+                digit_count == 4
+                and not is_negative
+                and not has_separator
+                and not has_currency
+                and 1900 <= abs(value) <= 2100
+                and strong_remaining >= 1
+            ):
+                footnote_like = True
+            elif prev_has_alpha and (next_has_alpha or next2_has_alpha) and not currency_neighbor:
+                footnote_like = True
 
-            rank = (1 if footnote_like else 0, idx)
+            big_pref = 0 if (
+                digit_count >= 4
+                or has_separator
+                or has_currency
+                or thousands_grouped
+            ) else 1
 
-            if best_rank is None or rank < best_rank:
-                if footnote_like:
-                    reason = "first" if best_rank is None else "earliest"
-                elif is_negative:
-                    reason = "negative"
-                elif digit_count >= 4 or has_separator or has_currency:
-                    reason = "≥4-digits"
-                elif digit_count == 3:
-                    reason = "3-digits"
-                else:
-                    reason = "first"
+            footnote_flag = 1 if footnote_like else 0
+            neg_pref = 0 if is_negative else 1
+            magnitude_rank = -abs(value)
+            pos_rank = idx
+            score = (footnote_flag, neg_pref, big_pref, pos_rank, magnitude_rank)
 
-                best_rank = rank
-                best_token = token
-                best_value = value
-                best_reason = reason
-                best_footnote = footnote_like
+            token_info.update(
+                {
+                    "score": score,
+                    "footnote_flag": footnote_flag,
+                    "neg_pref": neg_pref,
+                    "big_pref": big_pref,
+                    "magnitude_rank": magnitude_rank,
+                    "pos_rank": pos_rank,
+                    "block_id": block_id,
+                }
+            )
+            scored_tokens.append(token_info)
 
-        if best_value is not None and best_token is not None:
-            if best_footnote and best_reason == "first":
-                best_reason = "fallback"
+        sorted_for_log = sorted(
+            scored_tokens,
+            key=lambda info: (-abs(float(info["value"])), int(info["idx"])),
+        )
+        for entry in sorted_for_log[:5]:
+            score_repr = _format_score_tuple(entry.get("score"))
             _log_parse_event(
                 logging.DEBUG,
-                "html numeric selection",
+                "caption_candidate",
                 keyword=keyword,
-                token=best_token,
-                value=best_value,
-                reason=best_reason,
-                position=best_rank[1] if best_rank else None,
+                candidate_token=str(entry["token"]),
+                value=float(entry["value"]),
+                score=score_repr,
             )
-            return best_value
+
+        if not scored_tokens:
+            continue
+
+        blocks_order = sorted({int(info.get("block_id", 0)) for info in scored_tokens})
+        allowed_block: Optional[int] = None
+        for block in blocks_order:
+            if any(
+                int(info.get("block_id", 0)) == block
+                and int(info.get("footnote_flag", 0)) == 0
+                for info in scored_tokens
+            ):
+                allowed_block = block
+                break
+        if allowed_block is None:
+            allowed_block = blocks_order[0] if blocks_order else 0
+
+        best_candidate: Optional[dict[str, object]] = None
+        for info in scored_tokens:
+            if int(info.get("block_id", 0)) != allowed_block:
+                continue
+            if best_candidate is None or info["score"] < best_candidate["score"]:
+                best_candidate = info
+
+        if best_candidate is not None:
+            score_repr = _format_score_tuple(best_candidate.get("score"))
+            _log_parse_event(
+                logging.DEBUG,
+                "caption_choice",
+                keyword=keyword,
+                chosen_token=str(best_candidate["token"]),
+                score=score_repr,
+                value=float(best_candidate["value"]),
+            )
+            return float(best_candidate["value"])
     return None
 
 
@@ -663,18 +820,25 @@ def _parse_html_cashflow_sections(html_text: str) -> dict:
     burn_keywords = defaults["ocf_keywords_burn"]
     provided_keywords = defaults["ocf_keywords_provided"]
 
-    ocf_text_source = cashflow_section_text or text
-    burn_value = _extract_number_after_keyword(ocf_text_source, burn_keywords)
+    candidate_texts = [cashflow_section_text, text]
+
+    def _first_match(texts: list[Optional[str]], keywords: Iterable[str]) -> Optional[float]:
+        for candidate_text in texts:
+            if not candidate_text:
+                continue
+            value = _extract_number_after_keyword(candidate_text, keywords)
+            if value is not None:
+                return value
+        return None
+
+    burn_value = _first_match(candidate_texts, burn_keywords)
+    provided_value = _first_match(candidate_texts, provided_keywords)
+
     ocf_value = burn_value
     if ocf_value is None:
-        ocf_value = _extract_number_after_keyword(ocf_text_source, provided_keywords)
+        ocf_value = provided_value
     elif burn_value is not None and burn_value > 0:
         ocf_value = -abs(burn_value)
-
-    if ocf_value is None:
-        provided_value = _extract_number_after_keyword(ocf_text_source, provided_keywords)
-        if provided_value is not None:
-            ocf_value = provided_value
 
     if cash_value is not None:
         cash_value = float(cash_value) * float(scale_multiplier)
@@ -684,6 +848,8 @@ def _parse_html_cashflow_sections(html_text: str) -> dict:
         ocf_value = float(ocf_value) * float(scale_multiplier)
     elif burn_value is not None:
         ocf_value = float(burn_value) * float(scale_multiplier)
+
+    html_ocf_raw_value: Optional[float] = float(ocf_value) if ocf_value is not None else None
 
     period_months_inferred = _infer_months_from_text(cashflow_section_text) or _infer_months_from_text(text)
 
@@ -698,7 +864,7 @@ def _parse_html_cashflow_sections(html_text: str) -> dict:
     return {
         "found_cashflow_header": bool(cashflow_section_html),
         "cash_value": cash_value,
-        "ocf_value": ocf_value,
+        "ocf_value": html_ocf_raw_value,
         "period_months_inferred": period_months_inferred,
         "units_scale": scale_multiplier,
         "evidence": "; ".join(evidence_parts),
@@ -1042,7 +1208,8 @@ def _derive_from_xbrl(
 
     result = _finalize_runway_result(
         cash=float(cash) if cash is not None else None,
-        ocf_raw=ocf_normalized,
+        ocf_raw=float(burn) if burn is not None else None,
+        ocf_quarterly=ocf_normalized,
         period_months=period_months,
         assumption=assumption,
         note=f"values parsed from XBRL: {filing_url}" + (" (partial XBRL data)" if cash is None or burn is None else ""),
@@ -1067,6 +1234,7 @@ def _finalize_runway_result(
     *,
     cash: Optional[float],
     ocf_raw: Optional[float],
+    ocf_quarterly: Optional[float] = None,
     period_months: Optional[int],
     assumption: Optional[str],
     note: str,
@@ -1083,18 +1251,23 @@ def _finalize_runway_result(
     runway_quarters_raw: Optional[float] = None
     show_quarters = True
 
-    if ocf_raw is None:
+    ocf_for_burn = None
+    if ocf_quarterly is not None:
+        ocf_for_burn = float(ocf_quarterly)
+    elif ocf_raw is not None:
+        ocf_for_burn = float(ocf_raw)
+
+    if ocf_for_burn is None:
         show_quarters = False
         if not status_final:
             status_final = "Missing OCF"
     else:
-        ocf_value = float(ocf_raw)
-        if ocf_value >= 0:
+        if ocf_for_burn >= 0:
             quarterly_burn_raw = 0.0
             show_quarters = False
             status_final = "OCF positive (self-funding)"
         else:
-            quarterly_burn_raw = abs(ocf_value)
+            quarterly_burn_raw = abs(ocf_for_burn)
             if cash is not None and quarterly_burn_raw > 0:
                 runway_quarters_raw = float(cash) / float(quarterly_burn_raw)
             if not status_final:
@@ -1105,6 +1278,7 @@ def _finalize_runway_result(
     result: dict = {
         "cash_raw": cash_value,
         "ocf_raw": ocf_raw,
+        "ocf_quarterly_raw": ocf_for_burn,
         "quarterly_burn_raw": quarterly_burn_raw,
         "runway_quarters_raw": runway_quarters_raw,
         "note": note,
@@ -1216,29 +1390,82 @@ def _log_runway_outcome(
 
 
 def get_runway_from_filing(filing_url: str) -> dict:
+    original_input = filing_url
     canonical_url = _canonicalize_sec_filing_url(filing_url)
-    if canonical_url != filing_url:
-        _log_debug(
-            f"canonicalized filing URL: {filing_url} -> {canonical_url}"
+
+    html_text: Optional[str] = None
+    is_local_file = False
+    local_file_path: Optional[Path] = None
+
+    parsed_initial = urlparse(canonical_url)
+    if parsed_initial.scheme == "file":
+        file_path = unquote(parsed_initial.path or "")
+        if parsed_initial.netloc:
+            file_path = f"//{parsed_initial.netloc}{file_path}"
+        candidate = Path(file_path)
+        if candidate.exists():
+            resolved = candidate.resolve()
+            is_local_file = True
+            local_file_path = resolved
+            base_uri = resolved.as_uri()
+            if parsed_initial.query:
+                canonical_url = f"{base_uri}?{parsed_initial.query}"
+            else:
+                canonical_url = base_uri
+            parsed_initial = urlparse(canonical_url)
+    elif not parsed_initial.scheme and not parsed_initial.netloc:
+        path_only = parsed_initial.path or canonical_url
+        query_only = parsed_initial.query
+        candidate = Path(unquote(path_only))
+        if candidate.exists():
+            resolved = candidate.resolve()
+            is_local_file = True
+            local_file_path = resolved
+            base_uri = resolved.as_uri()
+            canonical_url = f"{base_uri}?{query_only}" if query_only else base_uri
+            parsed_initial = urlparse(canonical_url)
+
+    if canonical_url != original_input:
+        _log_parse_event(
+            logging.DEBUG,
+            "canonical_url",
+            original=original_input,
+            canonical=canonical_url,
         )
+
+    if is_local_file and local_file_path is not None:
+        _log_parse_event(
+            logging.DEBUG,
+            "offline html detected",
+            offline_html=str(local_file_path),
+        )
+        try:
+            html_text = local_file_path.read_text(encoding="utf-8", errors="ignore")
+        except OSError as exc:
+            raise RuntimeError(
+                f"Failed to read local filing HTML: {local_file_path} ({exc})"
+            ) from exc
+
     form_hint_query = _extract_form_hint_from_url(canonical_url)
     form_type_hint = _infer_form_type_from_url(canonical_url)
 
     xbrl_result: Optional[dict] = None
     xbrl_error: Optional[str] = None
     detected_form_type: Optional[str] = None
-    try:
-        xbrl_result, detected_form_type = _derive_from_xbrl(
-            canonical_url, form_type_hint=form_type_hint
-        )
-    except Exception as exc:
-        xbrl_error = f"XBRL parse failed ({exc.__class__.__name__}: {exc})"
-        _log_parse_event(
-            logging.WARNING,
-            "runway parse XBRL failure",
-            url=canonical_url,
-            error=xbrl_error,
-        )
+
+    if not is_local_file:
+        try:
+            xbrl_result, detected_form_type = _derive_from_xbrl(
+                canonical_url, form_type_hint=form_type_hint
+            )
+        except Exception as exc:
+            xbrl_error = f"XBRL parse failed ({exc.__class__.__name__}: {exc})"
+            _log_parse_event(
+                logging.WARNING,
+                "runway parse XBRL failure",
+                url=canonical_url,
+                error=xbrl_error,
+            )
 
     if xbrl_result and xbrl_error:
         xbrl_result = dict(xbrl_result)
@@ -1258,40 +1485,43 @@ def get_runway_from_filing(filing_url: str) -> dict:
         )
         return result_copy
 
-    try:
-        raw_bytes = _fetch_url(canonical_url)
-    except HTTPError as exc:
-        _log_parse_event(
-            logging.ERROR,
-            "runway fetch HTTP error",
-            url=canonical_url,
-            status_code=exc.code,
-        )
-        raise RuntimeError(
-            f"HTTP error fetching filing ({exc.code}): {canonical_url}"
-        ) from exc
-    except URLError as exc:
-        _log_parse_event(
-            logging.ERROR,
-            "runway fetch URL error",
-            url=canonical_url,
-            reason=getattr(exc, "reason", exc),
-        )
-        raise RuntimeError(
-            f"URL error fetching filing ({exc.reason}): {canonical_url}"
-        ) from exc
-    except Exception as exc:
-        _log_parse_event(
-            logging.ERROR,
-            "runway fetch unexpected error",
-            url=canonical_url,
-            error=f"{exc.__class__.__name__}: {exc}",
-        )
-        raise RuntimeError(
-            f"Unexpected error fetching filing: {canonical_url} ({exc.__class__.__name__}: {exc})"
-        ) from exc
+    if html_text is None:
+        try:
+            raw_bytes = _fetch_url(canonical_url)
+        except HTTPError as exc:
+            _log_parse_event(
+                logging.ERROR,
+                "runway fetch HTTP error",
+                url=canonical_url,
+                status_code=exc.code,
+            )
+            raise RuntimeError(
+                f"HTTP error fetching filing ({exc.code}): {canonical_url}"
+            ) from exc
+        except URLError as exc:
+            _log_parse_event(
+                logging.ERROR,
+                "runway fetch URL error",
+                url=canonical_url,
+                reason=getattr(exc, "reason", exc),
+            )
+            raise RuntimeError(
+                f"URL error fetching filing ({exc.reason}): {canonical_url}"
+            ) from exc
+        except Exception as exc:
+            _log_parse_event(
+                logging.ERROR,
+                "runway fetch unexpected error",
+                url=canonical_url,
+                error=f"{exc.__class__.__name__}: {exc}",
+            )
+            raise RuntimeError(
+                f"Unexpected error fetching filing: {canonical_url} ({exc.__class__.__name__}: {exc})"
+            ) from exc
 
-    html_text = raw_bytes.decode("utf-8", errors="ignore")
+        html_text = raw_bytes.decode("utf-8", errors="ignore")
+
+    html_text = _unescape_html_entities(html_text, context=canonical_url)
     text = _strip_html(html_text)
 
     text_form = _infer_form_type_from_text(text)
@@ -1352,6 +1582,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
             result = _finalize_runway_result(
                 cash=xbrl_result.get("cash_raw") if xbrl_result else None,
                 ocf_raw=None,
+                ocf_quarterly=None,
                 period_months=period_value,
                 assumption=assumption_value,
                 note="; ".join(part for part in note_parts if part),
@@ -1377,7 +1608,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     html_info = _parse_html_cashflow_sections(html_text)
     html_cash = html_info.get("cash_value")
-    html_ocf_value = html_info.get("ocf_value")
+    html_ocf_raw_value = html_info.get("ocf_value")
     html_period_inferred = html_info.get("period_months_inferred")
     html_units_scale = html_info.get("units_scale") or 1
     html_evidence = html_info.get("evidence") or ""
@@ -1402,16 +1633,17 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     html_ocf_normalized = None
     html_assumption = ""
-    if html_ocf_value is not None:
+    if html_ocf_raw_value is not None:
         html_ocf_normalized, normalized_period, html_assumption = _normalize_ocf_value(
-            html_ocf_value, period_for_html_normalization
+            html_ocf_raw_value, period_for_html_normalization
         )
         if final_period is None and normalized_period is not None:
             final_period = normalized_period
         html_assumption = html_assumption or ""
 
     xbrl_cash = xbrl_result.get("cash_raw") if xbrl_result else None
-    xbrl_ocf = xbrl_result.get("ocf_raw") if xbrl_result else None
+    xbrl_ocf_raw_value = xbrl_result.get("ocf_raw") if xbrl_result else None
+    xbrl_ocf_quarterly = xbrl_result.get("ocf_quarterly_raw") if xbrl_result else None
     xbrl_assumption = (xbrl_result.get("assumption") if xbrl_result else "") or ""
     xbrl_units_scale = (xbrl_result.get("units_scale") if xbrl_result else None) or 1
 
@@ -1425,14 +1657,17 @@ def get_runway_from_filing(filing_url: str) -> dict:
         cash_source = "HTML"
 
     final_ocf_raw = None
+    final_ocf_quarterly = None
     final_assumption = ""
     ocf_source: Optional[str] = None
-    if xbrl_ocf is not None:
-        final_ocf_raw = xbrl_ocf
+    if xbrl_ocf_quarterly is not None:
+        final_ocf_raw = xbrl_ocf_raw_value
+        final_ocf_quarterly = xbrl_ocf_quarterly
         final_assumption = xbrl_assumption
         ocf_source = "XBRL"
     elif html_ocf_normalized is not None:
-        final_ocf_raw = html_ocf_normalized
+        final_ocf_raw = html_ocf_raw_value
+        final_ocf_quarterly = html_ocf_normalized
         final_assumption = html_assumption
         ocf_source = "HTML"
     else:
@@ -1504,6 +1739,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     result = _finalize_runway_result(
         cash=final_cash,
         ocf_raw=final_ocf_raw,
+        ocf_quarterly=final_ocf_quarterly,
         period_months=final_period,
         assumption=final_assumption,
         note=note_text,
