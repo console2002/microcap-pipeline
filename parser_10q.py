@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Iterable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse, urlunparse
 
 
 _USER_AGENT: str | None = None
@@ -25,6 +25,46 @@ _LOGGER = logging.getLogger(__name__)
 
 def _log_debug(message: str) -> None:
     _LOGGER.debug(message)
+
+
+def _canonicalize_sec_filing_url(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url
+
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    if not host.endswith("sec.gov"):
+        return url
+
+    if not any(path.startswith(prefix) for prefix in ("/ix", "/ixviewer", "/cgi-bin/viewer")):
+        return url
+
+    query = parse_qs(parsed.query)
+    doc_values = query.get("doc") or []
+    if not doc_values:
+        return url
+
+    doc_value = unquote(str(doc_values[0] or "")).strip()
+    if not doc_value:
+        return url
+
+    doc_parsed = urlparse(doc_value)
+    fragmentless = doc_parsed._replace(fragment="")
+    if fragmentless.scheme and fragmentless.netloc:
+        canonical = fragmentless.geturl()
+    else:
+        doc_path = fragmentless.path or doc_value
+        if not doc_path.startswith("/"):
+            doc_path = f"/{doc_path.lstrip('/')}"
+        scheme = parsed.scheme or "https"
+        netloc = parsed.netloc or "www.sec.gov"
+        canonical = urlunparse((scheme, netloc, doc_path, "", fragmentless.query, ""))
+
+    if canonical != url:
+        _log_debug(f"canonicalized SEC filing URL: {url} -> {canonical}")
+    return canonical
 
 
 def _user_agent() -> str:
@@ -66,10 +106,38 @@ def _fetch_json(url: str) -> dict:
 
 
 _NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-€£¥₩₽₹]")
+
+_CURRENCY_MARKERS = [
+    "US$",
+    "U.S.$",
+    "C$",
+    "CA$",
+    "CAD",
+    "USD",
+    "EUR",
+    "GBP",
+    "AUD",
+    "JPY",
+    "RMB",
+    "CHF",
+    "HK$",
+    "SGD",
+    "NZD",
+    "€",
+    "£",
+    "¥",
+]
+
+_CURRENCY_MARKER_PATTERN = "|".join(
+    sorted({re.escape(m.upper()) for m in _CURRENCY_MARKERS}, key=len, reverse=True)
+)
+
 _NUMBER_SEARCH_PATTERN = re.compile(
-    r"[\(\[]*(?:[A-Z]{1,4}\$?|[$€£¥₩₽₹])?[-+]?\d[\d,]*(?:\.\d+)?\)?",
+    rf"[\(\[]*(?:({_CURRENCY_MARKER_PATTERN})\s*)?[-+]?\d[\d,]*(?:\.\d+)?(?:\s*({_CURRENCY_MARKER_PATTERN}))?[\)\]]?",
     re.IGNORECASE,
 )
+
+_TOKEN_LOOKAHEAD = 40
 _SCALE_PATTERN = re.compile(r"\([^)]*?\bin\s+(thousands|millions)\b[^)]*\)", re.IGNORECASE)
 
 FORM_ADAPTERS = {
@@ -300,21 +368,34 @@ def _to_float(num_str: str) -> float:
         negative = True
 
     cleaned = value.replace(",", "").replace("(", "").replace(")", "")
-    cleaned = cleaned.replace("−", "-").replace("\u00A0", "").replace(" ", "").strip()
+    cleaned = cleaned.replace("−", "-").replace("\u00A0", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-    # Strip leading currency markers or other prefixes before the numeric portion
+    marker_regex = re.compile(
+        rf"^(?:{_CURRENCY_MARKER_PATTERN})(?:\s*)",
+        re.IGNORECASE,
+    )
+    suffix_regex = re.compile(
+        rf"(?:\s*)(?:{_CURRENCY_MARKER_PATTERN})$",
+        re.IGNORECASE,
+    )
+
+    cleaned = marker_regex.sub("", cleaned).strip()
+    cleaned = suffix_regex.sub("", cleaned).strip()
+
+    leading_negative = cleaned.startswith("-")
+    if cleaned.startswith("-") or cleaned.startswith("+"):
+        cleaned = cleaned[1:].strip()
+
+    negative = negative or leading_negative
+
+    # Strip any residual non-numeric prefixes
     while cleaned and cleaned[0] not in "+-0123456789":
         cleaned = cleaned[1:]
 
     # Strip trailing non-numeric markers (e.g., lingering currency codes)
     while cleaned and cleaned[-1] not in "0123456789.":
         cleaned = cleaned[:-1]
-
-    if cleaned.startswith("-"):
-        negative = True
-        cleaned = cleaned[1:]
-    elif cleaned.startswith("+"):
-        cleaned = cleaned[1:]
 
     if not cleaned:
         raise ValueError(f"unable to parse numeric value from '{num_str}'")
@@ -349,7 +430,7 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
         if not m:
             continue
         remainder = norm_text[m.end() : m.end() + 1000]
-        for token in remainder.split()[:25]:
+        for token in remainder.split()[:_TOKEN_LOOKAHEAD]:
             if _NUMERIC_TOKEN_PATTERN.search(token):
                 try:
                     return _to_float(token)
@@ -870,14 +951,15 @@ def _finalize_runway_result(
 
 
 def get_runway_from_filing(filing_url: str) -> dict:
-    form_type_hint = _infer_form_type_from_url(filing_url)
+    canonical_url = _canonicalize_sec_filing_url(filing_url)
+    form_type_hint = _infer_form_type_from_url(canonical_url)
 
     xbrl_result: Optional[dict] = None
     xbrl_error: Optional[str] = None
     detected_form_type: Optional[str] = None
     try:
         xbrl_result, detected_form_type = _derive_from_xbrl(
-            filing_url, form_type_hint=form_type_hint
+            canonical_url, form_type_hint=form_type_hint
         )
     except Exception as exc:
         xbrl_error = f"XBRL parse failed ({exc.__class__.__name__}: {exc})"
@@ -893,18 +975,18 @@ def get_runway_from_filing(filing_url: str) -> dict:
         return result_copy
 
     try:
-        raw_bytes = _fetch_url(filing_url)
+        raw_bytes = _fetch_url(canonical_url)
     except HTTPError as exc:
         raise RuntimeError(
-            f"HTTP error fetching filing ({exc.code}): {filing_url}"
+            f"HTTP error fetching filing ({exc.code}): {canonical_url}"
         ) from exc
     except URLError as exc:
         raise RuntimeError(
-            f"URL error fetching filing ({exc.reason}): {filing_url}"
+            f"URL error fetching filing ({exc.reason}): {canonical_url}"
         ) from exc
     except Exception as exc:
         raise RuntimeError(
-            f"Unexpected error fetching filing: {filing_url} ({exc.__class__.__name__}: {exc})"
+            f"Unexpected error fetching filing: {canonical_url} ({exc.__class__.__name__}: {exc})"
         ) from exc
 
     html_text = raw_bytes.decode("utf-8", errors="ignore")
@@ -930,10 +1012,10 @@ def get_runway_from_filing(filing_url: str) -> dict:
         lower_html = html_text.lower()
         header_present = any(header.lower() in lower_html for header in cashflow_headers)
         if not header_present:
-            note_parts = [f"6-K missing operating cash flow statement headers: {filing_url}"]
+            note_parts = [f"6-K missing operating cash flow statement headers: {canonical_url}"]
             if xbrl_result:
                 for suffix in _extract_note_suffix(xbrl_result.get("note")):
-                    cleaned_suffix = suffix.replace(filing_url, "").strip()
+                    cleaned_suffix = suffix.replace(canonical_url, "").strip()
                     if cleaned_suffix:
                         note_parts.append(cleaned_suffix)
             elif xbrl_error:
@@ -1071,18 +1153,18 @@ def get_runway_from_filing(filing_url: str) -> dict:
     merged_sources = used_xbrl and used_html
     note_parts: list[str] = []
     if merged_sources:
-        note_parts.append(f"values parsed from XBRL and HTML (merged): {filing_url}")
+        note_parts.append(f"values parsed from XBRL and HTML (merged): {canonical_url}")
     elif used_xbrl:
-        note_parts.append(f"values parsed from XBRL: {filing_url}")
+        note_parts.append(f"values parsed from XBRL: {canonical_url}")
     else:
-        note_parts.append(f"values parsed from filing HTML: {filing_url}")
+        note_parts.append(f"values parsed from filing HTML: {canonical_url}")
 
     if used_html and html_evidence:
         note_parts.append(html_evidence)
 
     if xbrl_result:
         for suffix in _extract_note_suffix(xbrl_result.get("note")):
-            cleaned_suffix = suffix.replace(filing_url, "").strip()
+            cleaned_suffix = suffix.replace(canonical_url, "").strip()
             if cleaned_suffix:
                 note_parts.append(cleaned_suffix)
     elif xbrl_error:
