@@ -53,3 +53,30 @@ def test_parse_tracker_exhibit_tracking() -> None:
     assert tracker.form_stats["6-K"].valid == 1
     assert tracker.exhibit_stats.valid == 1
     assert len(tracker.exhibit_tail) == 2
+
+
+def test_parse_tracker_incomplete_counts_for_filings() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "parse_q10 [INFO] CYBN fetching 6-K filed 2025-10-31T00:00:00 url https://www.sec.gov/ix?doc=/example.htm"
+    )
+    tracker.process_message("parse_q10 [WARN] CYBN 6-K incomplete: Missing OCF")
+
+    assert tracker.form_stats["6-K"].missing == 1
+    assert tracker.form_stats["6-K"].parsed == 1
+
+    # Duplicate message for the same filing should not double count
+    tracker.process_message("parse_q10 [WARN] CYBN 6-K incomplete: Missing OCF")
+    assert tracker.form_stats["6-K"].missing == 1
+    assert tracker.form_stats["6-K"].parsed == 1
+
+    # A new filing with a different date should be counted separately
+    tracker.process_message(
+        "parse_q10 [INFO] CYBN fetching 6-K filed 2025-12-31T00:00:00 url https://www.sec.gov/ix?doc=/example2.htm"
+    )
+    tracker.process_message("parse_q10 [WARN] CYBN 6-K incomplete: Missing OCF")
+
+    assert tracker.form_stats["6-K"].missing == 2
+    assert tracker.form_stats["6-K"].parsed == 2

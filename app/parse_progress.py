@@ -65,6 +65,8 @@ class ParseProgressTracker:
             changed = self._handle_compute(body)
         elif " runway status " in body:
             changed = self._handle_status(body)
+        elif " incomplete:" in body:
+            changed = self._handle_incomplete(body)
         elif re.search(r"\brunway\b.*\bqtrs\b", body):
             changed = self._handle_ok(body)
 
@@ -88,6 +90,9 @@ class ParseProgressTracker:
         ticker = match.group("ticker").strip()
         if ticker:
             self.ticker_last_form[ticker] = form
+            date_match = re.search(r"filed\s+([0-9]{4}-[0-9]{2}-[0-9]{2})", body)
+            date_key = date_match.group(1) if date_match else ""
+            self.ticker_last_key[ticker] = (ticker, form, date_key)
         return was_new_form
 
     def _handle_compute(self, body: str) -> bool:
@@ -122,6 +127,25 @@ class ParseProgressTracker:
             return False
         ticker = match.group("ticker").strip()
         return self._record_outcome(ticker, "OK", force_valid=True)
+
+    def _handle_incomplete(self, body: str) -> bool:
+        match = re.match(r"(?P<ticker>\S+)\s+(?P<form>[^\s]+)\s+incomplete:\s*(?P<reason>.*)", body)
+        if not match:
+            return False
+
+        ticker = match.group("ticker").strip()
+        form = self._canonical_form(match.group("form"))
+        reason = match.group("reason").strip()
+
+        if not ticker:
+            return False
+
+        self.form_stats.setdefault(form, FormCount())
+        self.ticker_last_form[ticker] = form
+        self.ticker_last_key.setdefault(ticker, (ticker, form, ""))
+
+        status_text = f"{form} incomplete: {reason}" if reason else f"{form} incomplete"
+        return self._record_outcome(ticker, "incomplete", status_text=status_text)
 
     def _record_outcome(
         self,
