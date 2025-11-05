@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
+from app.cancel import CancelledRun
 
 import parser_10q
 
@@ -269,7 +270,7 @@ def _format_raw_value(value: Optional[float]) -> str:
     return format(value, "f")
 
 
-def run(data_dir: str | None = None) -> None:
+def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
     research_path = _resolve_path("research_results.csv", data_dir)
     filings_path = _resolve_path("filings.csv", data_dir)
 
@@ -301,7 +302,25 @@ def run(data_dir: str | None = None) -> None:
 
     emit_progress(0)
 
+    cancel_pending = False
+    cancel_announced = False
+    cancel_after_write = False
+    last_index = 0
+
+    def check_cancel_request() -> None:
+        nonlocal cancel_pending, cancel_announced
+        if stop_flag and stop_flag.get("stop"):
+            if not cancel_announced:
+                progress(
+                    "CANCEL",
+                    "Cancellation requested – finishing current ticker before stopping",
+                )
+                cancel_announced = True
+            cancel_pending = True
+
     for index, row in enumerate(research_rows, start=1):
+        last_index = index
+        check_cancel_request()
         cik = _normalize_cik_value(row.get("CIK"))
         ticker = (row.get("Ticker") or "").strip() or cik or "?"
         catalyst_link = (row.get("CatalystPrimaryLink") or "").strip()
@@ -352,6 +371,7 @@ def run(data_dir: str | None = None) -> None:
             progress("WARN", f"{ticker} no eligible filing in filings.csv (CIK {cik or 'n/a'})")
         else:
             for info in candidate_infos:
+                check_cancel_request()
                 form_name = info.get("form") or info.get("original_form") or "?"
                 filing_url = info.get("filing_url") or ""
                 filed_at_dt = info.get("filed_at")
@@ -529,6 +549,10 @@ def run(data_dir: str | None = None) -> None:
         output_rows.append(row)
         emit_progress(index, ticker)
 
+        if cancel_pending:
+            cancel_after_write = True
+            break
+
     output_dir = data_dir or os.path.dirname(research_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -559,6 +583,17 @@ def run(data_dir: str | None = None) -> None:
             fieldnames_out.append(col)
 
     _write_csv_rows(output_path, fieldnames_out, output_rows)
+
+    if cancel_after_write:
+        rows_written = len(output_rows)
+        progress(
+            "CANCEL",
+            f"Runway extraction cancelled -> {output_path} ({rows_written} rows written)",
+        )
+        if last_index and total_rows:
+            emit_progress(last_index)
+        raise CancelledRun("cancel during parse_q10")
+
     progress("OK", f"Runway extraction complete -> {output_path}")
     emit_progress(total_rows or 0)
 

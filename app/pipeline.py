@@ -1079,7 +1079,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
         runway_extract.set_progress_callback(callback)
 
     try:
-        runway_extract.run(data_dir=data_dir)
+        runway_extract.run(data_dir=data_dir, stop_flag=stop_flag)
     finally:
         if callback:
             runway_extract.set_progress_callback(None)
