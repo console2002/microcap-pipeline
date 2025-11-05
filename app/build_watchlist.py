@@ -1,6 +1,7 @@
 """Build a validated watchlist from deep research results and market data."""
 from __future__ import annotations
 
+import csv
 import os
 import re
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -255,6 +256,19 @@ def _clean_text(value: object) -> str:
     if text.lower() == "nan":
         return ""
     return text
+
+
+def _csv_cell_value(value: object) -> object:
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    try:
+        if pd.isna(value):  # type: ignore[arg-type]
+            return ""
+    except TypeError:
+        pass
+    return value
 
 
 def _round_half_up_number(value: Optional[float], digits: int = 2) -> Optional[float]:
@@ -1270,10 +1284,13 @@ def run(
         survivors.append(record)
 
     output_path = os.path.join(data_dir, "validated_watchlist.csv")
-    df_out = pd.DataFrame(survivors, columns=_OUTPUT_COLUMNS)
-    df_out.to_csv(output_path, index=False, encoding="utf-8")
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(_OUTPUT_COLUMNS)
+        for record in survivors:
+            writer.writerow([_csv_cell_value(record.get(column)) for column in _OUTPUT_COLUMNS])
 
-    rows_written = len(df_out)
+    rows_written = len(survivors)
 
     if status == "stopped":
         _emit(
