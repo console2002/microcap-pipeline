@@ -44,3 +44,6 @@ timestamp,module,rows_added,duration_ms,note
 2025-11-05T15:24:33.877997+00:00,hydrate,689,895,write candidates
 2025-11-05T15:24:33.954232+00:00,shortlist,487,75,write shortlist
 2025-11-05T15:24:34.941524+00:00,deep_research,487,985,write research_results
+2025-11-05T16:31:00.543334+00:00,parse_q10,487,942423,write research_results_runway
+2025-11-05T16:31:03.148989+00:00,dr_populate,487,2602,write research_results_full
+2025-11-05T16:31:09.305930+00:00,build_watchlist,259,6155,write validated_watchlist

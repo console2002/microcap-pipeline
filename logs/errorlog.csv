@@ -1,3 +1,4 @@
 timestamp,module,message
 2025-11-05T00:59:51.687786+00:00,run_weekly,profiles.csv missing; cannot resume at this stage
 2025-11-05T00:59:59.825651+00:00,run_weekly,profiles.csv missing; cannot resume at this stage
+2025-11-05T16:14:56.398509+00:00,run_weekly,locked (already running)
