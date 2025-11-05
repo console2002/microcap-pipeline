@@ -1,4 +1,5 @@
 import sys, os, json, re
+from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
 from app.pipeline import run_weekly_pipeline, run_daily_pipeline
 from app.config import load_config, save_config
@@ -43,6 +44,198 @@ class RunnerThread(QtCore.QThread):
     def request_stop(self):
         self.stop_flag["stop"] = True
         self.progress.emit("cancel requested")
+
+
+@dataclass
+class FormCount:
+    parsed: int = 0
+    valid: int = 0
+    missing: int = 0
+
+    def ensure_consistency(self) -> None:
+        total = self.valid + self.missing
+        if self.parsed < total:
+            self.parsed = total
+
+
+class ParseProgressTracker:
+    def __init__(self, on_change):
+        self.on_change = on_change
+        self.form_stats: dict[str, FormCount] = {}
+        self.exhibit_stats = FormCount()
+        self.ticker_last_form: dict[str, str] = {}
+        self.ticker_outcomes: set[str] = set()
+
+    def reset(self) -> None:
+        self.form_stats = {}
+        self.exhibit_stats = FormCount()
+        self.ticker_last_form = {}
+        self.ticker_outcomes = set()
+        self._notify()
+
+    def process_message(self, full_message: str) -> None:
+        detail = self._extract_parse_detail(full_message)
+        if not detail:
+            return
+
+        if detail.startswith("parse_q10:"):
+            if detail.startswith("parse_q10: start"):
+                self.reset()
+            return
+
+        match = re.match(r"parse_q10\s*\[(?P<status>[^\]]+)\]\s*(?P<body>.*)", detail)
+        if not match:
+            return
+
+        body = match.group("body")
+        if not body:
+            return
+
+        changed = False
+        if " fetching " in body:
+            changed = self._handle_fetch(body)
+        elif body.startswith("compute_runway:"):
+            changed = self._handle_compute(body)
+        elif " runway status " in body:
+            changed = self._handle_status(body)
+        elif re.search(r"\brunway\b.*\bqtrs\b", body):
+            changed = self._handle_ok(body)
+
+        if changed:
+            self._notify()
+
+    def _extract_parse_detail(self, message: str) -> str | None:
+        parts = message.split("|", 1)
+        detail = parts[1].strip() if len(parts) == 2 else message.strip()
+        if not detail.startswith("parse_q10"):
+            return None
+        return detail
+
+    def _handle_fetch(self, body: str) -> bool:
+        match = re.match(r"(?P<ticker>\S+)\s+fetching\s+(?P<form>[^\s]+)", body)
+        if not match:
+            return False
+        form = self._canonical_form(match.group("form"))
+        stats = self.form_stats.setdefault(form, FormCount())
+        stats.parsed += 1
+        return True
+
+    def _handle_compute(self, body: str) -> bool:
+        remainder = body[len("compute_runway:"):].strip()
+        if not remainder:
+            return False
+        ticker = remainder.split()[0]
+        form_match = re.search(r"form=([^\s]+)", body)
+        form = self._canonical_form(form_match.group(1)) if form_match else "Unknown"
+        self.ticker_last_form[ticker] = form
+        if form not in self.form_stats:
+            self.form_stats[form] = FormCount()
+            return True
+        return False
+
+    def _handle_status(self, body: str) -> bool:
+        ticker, status_text = body.split(" runway status ", 1)
+        return self._record_outcome(ticker.strip(), status_text.strip(), status_text=status_text.strip())
+
+    def _handle_ok(self, body: str) -> bool:
+        match = re.match(r"(?P<ticker>\S+)\s+runway\s+", body)
+        if not match:
+            return False
+        ticker = match.group("ticker").strip()
+        return self._record_outcome(ticker, "OK", force_valid=True)
+
+    def _record_outcome(self, ticker: str, status: str, *, status_text: str | None = None, force_valid: bool = False) -> bool:
+        if not ticker or ticker in self.ticker_outcomes:
+            return False
+
+        form = self.ticker_last_form.get(ticker, "Unknown")
+        canonical_form = self._canonical_form(form)
+        stats = self.form_stats.setdefault(canonical_form, FormCount())
+
+        is_valid = force_valid or self._status_is_valid(status)
+        if is_valid:
+            stats.valid += 1
+        else:
+            stats.missing += 1
+        stats.ensure_consistency()
+
+        self.ticker_outcomes.add(ticker)
+
+        if status_text and "exhibit" in status_text.lower():
+            if is_valid:
+                self.exhibit_stats.valid += 1
+            else:
+                self.exhibit_stats.missing += 1
+            self.exhibit_stats.ensure_consistency()
+
+        return True
+
+    def _status_is_valid(self, status: str) -> bool:
+        return status.strip().lower().startswith("ok")
+
+    def _canonical_form(self, form: str | None) -> str:
+        if not form:
+            return "Unknown"
+        raw_text = str(form).strip()
+        if not raw_text:
+            return "Unknown"
+        text = raw_text.upper()
+        if text.endswith("/A"):
+            text = text[:-2]
+        for prefix, mapped in (
+            ("10-QT", "10-Q"),
+            ("10-Q", "10-Q"),
+            ("10-KT", "10-K"),
+            ("10-K", "10-K"),
+            ("20-F", "20-F"),
+            ("40-F", "40-F"),
+            ("6-K", "6-K"),
+        ):
+            if text.startswith(prefix):
+                return mapped
+        if text == "UNKNOWN":
+            return "Unknown"
+        return text
+
+    def _notify(self) -> None:
+        if self.on_change:
+            self.on_change(self.form_stats, self.exhibit_stats)
+
+
+class ParseStatsWidget(QtWidgets.QTreeWidget):
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
+        self.setColumnCount(4)
+        self.setHeaderLabels(["Form Type", "Parsed", "Valid", "Missing"])
+        header = self.header()
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        for col in range(1, 4):
+            header.setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
+        self.setRootIsDecorated(False)
+        self.setAlternatingRowColors(True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+    def update_from_tracker(self, form_stats: dict[str, FormCount], exhibit_stats: FormCount) -> None:
+        self.setUpdatesEnabled(False)
+        self.clear()
+        for form in sorted(form_stats.keys()):
+            stats = form_stats[form]
+            item = QtWidgets.QTreeWidgetItem([
+                form,
+                str(stats.parsed),
+                str(stats.valid),
+                str(stats.missing),
+            ])
+            self.addTopLevelItem(item)
+
+        exhibit_item = QtWidgets.QTreeWidgetItem([
+            "Exhibit",
+            str(exhibit_stats.parsed),
+            str(exhibit_stats.valid),
+            str(exhibit_stats.missing),
+        ])
+        self.addTopLevelItem(exhibit_item)
+        self.setUpdatesEnabled(True)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -110,6 +303,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.log_tail = QtWidgets.QPlainTextEdit()
         self.log_tail.setReadOnly(True)
+        self.parse_stats_view = ParseStatsWidget()
+        self.parse_tracker = ParseProgressTracker(self.parse_stats_view.update_from_tracker)
+        self.parse_tracker.reset()
 
         run_layout = QtWidgets.QVBoxLayout()
         weekly_stage_row = QtWidgets.QHBoxLayout()
@@ -128,7 +324,16 @@ class MainWindow(QtWidgets.QMainWindow):
         run_layout.addWidget(self.progress_bar)
         run_layout.addWidget(self.status_label)
         run_layout.addWidget(QtWidgets.QLabel("Live Log Tail"))
-        run_layout.addWidget(self.log_tail)
+        log_and_stats_layout = QtWidgets.QHBoxLayout()
+        log_and_stats_layout.addWidget(self.log_tail, 3)
+
+        stats_panel = QtWidgets.QVBoxLayout()
+        stats_panel.addWidget(QtWidgets.QLabel("Parse Counts"))
+        stats_panel.addWidget(self.parse_stats_view)
+        stats_panel.addStretch(1)
+
+        log_and_stats_layout.addLayout(stats_panel, 1)
+        run_layout.addLayout(log_and_stats_layout)
         self.run_tab.setLayout(run_layout)
 
         self.btn_weekly.clicked.connect(self.start_weekly)
@@ -196,6 +401,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tail_from_live_run = True
         self.live_buffer = [f"=== starting {mode} run from stage '{stage}' ==="]
         self._render_live_buffer()
+        self.parse_tracker.reset()
 
         self.status_label.setText(f"{mode} starting…")
         self.progress_bar.setVisible(True)
@@ -227,6 +433,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # update status label with the most recent message
         self.status_label.setText(msg)
         self._update_progress_bar_from_msg(msg)
+        self.parse_tracker.process_message(msg)
 
     def on_finished(self, msg: str):
         self.is_running = False
