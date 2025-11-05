@@ -1350,11 +1350,44 @@ def follow_exhibits_and_parse(filing_url: str, html: Optional[str]) -> dict:
         break
 
     if not index_html:
-        return {}
+        try:
+            parsed = urlparse(filing_url)
+            if parsed.scheme == "file":
+                from pathlib import Path
 
-    index_html = _unescape_html_entities(index_html, context=index_url_used)
+                base_path = Path(unquote(parsed.path or "")).parent
+                glob_patterns = [
+                    "ex99*.*",
+                    "ex-99*.*",
+                    "ex_99*.*",
+                    "exhibit99*.*",
+                    "exhibit_99*.*",
+                ]
+                file_hits = []
+                for pat in glob_patterns:
+                    file_hits.extend(base_path.glob(pat))
+                local_candidates = []
+                for p in sorted(set(file_hits)):
+                    href = p.as_uri()
+                    filename = p.name
+                    local_candidates.append(
+                        {
+                            "href": href,
+                            "doc_type": filename.upper(),
+                            "description": filename,
+                            "filename": filename,
+                            "texts": [filename],
+                        }
+                    )
+                candidates = local_candidates
+            else:
+                return {}
+        except Exception:
+            return {}
+    else:
+        index_html = _unescape_html_entities(index_html, context=index_url_used)
+        candidates = _extract_exhibit_candidates(index_html)
 
-    candidates = _extract_exhibit_candidates(index_html)
     if not candidates:
         return {}
 
@@ -2158,6 +2191,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     cashflow_headers = defaults["cashflow_headers"]
     cashflow_header_patterns = defaults.get("cashflow_header_patterns", [])
 
+    exhibit_override: Optional[dict] = None
     if form_type == "6-K":
         lower_html = html_text.lower()
         header_present = any(header.lower() in lower_html for header in cashflow_headers)
@@ -2169,54 +2203,57 @@ def get_runway_from_filing(filing_url: str) -> dict:
                         break
                 except Exception:
                     continue
-            note_parts = [f"6-K missing operating cash flow statement headers: {canonical_url}"]
-            if xbrl_result:
-                for suffix in _extract_note_suffix(xbrl_result.get("note")):
-                    cleaned_suffix = suffix.replace(canonical_url, "").strip()
-                    if cleaned_suffix:
-                        note_parts.append(cleaned_suffix)
-            elif xbrl_error:
-                note_parts.append(xbrl_error)
-
-            period_value = None
-            if xbrl_result and xbrl_result.get("period_months") in {3, 6, 9, 12}:
-                period_value = xbrl_result.get("period_months")
+        if not header_present:
+            exhibit_parse = follow_exhibits_and_parse(canonical_url, html_text)
+            if exhibit_parse.get("source") == "exhibit":
+                exhibit_override = exhibit_parse
             else:
-                period_value = defaults.get("period_months_default")
+                note_parts = [
+                    f"6-K missing operating cash flow statement headers: {canonical_url}"
+                ]
+                if xbrl_result:
+                    for suffix in _extract_note_suffix(xbrl_result.get("note")):
+                        cleaned_suffix = suffix.replace(canonical_url, "").strip()
+                        if cleaned_suffix:
+                            note_parts.append(cleaned_suffix)
+                elif xbrl_error:
+                    note_parts.append(xbrl_error)
 
-            assumption_value = (xbrl_result.get("assumption") if xbrl_result else "") or ""
-            units_scale_value = (xbrl_result.get("units_scale") if xbrl_result else None) or 1
+                period_value = (
+                    xbrl_result.get("period_months")
+                    if (xbrl_result and xbrl_result.get("period_months") in {3, 6, 9, 12})
+                    else defaults.get("period_months_default")
+                )
+                assumption_value = (xbrl_result.get("assumption") if xbrl_result else "") or ""
+                units_scale_value = (xbrl_result.get("units_scale") if xbrl_result else None) or 1
+                source_tags = ["XBRL"] if (xbrl_result and xbrl_result.get("cash_raw") is not None) else None
 
-            source_tags: list[str] = []
-            if xbrl_result and xbrl_result.get("cash_raw") is not None:
-                source_tags.append("XBRL")
+                result = _finalize_runway_result(
+                    cash=xbrl_result.get("cash_raw") if xbrl_result else None,
+                    ocf_raw=None,
+                    ocf_quarterly=None,
+                    period_months=period_value,
+                    assumption=assumption_value,
+                    note="; ".join(part for part in note_parts if part),
+                    form_type=form_type,
+                    units_scale=units_scale_value,
+                    status="6-K missing OCF (exhibits tried)",
+                    source_tags=source_tags,
+                )
 
-            result = _finalize_runway_result(
-                cash=xbrl_result.get("cash_raw") if xbrl_result else None,
-                ocf_raw=None,
-                ocf_quarterly=None,
-                period_months=period_value,
-                assumption=assumption_value,
-                note="; ".join(part for part in note_parts if part),
-                form_type=form_type,
-                units_scale=units_scale_value,
-                status="6-K missing OCF",
-                source_tags=source_tags or None,
-            )
+                _log_runway_outcome(
+                    canonical_url,
+                    form_type,
+                    result,
+                    xbrl_result=xbrl_result,
+                    xbrl_error=xbrl_error,
+                    extra={
+                        "path": "6-K header+exhibit check",
+                        "header_present": header_present,
+                    },
+                )
 
-            _log_runway_outcome(
-                canonical_url,
-                form_type,
-                result,
-                xbrl_result=xbrl_result,
-                xbrl_error=xbrl_error,
-                extra={
-                    "path": "6-K header check",
-                    "header_present": header_present,
-                },
-            )
-
-            return result
+                return result
 
     html_info = _parse_html_cashflow_sections(html_text, context_url=canonical_url)
     html_cash = html_info.get("cash_value")
@@ -2230,7 +2267,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
     exhibit_doc_type: Optional[str] = None
 
     if html_cash is None or html_ocf_raw_value is None:
-        exhibit_parse = follow_exhibits_and_parse(canonical_url, html_text)
+        exhibit_parse = exhibit_override or follow_exhibits_and_parse(canonical_url, html_text)
         if exhibit_parse.get("source") == "exhibit":
             html_source = "exhibit"
             html_cash = exhibit_parse.get("cash_value")
