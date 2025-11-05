@@ -112,9 +112,11 @@ class ParseProgressTracker:
 
         if key not in self.compute_events:
             self.compute_events.add(key)
-            stats.parsed += 1
+            if key not in self.ticker_outcomes:
+                stats.parsed += 1
+                stats.ensure_consistency()
+                return True
             stats.ensure_consistency()
-            return True
         return False
 
     def _handle_status(self, body: str) -> bool:

@@ -72,6 +72,13 @@ def test_parse_tracker_incomplete_counts_for_filings() -> None:
     assert tracker.form_stats["6-K"].missing == 1
     assert tracker.form_stats["6-K"].parsed == 1
 
+    # The subsequent compute message for the same filing should not increment parsed again
+    tracker.process_message(
+        "parse_q10 [INFO] compute_runway: CYBN cash=0 ocf=0 months=6 scale=1 est=interim form=6-K date=2025-10-31"
+    )
+    assert tracker.form_stats["6-K"].missing == 1
+    assert tracker.form_stats["6-K"].parsed == 1
+
     # A new filing with a different date should be counted separately
     tracker.process_message(
         "parse_q10 [INFO] CYBN fetching 6-K filed 2025-12-31T00:00:00 url https://www.sec.gov/ix?doc=/example2.htm"
