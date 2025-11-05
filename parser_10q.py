@@ -506,10 +506,7 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
             continue
         remainder = norm_text[m.end() : m.end() + 8000]
         tokens = remainder.split()
-        best_value: Optional[float] = None
-        best_token: Optional[str] = None
-        best_reason: Optional[str] = None
-        best_key: Optional[tuple[int, int, float, int]] = None
+        numeric_tokens: list[dict[str, object]] = []
         for idx, token in enumerate(tokens[:_TOKEN_LOOKAHEAD]):
             if not _NUMERIC_TOKEN_PATTERN.search(token):
                 continue
@@ -519,34 +516,95 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
                 continue
 
             digit_count = len(re.findall(r"\d", token))
-            negative_pref = 1 if value < 0 or "(" in token or "-" in token else 0
-            high_digit_pref = 1 if digit_count >= 4 else 0
-            key = (negative_pref, high_digit_pref, abs(value), idx)
+            is_negative = value < 0 or "(" in token or "-" in token
+            has_separator = bool(re.search(r"[\.,\u00A0\u202F'’]", token))
+            has_currency = any(symbol in token for symbol in "$€£¥₹₩₽")
 
-            if best_key is None or key > best_key:
-                if best_key is None:
-                    if negative_pref:
-                        reason = "negative"
-                    elif high_digit_pref:
-                        reason = "≥4-digits"
-                    else:
-                        reason = "max-abs"
+            numeric_tokens.append(
+                {
+                    "idx": idx,
+                    "token": token,
+                    "value": value,
+                    "digit_count": digit_count,
+                    "is_negative": is_negative,
+                    "has_separator": has_separator,
+                    "has_currency": has_currency,
+                }
+            )
+
+        if not numeric_tokens:
+            continue
+
+        strong_flags = [
+            bool(
+                token_info["digit_count"] >= 4
+                or token_info["has_separator"]
+                or token_info["has_currency"]
+                or (
+                    token_info["is_negative"]
+                    and token_info["digit_count"] >= 3
+                )
+            )
+            for token_info in numeric_tokens
+        ]
+        strong_suffix = [0] * len(numeric_tokens)
+        running = 0
+        for i in range(len(numeric_tokens) - 1, -1, -1):
+            strong_suffix[i] = running
+            if strong_flags[i]:
+                running += 1
+
+        best_value: Optional[float] = None
+        best_token: Optional[str] = None
+        best_reason: Optional[str] = None
+        best_rank: Optional[tuple[int, int]] = None
+        best_footnote = False
+        for i, token_info in enumerate(numeric_tokens):
+            idx = int(token_info["idx"])  # safe cast
+            token = str(token_info["token"])
+            value = float(token_info["value"])
+            digit_count = int(token_info["digit_count"])
+            is_negative = bool(token_info["is_negative"])
+            has_separator = bool(token_info["has_separator"])
+            has_currency = bool(token_info["has_currency"])
+            strong_remaining = strong_suffix[i]
+
+            footnote_like = False
+            if digit_count <= 2 and not is_negative:
+                footnote_like = True
+            elif (
+                digit_count == 3
+                and not is_negative
+                and not has_separator
+                and not has_currency
+                and abs(value) < 200
+                and strong_remaining >= 2
+            ):
+                footnote_like = True
+
+            rank = (1 if footnote_like else 0, idx)
+
+            if best_rank is None or rank < best_rank:
+                if footnote_like:
+                    reason = "first" if best_rank is None else "earliest"
+                elif is_negative:
+                    reason = "negative"
+                elif digit_count >= 4 or has_separator or has_currency:
+                    reason = "≥4-digits"
+                elif digit_count == 3:
+                    reason = "3-digits"
                 else:
-                    if key[0] > best_key[0]:
-                        reason = "negative"
-                    elif key[1] > best_key[1]:
-                        reason = "≥4-digits"
-                    elif key[2] > best_key[2]:
-                        reason = "max-abs"
-                    else:
-                        reason = "rightmost"
+                    reason = "first"
 
-                best_key = key
+                best_rank = rank
                 best_token = token
                 best_value = value
                 best_reason = reason
+                best_footnote = footnote_like
 
         if best_value is not None and best_token is not None:
+            if best_footnote and best_reason == "first":
+                best_reason = "fallback"
             _log_parse_event(
                 logging.DEBUG,
                 "html numeric selection",
@@ -554,7 +612,7 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
                 token=best_token,
                 value=best_value,
                 reason=best_reason,
-                position=best_key[3] if best_key else None,
+                position=best_rank[1] if best_rank else None,
             )
             return best_value
     return None
