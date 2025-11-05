@@ -37,3 +37,10 @@ timestamp,module,rows_added,duration_ms,note
 2025-11-05T12:48:06.674451+00:00,hydrate,301,533,write candidates
 2025-11-05T12:48:06.716752+00:00,shortlist,212,41,write shortlist
 2025-11-05T12:48:07.170783+00:00,deep_research,212,451,write research_results
+2025-11-05T15:11:40.130377+00:00,SEC_universe,8937,1616,loaded
+2025-11-05T15:17:20.295634+00:00,profiles,689,340162,append+purge
+2025-11-05T15:21:25.943544+00:00,filings,11603,245618,append+purge
+2025-11-05T15:24:32.928487+00:00,prices,38572,186740,append+purge
+2025-11-05T15:24:33.877997+00:00,hydrate,689,895,write candidates
+2025-11-05T15:24:33.954232+00:00,shortlist,487,75,write shortlist
+2025-11-05T15:24:34.941524+00:00,deep_research,487,985,write research_results
