@@ -1,3 +1,4 @@
+# Standard library dependencies required for fixture discovery and numeric checks.
 import math
 import sys
 from pathlib import Path
