@@ -27,6 +27,19 @@ def _log_debug(message: str) -> None:
     _LOGGER.debug(message)
 
 
+def _log_parse_event(level: int, message: str, **fields: object) -> None:
+    details: list[str] = []
+    for key, value in fields.items():
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        details.append(f"{key}={value}")
+    if details:
+        message = f"{message} ({', '.join(details)})"
+    _LOGGER.log(level, message)
+
+
 def _canonicalize_sec_filing_url(url: str) -> str:
     try:
         parsed = urlparse(url)
@@ -960,6 +973,73 @@ def _finalize_runway_result(
     return result
 
 
+def _log_runway_outcome(
+    canonical_url: str,
+    form_type: Optional[str],
+    result: dict,
+    *,
+    html_info: Optional[dict] = None,
+    xbrl_result: Optional[dict] = None,
+    xbrl_error: Optional[str] = None,
+    extra: Optional[dict] = None,
+) -> None:
+    sources = None
+    if "source_tags" in result:
+        tags = result.get("source_tags") or []
+        if isinstance(tags, (list, tuple)):
+            sources = ",".join(str(tag) for tag in tags if tag)
+        else:
+            sources = str(tags)
+
+    fields: dict[str, object] = {
+        "url": canonical_url,
+        "form_type": form_type or result.get("form_type"),
+        "status": result.get("status"),
+        "complete": result.get("complete"),
+        "cash_raw": result.get("cash_raw"),
+        "ocf_raw": result.get("ocf_raw"),
+        "period_months": result.get("period_months"),
+        "sources": sources,
+    }
+
+    if html_info is not None:
+        fields.update(
+            {
+                "html_header": html_info.get("found_cashflow_header"),
+                "html_cash": html_info.get("cash_value"),
+                "html_ocf": html_info.get("ocf_value"),
+                "html_period_inferred": html_info.get("period_months_inferred"),
+                "html_units_scale": html_info.get("units_scale"),
+                "html_evidence": html_info.get("evidence"),
+            }
+        )
+
+    if xbrl_result is not None:
+        fields.update(
+            {
+                "xbrl_cash": xbrl_result.get("cash_raw"),
+                "xbrl_ocf": xbrl_result.get("ocf_raw"),
+                "xbrl_period": xbrl_result.get("period_months"),
+            }
+        )
+
+    if xbrl_error:
+        fields["xbrl_error"] = xbrl_error
+
+    if extra:
+        fields.update({k: v for k, v in extra.items()})
+
+    note = result.get("note")
+    if isinstance(note, str):
+        sanitized = note.replace("\n", " ")
+        if len(sanitized) > 500:
+            sanitized = sanitized[:497] + "..."
+        fields["note"] = sanitized
+
+    level = logging.INFO if result.get("complete") else logging.WARNING
+    _log_parse_event(level, "runway parse outcome", **fields)
+
+
 def get_runway_from_filing(filing_url: str) -> dict:
     canonical_url = _canonicalize_sec_filing_url(filing_url)
     if canonical_url != filing_url:
@@ -977,6 +1057,12 @@ def get_runway_from_filing(filing_url: str) -> dict:
         )
     except Exception as exc:
         xbrl_error = f"XBRL parse failed ({exc.__class__.__name__}: {exc})"
+        _log_parse_event(
+            logging.WARNING,
+            "runway parse XBRL failure",
+            url=canonical_url,
+            error=xbrl_error,
+        )
 
     if xbrl_result and xbrl_error:
         xbrl_result = dict(xbrl_result)
@@ -986,19 +1072,45 @@ def get_runway_from_filing(filing_url: str) -> dict:
         result_copy = dict(xbrl_result)
         if not result_copy.get("source_tags"):
             result_copy["source_tags"] = ["XBRL"]
+        _log_runway_outcome(
+            canonical_url,
+            detected_form_type or form_type_hint,
+            result_copy,
+            xbrl_result=xbrl_result,
+            xbrl_error=xbrl_error,
+            extra={"path": "xbrl_complete"},
+        )
         return result_copy
 
     try:
         raw_bytes = _fetch_url(canonical_url)
     except HTTPError as exc:
+        _log_parse_event(
+            logging.ERROR,
+            "runway fetch HTTP error",
+            url=canonical_url,
+            status_code=exc.code,
+        )
         raise RuntimeError(
             f"HTTP error fetching filing ({exc.code}): {canonical_url}"
         ) from exc
     except URLError as exc:
+        _log_parse_event(
+            logging.ERROR,
+            "runway fetch URL error",
+            url=canonical_url,
+            reason=getattr(exc, "reason", exc),
+        )
         raise RuntimeError(
             f"URL error fetching filing ({exc.reason}): {canonical_url}"
         ) from exc
     except Exception as exc:
+        _log_parse_event(
+            logging.ERROR,
+            "runway fetch unexpected error",
+            url=canonical_url,
+            error=f"{exc.__class__.__name__}: {exc}",
+        )
         raise RuntimeError(
             f"Unexpected error fetching filing: {canonical_url} ({exc.__class__.__name__}: {exc})"
         ) from exc
@@ -1048,7 +1160,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
             if xbrl_result and xbrl_result.get("cash_raw") is not None:
                 source_tags.append("XBRL")
 
-            return _finalize_runway_result(
+            result = _finalize_runway_result(
                 cash=xbrl_result.get("cash_raw") if xbrl_result else None,
                 ocf_raw=None,
                 period_months=period_value,
@@ -1059,6 +1171,20 @@ def get_runway_from_filing(filing_url: str) -> dict:
                 status="6-K missing OCF",
                 source_tags=source_tags or None,
             )
+
+            _log_runway_outcome(
+                canonical_url,
+                form_type,
+                result,
+                xbrl_result=xbrl_result,
+                xbrl_error=xbrl_error,
+                extra={
+                    "path": "6-K header check",
+                    "header_present": header_present,
+                },
+            )
+
+            return result
 
     html_info = _parse_html_cashflow_sections(html_text)
     html_cash = html_info.get("cash_value")
@@ -1186,7 +1312,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     note_text = "; ".join(part for part in note_parts if part)
 
-    return _finalize_runway_result(
+    result = _finalize_runway_result(
         cash=final_cash,
         ocf_raw=final_ocf_raw,
         period_months=final_period,
@@ -1197,6 +1323,18 @@ def get_runway_from_filing(filing_url: str) -> dict:
         status=None,
         source_tags=source_tags or None,
     )
+
+    _log_runway_outcome(
+        canonical_url,
+        form_type,
+        result,
+        html_info=html_info,
+        xbrl_result=xbrl_result,
+        xbrl_error=xbrl_error,
+        extra={"path": "html_merge"},
+    )
+
+    return result
 
 
 __all__ = ["get_runway_from_filing", "url_matches_form"]
