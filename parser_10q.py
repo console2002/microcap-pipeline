@@ -62,8 +62,6 @@ def _canonicalize_sec_filing_url(url: str) -> str:
         netloc = parsed.netloc or "www.sec.gov"
         canonical = urlunparse((scheme, netloc, doc_path, "", fragmentless.query, ""))
 
-    if canonical != url:
-        _log_debug(f"canonicalized SEC filing URL: {url} -> {canonical}")
     return canonical
 
 
@@ -138,7 +136,10 @@ _NUMBER_SEARCH_PATTERN = re.compile(
 )
 
 _TOKEN_LOOKAHEAD = 40
-_SCALE_PATTERN = re.compile(r"\([^)]*?\bin\s+(thousands|millions)\b[^)]*\)", re.IGNORECASE)
+_SCALE_PATTERN = re.compile(
+    r"\([^)]*?\bin\s+(thousand|thousands|million|millions)\b[^)]*\)",
+    re.IGNORECASE,
+)
 
 FORM_ADAPTERS = {
     "10-Q": "US_Quarterly",
@@ -156,7 +157,9 @@ _BALANCE_HEADERS = [
 
 _CASHFLOW_HEADERS_BASE = [
     "CONSOLIDATED STATEMENTS OF CASH FLOWS",
+    "CONSOLIDATED STATEMENT OF CASH FLOWS",
     "CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
+    "CONDENSED CONSOLIDATED STATEMENT OF CASH FLOWS",
     "STATEMENTS OF CASH FLOWS",
     "INTERIM CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
     "INTERIM CONDENSED CONSOLIDATED STATEMENT OF CASH FLOWS",
@@ -190,6 +193,9 @@ _OCF_KEYWORDS_BURN_BASE = [
     "Net cash used for operating activities - continuing operations",
     "Net cash (used in) operating activities - continuing operations",
     "Net cash (used in) operating activities — continuing operations",
+    "Net cash used in operating activities, continuing operations",
+    "Net cash (used in) operating activities, continuing operations",
+    "Net cash used for operating activities, continuing operations",
     "Net cash used in operating activities",
     "Net cash used for operating activities",
     "Net cash (used in) operating activities",
@@ -204,6 +210,10 @@ _OCF_KEYWORDS_PROVIDED_BASE = [
     "Net cash provided by (used in) operating activities — continuing operations",
     "Net cash from operating activities - continuing operations",
     "Net cash from operating activities — continuing operations",
+    "Net cash provided by operating activities, continuing operations",
+    "Net cash provided by (used in) operating activities, continuing operations",
+    "Net cash flows from operating activities, continuing operations",
+    "Net cash from operating activities, continuing operations",
     "Net cash provided by operating activities",
     "Net cash provided by (used in) operating activities",
     "Net cash flows from operating activities",
@@ -952,6 +962,10 @@ def _finalize_runway_result(
 
 def get_runway_from_filing(filing_url: str) -> dict:
     canonical_url = _canonicalize_sec_filing_url(filing_url)
+    if canonical_url != filing_url:
+        _log_debug(
+            f"canonicalized filing URL: {filing_url} -> {canonical_url}"
+        )
     form_type_hint = _infer_form_type_from_url(canonical_url)
 
     xbrl_result: Optional[dict] = None
