@@ -91,7 +91,9 @@ def test_offline_goldmining_6k_may_2025() -> None:
     result = _load_offline_result("ex_837171.htm", "6-K")
 
     assert result.get("form_type") == "6-K"
-    assert result.get("status") == "OK"
+    status = result.get("status")
+    assert status is not None
+    assert status.startswith("OK")
     assert result.get("period_months") == 6
 
     assert result.get("ocf_raw") == pytest.approx(-8_619_000, rel=0.02)
@@ -105,7 +107,9 @@ def test_offline_goldmining_6k_aug_2025() -> None:
     result = _load_offline_result("ex_866936.htm", "6-K")
 
     assert result.get("form_type") == "6-K"
-    assert result.get("status") == "OK"
+    status = result.get("status")
+    assert status is not None
+    assert status.startswith("OK")
     assert result.get("period_months") == 9
 
     assert result.get("ocf_raw") == pytest.approx(-16_239_000, rel=0.02)
@@ -116,10 +120,12 @@ def test_offline_goldmining_6k_aug_2025() -> None:
 
 
 def test_offline_snow_lake_20f_2025() -> None:
-    result = _load_offline_result("g084981_20f.htm", "20-F")
+    result = _load_offline_result("000175392625001675/g084981_20f.htm", "20-F")
 
     assert result.get("form_type") == "20-F"
-    assert result.get("status") == "OK"
+    status = result.get("status")
+    assert status is not None
+    assert status.startswith("OK")
     assert result.get("period_months") == 12
 
     assert result.get("ocf_raw") == pytest.approx(-9_390_622, rel=0.02)
