@@ -85,3 +85,45 @@ def test_offline_brera_6k_exhibit() -> None:
     else:
         # Some 6-K exhibits are PDFs or images; allow Missing OCF in that case.
         assert status == "Missing OCF"
+
+
+def test_offline_goldmining_6k_may_2025() -> None:
+    result = _load_offline_result("ex_837171.htm", "6-K")
+
+    assert result.get("form_type") == "6-K"
+    assert result.get("status") == "OK"
+    assert result.get("period_months") == 6
+
+    assert result.get("ocf_raw") == pytest.approx(-8_619_000, rel=0.02)
+    assert result.get("cash_raw") == pytest.approx(6_145_000, rel=0.02)
+    assert result.get("quarterly_burn") == pytest.approx(4_309_500, rel=0.02)
+    assert result.get("runway_quarters") == pytest.approx(1.43, rel=0.02)
+    assert result.get("assumption") == "6m/2"
+
+
+def test_offline_goldmining_6k_aug_2025() -> None:
+    result = _load_offline_result("ex_866936.htm", "6-K")
+
+    assert result.get("form_type") == "6-K"
+    assert result.get("status") == "OK"
+    assert result.get("period_months") == 9
+
+    assert result.get("ocf_raw") == pytest.approx(-16_239_000, rel=0.02)
+    assert result.get("cash_raw") == pytest.approx(6_521_000, rel=0.02)
+    assert result.get("quarterly_burn") == pytest.approx(5_413_000, rel=0.02)
+    assert result.get("runway_quarters") == pytest.approx(1.20, rel=0.02)
+    assert result.get("assumption") == "9m/3"
+
+
+def test_offline_snow_lake_20f_2025() -> None:
+    result = _load_offline_result("g084981_20f.htm", "20-F")
+
+    assert result.get("form_type") == "20-F"
+    assert result.get("status") == "OK"
+    assert result.get("period_months") == 12
+
+    assert result.get("ocf_raw") == pytest.approx(-9_390_622, rel=0.02)
+    assert result.get("cash_raw") == pytest.approx(17_829_149, rel=0.02)
+    assert result.get("quarterly_burn") == pytest.approx(2_347_655.5, rel=0.02)
+    assert result.get("runway_quarters") == pytest.approx(7.59, rel=0.02)
+    assert result.get("assumption") == "annual/4"
