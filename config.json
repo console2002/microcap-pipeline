@@ -16,7 +16,7 @@
     4
   ],
   "BatchSizes": {
-    "Profiles": 100,
+    "Profiles": 500,
     "Prices": 100,
     "OpenFDA": 100
   },
