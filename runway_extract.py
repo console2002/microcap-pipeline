@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
@@ -390,8 +390,28 @@ def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
                     continue
 
                 progress("INFO", f"{ticker} fetching {form_name} filed {filed_at_text} url {filing_url}")
+
+                form_hint = _canonical_form_name(form_name)
+                hinted_url = filing_url
+                if form_hint:
+                    try:
+                        parsed_url = urlparse(filing_url)
+                        query_params = [(k, v) for k, v in parse_qsl(parsed_url.query, keep_blank_values=True) if k.lower() != "form"]
+                        query_params.append(("form", form_hint))
+                        hinted_url = urlunparse(
+                            (
+                                parsed_url.scheme,
+                                parsed_url.netloc,
+                                parsed_url.path,
+                                parsed_url.params,
+                                urlencode(query_params, doseq=True),
+                                parsed_url.fragment,
+                            )
+                        )
+                    except Exception:
+                        hinted_url = filing_url
                 try:
-                    result = parser_10q.get_runway_from_filing(filing_url)
+                    result = parser_10q.get_runway_from_filing(hinted_url)
                 except Exception as exc:
                     status_history.append("Fetch error")
                     detail = f"{form_name} fetch failed: {exc.__class__.__name__}: {exc}"

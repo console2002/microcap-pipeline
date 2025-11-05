@@ -116,7 +116,9 @@ def _fetch_json(url: str) -> dict:
         raise RuntimeError(f"Invalid JSON from {url}: {exc}") from exc
 
 
-_NUMERIC_TOKEN_PATTERN = re.compile(r"[\d\$\(\)\-€£¥₩₽₹]")
+_NUMERIC_TOKEN_PATTERN = re.compile(
+    r"[\d\$\(\)\-−€£¥₩₽₹\.,'’\u00A0\u202F]"
+)
 
 _CURRENCY_MARKERS = [
     "US$",
@@ -144,11 +146,17 @@ _CURRENCY_MARKER_PATTERN = "|".join(
 )
 
 _NUMBER_SEARCH_PATTERN = re.compile(
-    rf"[\(\[]*(?:({_CURRENCY_MARKER_PATTERN})\s*)?[-+]?\d[\d,]*(?:\.\d+)?(?:\s*({_CURRENCY_MARKER_PATTERN}))?[\)\]]?",
+    rf"[\(\[]*(?:({_CURRENCY_MARKER_PATTERN})\s*)?[-+]?\d[\d,\.\u00A0\u202F'’]*(?:[\.,]\d+)?(?:\s*({_CURRENCY_MARKER_PATTERN}))?[\)\]]?",
     re.IGNORECASE,
 )
 
-_TOKEN_LOOKAHEAD = 40
+_GROUP_SEPARATOR_CHARS = " ,.\u00A0\u202F'’"
+_GROUP_SEPARATOR_CLASS = re.escape(_GROUP_SEPARATOR_CHARS)
+_GROUPED_THOUSANDS_PATTERN = re.compile(
+    rf"^\d{{1,3}}([{_GROUP_SEPARATOR_CLASS}]\d{{3}})+([\.,]\d+)?$"
+)
+
+_TOKEN_LOOKAHEAD = 200
 _SCALE_PATTERN = re.compile(
     r"\([^)]*?\bin\s+(thousand|thousands|million|millions)\b[^)]*\)",
     re.IGNORECASE,
@@ -385,13 +393,12 @@ def _to_float(num_str: str) -> float:
         raise ValueError(f"unable to parse numeric value from '{num_str}'")
 
     value = match.group(0)
-    negative = False
+    negative = "(" in value and ")" in value
 
-    if "(" in value and ")" in value:
-        negative = True
-
-    cleaned = value.replace(",", "").replace("(", "").replace(")", "")
-    cleaned = cleaned.replace("−", "-").replace("\u00A0", " ")
+    cleaned = value.replace("(", "").replace(")", "")
+    cleaned = cleaned.replace("−", "-").replace("\u2212", "-")
+    cleaned = cleaned.replace("\u2019", "'")
+    cleaned = cleaned.replace("\u00A0", " ").replace("\u202F", " ").replace("\u2009", " ")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     marker_regex = re.compile(
@@ -412,18 +419,63 @@ def _to_float(num_str: str) -> float:
 
     negative = negative or leading_negative
 
-    # Strip any residual non-numeric prefixes
-    while cleaned and cleaned[0] not in "+-0123456789":
+    # Strip residual non-numeric prefixes/suffixes while preserving separators
+    while cleaned and cleaned[0] not in "0123456789":
         cleaned = cleaned[1:]
-
-    # Strip trailing non-numeric markers (e.g., lingering currency codes)
-    while cleaned and cleaned[-1] not in "0123456789.":
+    while cleaned and cleaned[-1] not in "0123456789,.'’ ":
         cleaned = cleaned[:-1]
 
     if not cleaned:
         raise ValueError(f"unable to parse numeric value from '{num_str}'")
 
-    number = float(cleaned)
+    unsigned = cleaned
+
+    grouped_match = _GROUPED_THOUSANDS_PATTERN.match(unsigned)
+    normalized_number: Optional[str] = None
+
+    if grouped_match:
+        decimal_group = grouped_match.group(2)
+        decimal_char = decimal_group[0] if decimal_group else None
+        decimal_added = False
+        digits: list[str] = []
+        for ch in unsigned:
+            if ch.isdigit():
+                digits.append(ch)
+            elif decimal_char and ch == decimal_char and not decimal_added:
+                digits.append(".")
+                decimal_added = True
+            else:
+                continue
+        normalized_number = "".join(digits)
+    else:
+        compact = unsigned.replace(" ", "").replace("\u00A0", "").replace("\u202F", "").replace("\u2009", "")
+        compact = compact.replace("'", "").replace("’", "")
+
+        if "," in compact and "." in compact:
+            last_comma = compact.rfind(",")
+            last_dot = compact.rfind(".")
+            if last_dot > last_comma:
+                compact = compact.replace(",", "")
+            else:
+                compact = compact.replace(".", "")
+                compact = compact.replace(",", ".")
+        elif "," in compact:
+            if compact.count(",") == 1 and 1 <= len(compact.split(",")[1]) <= 3:
+                compact = compact.replace(",", ".", 1)
+            else:
+                compact = compact.replace(",", "")
+        elif "." in compact and compact.count(".") > 1:
+            last_dot = compact.rfind(".")
+            compact = compact.replace(".", "")
+            if last_dot != -1:
+                compact = compact[:last_dot] + "." + compact[last_dot:]
+
+        normalized_number = compact
+
+    if not normalized_number or not re.search(r"\d", normalized_number):
+        raise ValueError(f"unable to parse numeric value from '{num_str}'")
+
+    number = float(normalized_number)
     if negative:
         number = -number
     return number
@@ -452,13 +504,117 @@ def _extract_number_after_keyword(text: str, keywords: Iterable[str]) -> Optiona
         m = pattern.search(norm_text)
         if not m:
             continue
-        remainder = norm_text[m.end() : m.end() + 1000]
-        for token in remainder.split()[:_TOKEN_LOOKAHEAD]:
-            if _NUMERIC_TOKEN_PATTERN.search(token):
-                try:
-                    return _to_float(token)
-                except ValueError:
-                    continue
+        remainder = norm_text[m.end() : m.end() + 8000]
+        tokens = remainder.split()
+        numeric_tokens: list[dict[str, object]] = []
+        for idx, token in enumerate(tokens[:_TOKEN_LOOKAHEAD]):
+            if not _NUMERIC_TOKEN_PATTERN.search(token):
+                continue
+            try:
+                value = _to_float(token)
+            except ValueError:
+                continue
+
+            digit_count = len(re.findall(r"\d", token))
+            is_negative = value < 0 or "(" in token or "-" in token
+            has_separator = bool(re.search(r"[\.,\u00A0\u202F'’]", token))
+            has_currency = any(symbol in token for symbol in "$€£¥₹₩₽")
+
+            numeric_tokens.append(
+                {
+                    "idx": idx,
+                    "token": token,
+                    "value": value,
+                    "digit_count": digit_count,
+                    "is_negative": is_negative,
+                    "has_separator": has_separator,
+                    "has_currency": has_currency,
+                }
+            )
+
+        if not numeric_tokens:
+            continue
+
+        strong_flags = [
+            bool(
+                token_info["digit_count"] >= 4
+                or token_info["has_separator"]
+                or token_info["has_currency"]
+                or (
+                    token_info["is_negative"]
+                    and token_info["digit_count"] >= 3
+                )
+            )
+            for token_info in numeric_tokens
+        ]
+        strong_suffix = [0] * len(numeric_tokens)
+        running = 0
+        for i in range(len(numeric_tokens) - 1, -1, -1):
+            strong_suffix[i] = running
+            if strong_flags[i]:
+                running += 1
+
+        best_value: Optional[float] = None
+        best_token: Optional[str] = None
+        best_reason: Optional[str] = None
+        best_rank: Optional[tuple[int, int]] = None
+        best_footnote = False
+        for i, token_info in enumerate(numeric_tokens):
+            idx = int(token_info["idx"])  # safe cast
+            token = str(token_info["token"])
+            value = float(token_info["value"])
+            digit_count = int(token_info["digit_count"])
+            is_negative = bool(token_info["is_negative"])
+            has_separator = bool(token_info["has_separator"])
+            has_currency = bool(token_info["has_currency"])
+            strong_remaining = strong_suffix[i]
+
+            footnote_like = False
+            if digit_count <= 2 and not is_negative:
+                footnote_like = True
+            elif (
+                digit_count == 3
+                and not is_negative
+                and not has_separator
+                and not has_currency
+                and abs(value) < 200
+                and strong_remaining >= 2
+            ):
+                footnote_like = True
+
+            rank = (1 if footnote_like else 0, idx)
+
+            if best_rank is None or rank < best_rank:
+                if footnote_like:
+                    reason = "first" if best_rank is None else "earliest"
+                elif is_negative:
+                    reason = "negative"
+                elif digit_count >= 4 or has_separator or has_currency:
+                    reason = "≥4-digits"
+                elif digit_count == 3:
+                    reason = "3-digits"
+                else:
+                    reason = "first"
+
+                best_rank = rank
+                best_token = token
+                best_value = value
+                best_reason = reason
+                best_footnote = footnote_like
+
+        if best_value is not None and best_token is not None:
+            if best_footnote and best_reason == "first":
+                best_reason = "fallback"
+            _log_parse_event(
+                logging.DEBUG,
+                "html numeric selection",
+                keyword=keyword,
+                token=best_token,
+                value=best_value,
+                reason=best_reason,
+                position=best_rank[1] if best_rank else None,
+            )
+            return best_value
     return None
 
 
@@ -607,7 +763,26 @@ def _normalize_form_type(value: object) -> Optional[str]:
     return canonical_map.get(normalized)
 
 
+def _extract_form_hint_from_url(filing_url: str) -> Optional[str]:
+    try:
+        parsed = urlparse(filing_url)
+    except Exception:
+        return None
+    query = parse_qs(parsed.query)
+    for key, values in query.items():
+        if key.lower() != "form":
+            continue
+        for value in values:
+            normalized = _normalize_form_type(value)
+            if normalized:
+                return normalized
+    return None
+
+
 def _infer_form_type_from_url(filing_url: str) -> Optional[str]:
+    hint = _extract_form_hint_from_url(filing_url)
+    if hint:
+        return hint
     try:
         parsed = urlparse(filing_url)
     except Exception:
@@ -1046,6 +1221,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
         _log_debug(
             f"canonicalized filing URL: {filing_url} -> {canonical_url}"
         )
+    form_hint_query = _extract_form_hint_from_url(canonical_url)
     form_type_hint = _infer_form_type_from_url(canonical_url)
 
     xbrl_result: Optional[dict] = None
@@ -1118,11 +1294,14 @@ def get_runway_from_filing(filing_url: str) -> dict:
     html_text = raw_bytes.decode("utf-8", errors="ignore")
     text = _strip_html(html_text)
 
+    text_form = _infer_form_type_from_text(text)
+
     form_type_candidates = [
         detected_form_type,
         xbrl_result.get("form_type") if xbrl_result else None,
+        form_hint_query,
         form_type_hint,
-        _infer_form_type_from_text(text),
+        text_form,
     ]
     form_type: Optional[str] = None
     for candidate in form_type_candidates:
@@ -1130,6 +1309,16 @@ def get_runway_from_filing(filing_url: str) -> dict:
         if normalized_candidate:
             form_type = normalized_candidate
             break
+
+    _log_parse_event(
+        logging.DEBUG,
+        "form inference",
+        url=canonical_url,
+        form_hint=form_hint_query,
+        url_form=form_type_hint,
+        text_form=text_form,
+        final_form=form_type,
+    )
 
     defaults = _form_defaults(form_type)
     cashflow_headers = defaults["cashflow_headers"]
