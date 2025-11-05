@@ -371,12 +371,6 @@ def _to_float(num_str: str) -> float:
     cleaned = cleaned.replace("−", "-").replace("\u00A0", " ")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-    if cleaned.startswith("-"):
-        negative = True
-        cleaned = cleaned[1:]
-    elif cleaned.startswith("+"):
-        cleaned = cleaned[1:]
-
     marker_regex = re.compile(
         rf"^(?:{_CURRENCY_MARKER_PATTERN})(?:\s*)",
         re.IGNORECASE,
@@ -388,6 +382,12 @@ def _to_float(num_str: str) -> float:
 
     cleaned = marker_regex.sub("", cleaned).strip()
     cleaned = suffix_regex.sub("", cleaned).strip()
+
+    leading_negative = cleaned.startswith("-")
+    if cleaned.startswith("-") or cleaned.startswith("+"):
+        cleaned = cleaned[1:].strip()
+
+    negative = negative or leading_negative
 
     # Strip any residual non-numeric prefixes
     while cleaned and cleaned[0] not in "+-0123456789":
