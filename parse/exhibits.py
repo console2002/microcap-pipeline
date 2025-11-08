@@ -4,7 +4,7 @@ from __future__ import annotations
 import html
 import logging
 import re
-from typing import Optional
+from typing import Iterable, Optional
 from urllib.parse import unquote, urljoin, urlparse
 
 from .htmlutil import (
@@ -24,15 +24,32 @@ _TABLE_PATTERN = re.compile(r"<table[^>]*>.*?</table>", re.IGNORECASE | re.DOTAL
 _ROW_PATTERN = re.compile(r"<tr[^>]*>.*?</tr>", re.IGNORECASE | re.DOTALL)
 _CELL_PATTERN = re.compile(r"<t[hd][^>]*>.*?</t[hd]>", re.IGNORECASE | re.DOTALL)
 
-_EXHIBIT_FILENAME_PRIORITY = [
-    "ex99-2",
-    "ex99d2",
-    "ex_99_2",
-    "exhibit99-2",
-    "ex99-1",
-    "ex99d1",
-    "ex_99_1",
+# ---- EX-99 filename hint (tie-breaker only) ----
+# Numbers here are only a HINT. Do NOT rely on them exclusively.
+_EXHIBIT_PRIORITY_NUMBERS: Iterable[str] = ("1", "2", "3", "5")
+
+_EX99_PATTERNS = [
+    re.compile(fr'(?i)\bex(?:hibit)?[-_. ]?99[-_. ]?{n}[a-z]?(\.\d+)?\b')
+    for n in _EXHIBIT_PRIORITY_NUMBERS
 ]
+
+
+def filename_has_priority_hint(name: str) -> bool:
+    """Return True if filename suggests EX-99.[1/2/3/5] style. Case-insensitive."""
+    if not name:
+        return False
+    return any(rx.search(name) for rx in _EX99_PATTERNS)
+
+
+def exhibit_filename_hint_score(name: str) -> int:
+    """
+    Small tie-breaker score for EX-99 filenames that look like financial exhibits.
+    Keep tiny (+8) so content-based scoring always dominates.
+    """
+    return 8 if filename_has_priority_hint(name) else 0
+
+
+# ---- end hint block ----
 
 
 def looks_like_exhibit_path(path: str) -> bool:
@@ -97,23 +114,12 @@ def _score_exhibit_candidate(candidate: dict, form_type: Optional[str]) -> int:
     description_combined = " ".join(str(part or "") for part in description_parts)
     description_lower = description_combined.lower()
 
-    normalized_doc = re.sub(r"[^a-z0-9]", "", doc_type.lower())
-    normalized_filename = re.sub(r"[^a-z0-9]", "", filename)
-    normalized_href = re.sub(r"[^a-z0-9]", "", href)
-
     score = 0
 
     if doc_type.startswith("EX-99"):
         score += 50
 
-    for idx, pattern in enumerate(_EXHIBIT_FILENAME_PRIORITY):
-        normalized_pattern = re.sub(r"[^a-z0-9]", "", pattern.lower())
-        if (
-            normalized_pattern in normalized_doc
-            or normalized_pattern in normalized_filename
-            or normalized_pattern in normalized_href
-        ):
-            score += (len(_EXHIBIT_FILENAME_PRIORITY) - idx) * 10
+    score += exhibit_filename_hint_score(filename)
 
     financial_keywords = [
         "financial statements",
