@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, unquote, urlparse, urlunparse
 from importlib import import_module
 
 from .htmlutil import strip_html, unescape_html_entities
-from .logging import log_parse_event
+from .logging import log_parse_event, log_runway_outcome
 from .postproc import finalize_runway_result
 
 _USER_AGENT: Optional[str] = None
@@ -397,6 +397,12 @@ def _not_implemented_result(url: str, form_type: Optional[str]) -> dict:
         units_scale=1,
         status="NotImplemented",
         source_tags=None,
+    )
+    log_runway_outcome(
+        url,
+        form_type,
+        result,
+        extra={"path": "router_not_implemented"},
     )
     result["complete"] = False
     return result
