@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote, urlparse, urlunparse
 
 from importlib import import_module
 
+from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event
 from .postproc import finalize_runway_result
 
@@ -463,7 +464,49 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
     parser = _resolve_parser(form_type_hint or form_hint_query)
     if parser is None:
-        return _not_implemented_result(canonical_url, form_type_hint or form_hint_query)
+        text_form_hint: Optional[str] = None
+        fetch_error: Optional[str] = None
+
+        if html_text is None:
+            try:
+                raw_bytes = _fetch_url(canonical_url)
+            except Exception as exc:  # pragma: no cover - network errors
+                fetch_error = f"{exc.__class__.__name__}: {exc}"
+                log_parse_event(
+                    logging.DEBUG,
+                    "form inference fetch failed",
+                    url=canonical_url,
+                    error=fetch_error,
+                )
+            else:
+                html_text = raw_bytes.decode("utf-8", errors="ignore")
+
+        if html_text:
+            unescaped = unescape_html_entities(html_text, context=canonical_url)
+            text_form_hint = _infer_form_type_from_text(strip_html(unescaped))
+
+        parser = _resolve_parser(text_form_hint)
+        if parser is not None:
+            log_parse_event(
+                logging.DEBUG,
+                "form inferred from text",
+                url=canonical_url,
+                form_hint=form_hint_query,
+                url_form=form_type_hint,
+                text_form=text_form_hint,
+            )
+        else:
+            log_parse_event(
+                logging.DEBUG,
+                "parser not implemented",
+                url=canonical_url,
+                form_hint=form_hint_query,
+                url_form=form_type_hint,
+                text_form=text_form_hint,
+                fetch_error=fetch_error,
+            )
+            fallback_form = text_form_hint or form_type_hint or form_hint_query
+            return _not_implemented_result(canonical_url, fallback_form)
 
     return parser(canonical_url, html_text, form_hint_query)
 
