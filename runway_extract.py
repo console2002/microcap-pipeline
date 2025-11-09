@@ -243,8 +243,16 @@ def _group_filings_by_cik(filings: Iterable[dict]) -> Dict[str, List[dict]]:
             grouped.setdefault(key, []).append(info)
 
     for key, items in grouped.items():
-        items.sort(key=lambda entry: entry.get("filed_at") or datetime.min, reverse=True)
-        items.sort(key=lambda entry: entry.get("priority", 9))
+        def _sort_key(entry: dict) -> tuple:
+            filed_at = entry.get("filed_at")
+            priority = entry.get("priority")
+            try:
+                priority_val = int(priority)
+            except (TypeError, ValueError):
+                priority_val = 9
+            return (filed_at or datetime.min, -priority_val)
+
+        items.sort(key=_sort_key, reverse=True)
     return grouped
 
 

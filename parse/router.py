@@ -410,6 +410,7 @@ def _not_implemented_result(url: str, form_type: Optional[str]) -> dict:
 
 def get_runway_from_filing(filing_url: str) -> dict:
     original_input = filing_url
+    original_form_hint = _extract_form_hint_from_url(filing_url)
     canonical_url = _canonicalize_sec_filing_url(filing_url)
 
     html_text: Optional[str] = None
@@ -466,9 +467,12 @@ def get_runway_from_filing(filing_url: str) -> dict:
             ) from exc
 
     form_hint_query = _extract_form_hint_from_url(canonical_url)
+    combined_form_hint = form_hint_query or original_form_hint
     form_type_hint = _infer_form_type_from_url(canonical_url)
+    if not form_type_hint and original_form_hint:
+        form_type_hint = original_form_hint
 
-    parser = _resolve_parser(form_type_hint or form_hint_query)
+    parser = _resolve_parser(form_type_hint or combined_form_hint)
     if parser is None:
         text_form_hint: Optional[str] = None
         fetch_error: Optional[str] = None
@@ -491,7 +495,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
             unescaped = unescape_html_entities(html_text, context=canonical_url)
             text_form_hint = _infer_form_type_from_text(strip_html(unescaped))
 
-        parser = _resolve_parser(text_form_hint)
+        parser = _resolve_parser(text_form_hint or combined_form_hint)
         if parser is not None:
             log_parse_event(
                 logging.DEBUG,
@@ -514,7 +518,7 @@ def get_runway_from_filing(filing_url: str) -> dict:
             fallback_form = text_form_hint or form_type_hint or form_hint_query
             return _not_implemented_result(canonical_url, fallback_form)
 
-    return parser(canonical_url, html_text, form_hint_query)
+    return parser(canonical_url, html_text, combined_form_hint)
 
 
 __all__ = ["get_runway_from_filing", "url_matches_form", "_fetch_url", "_fetch_json", "_form_defaults", "_normalize_form_type", "_extract_form_hint_from_url", "_infer_form_type_from_url", "_infer_form_type_from_text", "_extract_note_suffix"]
