@@ -229,7 +229,7 @@ def _normalize_form_type(value: object) -> Optional[str]:
 
     for match in matches:
         normalized_raw = match.group(1).upper().replace(" ", "")
-        normalized_raw = normalized_raw.replace("X", "").replace("/", "")
+        normalized_raw = normalized_raw.replace("X", "").replace("/", "").replace("_", "")
         normalized = normalized_raw.replace("QT", "Q").replace("KT", "K").replace("-", "")
         if normalized.endswith("/A"):
             normalized = normalized[:-2]
