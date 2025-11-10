@@ -27,6 +27,7 @@ def _assert_close(actual: Optional[float], expected: float, *, tolerance: float 
 CASES = [
     (
         "ex_837171.htm",
+        "6-K",
         {
             "period": 6,
             "ocf": -8_619_000.0,
@@ -37,6 +38,7 @@ CASES = [
     ),
     (
         "ex_866936.htm",
+        "6-K",
         {
             "period": 9,
             "ocf": -16_239_000.0,
@@ -47,6 +49,7 @@ CASES = [
     ),
     (
         "000175392625001675/g084981_20f.htm",
+        "20-F",
         {
             "period": 12,
             "ocf": -9_390_622.0,
@@ -55,16 +58,33 @@ CASES = [
             "runway_months": 22.78,
         },
     ),
+    (
+        "ea025948901ex99-1_brera.htm",
+        "6-K",
+        {
+            "period": 6,
+            "ocf": -3_160_656.0,
+            "cash": 658_136.0,
+            "runway_quarters": 0.42,
+            "runway_months": 1.25,
+        },
+    ),
 ]
 
 
-@pytest.mark.parametrize("filename, expected", CASES)
-def test_offline_runway_acceptance(filename: str, expected: dict[str, float]) -> None:
+@pytest.mark.parametrize("filename, form, expected", CASES)
+def test_offline_runway_acceptance(
+    filename: str, form: str, expected: dict[str, float]
+) -> None:
     base_path = Path(__file__).resolve().parent
     target = base_path / filename
     assert target.exists(), f"missing test fixture: {target}"
 
-    result = get_runway_from_filing(target.as_uri())
+    uri = target.as_uri()
+    if form:
+        uri = f"{uri}?form={form}"
+
+    result = get_runway_from_filing(uri)
 
     period = result.get("period_months")
     ocf = result.get("ocf_raw")

@@ -352,4 +352,116 @@ def follow_exhibits_and_parse(filing_url: str, html_text: Optional[str]) -> dict
 
 from .router import _fetch_url  # noqa: E402  # late import to avoid cycles
 
-__all__ = ["follow_exhibits_and_parse", "looks_like_exhibit_path"]
+def maybe_enrich_with_exhibit_cashflows(
+    *,
+    filing_url: str,
+    html_text: str,
+    html_info: dict,
+    html_cash: Optional[float],
+    html_ocf_raw_value: Optional[float],
+    html_period_inferred: Optional[int],
+    html_units_scale: int,
+    normalized_form_candidates: Iterable[str],
+) -> Optional[dict]:
+    """Attempt to enrich missing cash-flow data using exhibits.
+
+    Returns a dictionary with updated HTML parse details if an exhibit provided
+    usable data; otherwise returns ``None`` after any necessary logging.
+    """
+
+    normalized_forms = [
+        _normalize_form_type(candidate) for candidate in normalized_form_candidates
+    ]
+    normalized_forms = [value for value in normalized_forms if value]
+
+    is_exhibit_preferred = any(
+        candidate in {"40-F", "20-F"} for candidate in normalized_forms
+    )
+
+    needs_exhibit = False
+    if is_exhibit_preferred:
+        missing_cash = html_cash is None
+        missing_ocf = html_ocf_raw_value is None
+        missing_period = html_period_inferred not in {3, 6, 9, 12}
+        missing_header = html_info.get("found_cashflow_header") is False
+        needs_exhibit = missing_cash or missing_ocf or missing_period or missing_header
+    elif (
+        html_cash is None
+        and html_ocf_raw_value is None
+        and html_info.get("found_cashflow_header") is False
+    ):
+        needs_exhibit = True
+
+    if not needs_exhibit:
+        return None
+
+    exhibit_parse = follow_exhibits_and_parse(filing_url, html_text)
+    if not exhibit_parse:
+        primary_form = normalized_forms[0] if normalized_forms else ""
+        log_message = "runway: exhibit fallback attempted but no exhibit data found"
+        if primary_form:
+            log_message = f"runway: {primary_form} exhibit fallback attempted but no exhibit data found"
+        log_parse_event(logging.DEBUG, log_message, url=filing_url)
+        return None
+
+    exhibit_status = exhibit_parse.get("status")
+    exhibit_href = exhibit_parse.get("exhibit_href")
+    exhibit_doc_type = exhibit_parse.get("exhibit_doc_type")
+    html_source = exhibit_parse.get("source") or "exhibit"
+
+    updated_html_info = html_info
+    exhibit_html_info = exhibit_parse.get("html_info")
+    if isinstance(exhibit_html_info, dict) and exhibit_html_info:
+        updated_html_info = dict(exhibit_html_info)
+        if exhibit_parse.get("evidence"):
+            existing_evidence = updated_html_info.get("evidence")
+            combined_evidence_parts = [
+                part for part in (existing_evidence, exhibit_parse.get("evidence")) if part
+            ]
+            if combined_evidence_parts:
+                updated_html_info["evidence"] = "; ".join(combined_evidence_parts)
+    elif exhibit_parse.get("evidence"):
+        updated_html_info = dict(updated_html_info)
+        existing_evidence = updated_html_info.get("evidence")
+        combined_evidence_parts = [
+            part for part in (existing_evidence, exhibit_parse.get("evidence")) if part
+        ]
+        if combined_evidence_parts:
+            updated_html_info["evidence"] = "; ".join(combined_evidence_parts)
+
+    updated_html_cash = html_cash
+    if updated_html_cash is None and exhibit_parse.get("cash_value") is not None:
+        updated_html_cash = exhibit_parse.get("cash_value")
+
+    updated_html_ocf = html_ocf_raw_value
+    if updated_html_ocf is None and exhibit_parse.get("ocf_value") is not None:
+        updated_html_ocf = exhibit_parse.get("ocf_value")
+
+    updated_period = html_period_inferred
+    exhibit_period = exhibit_parse.get("period_months")
+    if exhibit_period in {3, 6, 9, 12}:
+        updated_period = exhibit_period
+
+    updated_units = html_units_scale
+    exhibit_units = exhibit_parse.get("units_scale")
+    if exhibit_units:
+        updated_units = exhibit_units
+
+    return {
+        "html_info": updated_html_info,
+        "html_cash": updated_html_cash,
+        "html_ocf_raw_value": updated_html_ocf,
+        "html_period_inferred": updated_period,
+        "html_units_scale": updated_units,
+        "html_source": html_source,
+        "exhibit_status": exhibit_status,
+        "exhibit_href": exhibit_href,
+        "exhibit_doc_type": exhibit_doc_type,
+    }
+
+
+__all__ = [
+    "follow_exhibits_and_parse",
+    "looks_like_exhibit_path",
+    "maybe_enrich_with_exhibit_cashflows",
+]

@@ -67,6 +67,8 @@ _CASH_KEYWORDS_FLOW = [
     "Cash and restricted cash, end of period",
     "Cash and restricted cash at end of period",
     "Cash and cash equivalents and restricted cash, end of period",
+    "Cash from continuing operations, end of the period",
+    "Cash from continuing operations, end of period",
 ]
 
 _OCF_KEYWORDS_BURN_BASE = [
@@ -470,16 +472,20 @@ def infer_months_from_text(text: Optional[str]) -> Optional[int]:
     if not text:
         return None
     patterns = [
-        (re.compile(r"three\s+months\s+ended", re.IGNORECASE), 3),
-        (re.compile(r"six\s+months\s+ended", re.IGNORECASE), 6),
-        (re.compile(r"nine\s+months\s+ended", re.IGNORECASE), 9),
         (re.compile(r"twelve\s+months\s+ended", re.IGNORECASE), 12),
         (re.compile(r"twelve\s+month\s+period", re.IGNORECASE), 12),
         (re.compile(r"year\s+ended", re.IGNORECASE), 12),
+        (re.compile(r"nine\s+months\s+ended", re.IGNORECASE), 9),
+        (re.compile(r"six\s+months\s+ended", re.IGNORECASE), 6),
+        (re.compile(r"three\s+months\s+ended", re.IGNORECASE), 3),
     ]
+    counts: dict[int, int] = {}
     for pattern, months in patterns:
-        if pattern.search(text):
-            return months
+        occurrences = pattern.findall(text)
+        if occurrences:
+            counts[months] = counts.get(months, 0) + len(occurrences)
+    if counts:
+        return max(counts.items(), key=lambda item: (item[1], item[0]))[0]
     return None
 
 
@@ -520,17 +526,195 @@ def parse_html_cashflow_sections(html_text: str, *, context_url: Optional[str] =
                 rows.append(cells)
         return rows
 
-    tables: list[dict[str, object]] = []
-    if cashflow_section_html:
-        for idx, table_match in enumerate(_TABLE_PATTERN.finditer(cashflow_section_html), start=1):
-            table_html = table_match.group(0)
-            rows = _rows_from_table(table_html)
-            if not rows:
+    def _determine_column_index(rows: list[list[str]]) -> int:
+        for header_row in rows:
+            columns_with_years: list[tuple[int, int]] = []
+            for idx, cell in enumerate(header_row[1:], start=1):
+                normalized = normalize_for_match(cell).lower()
+                year_match = re.search(r"(19|20)\d{2}", normalized)
+                if year_match:
+                    try:
+                        year_value = int(year_match.group(0))
+                    except ValueError:
+                        continue
+                    columns_with_years.append((idx - 1, year_value))
+            if columns_with_years:
+                columns_with_years.sort(key=lambda item: item[1], reverse=True)
+                return columns_with_years[0][0]
+        return -1
+
+    def _extract_numeric_tokens(tokens: list[str]) -> list[tuple[int, float]]:
+        results: list[tuple[int, float]] = []
+        for idx, token in enumerate(tokens):
+            try:
+                value = normalize_number(token)
+            except (TypeError, ValueError):
                 continue
-            table_scale = find_scale_near(table_html, html_text)
-            if not table_scale:
-                table_scale = 1
-            tables.append({"index": idx, "rows": rows, "scale": int(table_scale)})
+            if value is None:
+                continue
+            result_value = float(value)
+            if result_value >= 0:
+                negative = False
+                stripped = token.strip()
+                if stripped.startswith("(") and not stripped.endswith(")"):
+                    negative = True
+                elif stripped.endswith(")") and "(" in stripped:
+                    negative = True
+                else:
+                    prev_token = tokens[idx - 1].strip() if idx > 0 else ""
+                    next_token = tokens[idx + 1].strip() if idx + 1 < len(tokens) else ""
+                    if prev_token.startswith("(") or prev_token == "(":
+                        negative = True
+                    if next_token.endswith(")") or next_token == ")":
+                        negative = True
+                if negative:
+                    result_value = -result_value
+            results.append((idx, result_value))
+        return results
+
+    def _match_cash_from_rows(rows: list[list[str]], column_index: int = -1) -> Optional[float]:
+        prev_cash_label = False
+
+        for row in rows:
+            normalized_row = normalize_for_match(" ".join(row)).lower()
+            if not normalized_row:
+                prev_cash_label = False
+                continue
+
+            has_restricted_phrase = "cash & restricted cash" in normalized_row or "cash and restricted cash" in normalized_row
+            contains_beginning = "beginning" in normalized_row or "start of" in normalized_row or "opening" in normalized_row
+            contains_end = "end of" in normalized_row or "period end" in normalized_row or "end-of" in normalized_row
+
+            if (
+                "net decrease" in normalized_row
+                or "net increase" in normalized_row
+                or contains_beginning
+            ):
+                prev_cash_label = False
+                continue
+
+            matches_cash_keyword = any(
+                keyword in normalized_row for keyword in normalized_cash_flow_keywords
+            )
+            has_cash_phrase = "cash and cash equivalents" in normalized_row
+            simple_cash_match = (
+                "cash" in normalized_row
+                and contains_end
+                and "cash flows" not in normalized_row
+            )
+
+            if matches_cash_keyword or has_cash_phrase or simple_cash_match:
+                if contains_end or matches_cash_keyword or simple_cash_match:
+                    numeric_tokens = _extract_numeric_tokens(row[1:])
+                    if numeric_tokens:
+                        if column_index >= 0:
+                            target = min(
+                                numeric_tokens,
+                                key=lambda item: abs(item[0] - column_index),
+                            )
+                        else:
+                            target = numeric_tokens[-1]
+                        return target[1]
+                prev_cash_label = True
+                continue
+
+            if prev_cash_label and has_restricted_phrase:
+                numeric_tokens = _extract_numeric_tokens(row[1:])
+                if numeric_tokens:
+                    if column_index >= 0:
+                        target = min(
+                            numeric_tokens,
+                            key=lambda item: abs(item[0] - column_index),
+                        )
+                    else:
+                        target = numeric_tokens[-1]
+                    return target[1]
+
+            prev_cash_label = False
+        return None
+
+    def _match_ocf_from_rows(rows: list[list[str]], column_index: int = -1) -> list[tuple[float, str]]:
+        matches: list[tuple[float, str]] = []
+        for row in rows:
+            normalized_row = normalize_for_match(" ".join(row)).lower()
+            if not normalized_row:
+                continue
+            if any(keyword in normalized_row for keyword in normalized_burn):
+                numeric_tokens = _extract_numeric_tokens(row[1:])
+                if numeric_tokens:
+                    if column_index >= 0:
+                        target = min(
+                            numeric_tokens,
+                            key=lambda item: abs(item[0] - column_index),
+                        )
+                    else:
+                        target = numeric_tokens[-1]
+                    matches.append((float(target[1]), "burn"))
+            elif any(keyword in normalized_row for keyword in normalized_provided):
+                numeric_tokens = _extract_numeric_tokens(row[1:])
+                if numeric_tokens:
+                    if column_index >= 0:
+                        target = min(
+                            numeric_tokens,
+                            key=lambda item: abs(item[0] - column_index),
+                        )
+                    else:
+                        target = numeric_tokens[-1]
+                    matches.append((-float(target[1]), "provided"))
+        return matches
+
+    tables: list[dict[str, object]] = []
+    tables_with_cash: list[dict[str, object]] = []
+    ocf_candidates: list[tuple[float, str]] = []
+    seen_table_positions: set[int] = set()
+
+    def _process_table(table: dict[str, object]) -> None:
+        rows = table.get("rows") or []
+        if not rows:
+            return
+
+        column_index = int(table.get("column_index", -1))
+        cash_candidate = _match_cash_from_rows(rows, column_index)
+        if cash_candidate is not None:
+            tables_with_cash.append({"table": table, "cash": cash_candidate})
+
+        matches = _match_ocf_from_rows(rows, column_index)
+        if matches:
+            ocf_candidates.extend(
+                (float(value) * float(table.get("scale", 1)), kind)
+                for value, kind in matches
+            )
+
+    def _add_table_from_html(table_html: str, *, start_index: Optional[int] = None) -> None:
+        if not table_html:
+            return
+        start_pos = start_index
+        if start_pos is None and html_text:
+            start_pos = html_text.find(table_html)
+        if start_pos is not None and start_pos in seen_table_positions:
+            return
+        rows = _rows_from_table(table_html)
+        if not rows:
+            return
+        table_scale = find_scale_near(table_html, html_text)
+        if not table_scale:
+            table_scale = 1
+        column_index = _determine_column_index(rows)
+        table_entry = {
+            "index": len(tables) + 1,
+            "rows": rows,
+            "scale": int(table_scale),
+            "column_index": column_index,
+        }
+        tables.append(table_entry)
+        if start_pos is not None:
+            seen_table_positions.add(start_pos)
+        _process_table(table_entry)
+
+    if cashflow_section_html:
+        for table_match in _TABLE_PATTERN.finditer(cashflow_section_html):
+            table_html = table_match.group(0)
+            _add_table_from_html(table_html)
 
     cash_value: Optional[float] = None
     cash_scale_used = 1
@@ -541,87 +725,40 @@ def parse_html_cashflow_sections(html_text: str, *, context_url: Optional[str] =
             cash_value = float(balance_match) * float(balance_scale)
             cash_scale_used = balance_scale
 
-    def _match_cash_from_rows(rows: list[list[str]]) -> Optional[float]:
-        prev_cash_label = False
+    need_additional_tables = (
+        (cash_value is None and not tables_with_cash) or not ocf_candidates
+    )
 
-        def _row_numbers(row: list[str]) -> list[float]:
-            combined = " ".join(str(part or "") for part in row[1:])
-            values: list[float] = []
-            for match in _NUMBER_SEARCH_PATTERN.finditer(combined):
-                token = match.group(0)
-                try:
-                    normalized = normalize_number(token)
-                except (TypeError, ValueError):
+    if need_additional_tables and html_text:
+        html_lower = html_text.lower()
+        keyword_pool = normalized_burn + normalized_provided
+        for keyword in keyword_pool:
+            if not keyword:
+                continue
+            search_from = 0
+            while True:
+                idx = html_lower.find(keyword, search_from)
+                if idx == -1:
+                    break
+                start = html_lower.rfind("<table", 0, idx)
+                end = html_lower.find("</table", idx)
+                if start == -1 or end == -1:
+                    search_from = idx + len(keyword)
                     continue
-                if normalized is not None:
-                    values.append(float(normalized))
-            return values
-
-        for row in rows:
-            normalized_row = normalize_for_match(" ".join(row)).lower()
-            if not normalized_row:
-                prev_cash_label = False
-                continue
-
-            has_cash_phrase = "cash and cash equivalents" in normalized_row
-            has_restricted_phrase = "cash & restricted cash" in normalized_row or "cash and restricted cash" in normalized_row
-            if "net decrease" in normalized_row or "net increase" in normalized_row:
-                prev_cash_label = False
-                continue
-            if has_cash_phrase and ("end of" in normalized_row or "period" in normalized_row or "year" in normalized_row):
-                numbers = _row_numbers(row)
-                if numbers:
-                    return numbers[-1]
-                prev_cash_label = True
-                continue
-            if prev_cash_label and has_restricted_phrase:
-                numbers = _row_numbers(row)
-                if numbers:
-                    return numbers[-1]
-            prev_cash_label = has_cash_phrase
-        return None
-
-    tables_with_cash = []
-    for table in tables:
-        rows = table.get("rows") or []
-        if not rows:
-            continue
-        cash_candidate = _match_cash_from_rows(rows)
-        if cash_candidate is not None:
-            tables_with_cash.append({"table": table, "cash": cash_candidate})
+                end_close = html_lower.find(">", end)
+                if end_close == -1:
+                    search_from = idx + len(keyword)
+                    continue
+                table_html = html_text[start : end_close + 1]
+                _add_table_from_html(table_html, start_index=start)
+                search_from = idx + len(keyword)
+            if tables_with_cash and ocf_candidates:
+                break
 
     if tables_with_cash and cash_value is None:
         best = tables_with_cash[0]
         cash_value = float(best["cash"]) * float(best["table"]["scale"])
         cash_scale_used = int(best["table"]["scale"])
-
-    ocf_candidates: list[tuple[float, str]] = []
-
-    def _match_ocf_from_rows(rows: list[list[str]]) -> list[tuple[float, str]]:
-        matches: list[tuple[float, str]] = []
-        for row in rows:
-            normalized_row = normalize_for_match(" ".join(row)).lower()
-            if not normalized_row:
-                continue
-            if any(keyword in normalized_row for keyword in normalized_burn):
-                values = [normalize_number(token) for token in row[1:]]
-                filtered = [v for v in values if v is not None]
-                if filtered:
-                    matches.append((float(filtered[-1]), "burn"))
-            elif any(keyword in normalized_row for keyword in normalized_provided):
-                values = [normalize_number(token) for token in row[1:]]
-                filtered = [v for v in values if v is not None]
-                if filtered:
-                    matches.append((-float(filtered[-1]), "provided"))
-        return matches
-
-    for table in tables:
-        rows = table.get("rows") or []
-        if not rows:
-            continue
-        matches = _match_ocf_from_rows(rows)
-        if matches:
-            ocf_candidates.extend((value * float(table.get("scale", 1)), kind) for value, kind in matches)
 
     html_ocf_raw_value: Optional[float] = None
     if ocf_candidates:
@@ -635,9 +772,9 @@ def parse_html_cashflow_sections(html_text: str, *, context_url: Optional[str] =
         if text_match is not None:
             html_ocf_raw_value = float(text_match) * float(cashflow_scale or default_scale)
 
-    period_months_inferred = infer_months_from_text(text)
+    period_months_inferred = infer_months_from_text(cashflow_section_text)
     if period_months_inferred not in {3, 6, 9, 12}:
-        period_months_inferred = infer_months_from_text(cashflow_section_text)
+        period_months_inferred = infer_months_from_text(text)
 
     html_units_scale = cashflow_scale or balance_scale or default_scale or 1
 
