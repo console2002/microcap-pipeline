@@ -250,4 +250,28 @@ def log_runway_outcome(
     )
 
 
-__all__ = ["log_parse_event", "log_runway_outcome"]
+def log_exhibit_attempt(
+    *,
+    filing_url: str,
+    form_type: Optional[str],
+    exhibit_url: str,
+    exhibit_doc_type: Optional[str],
+    status: str,
+    note: str = "",
+    extra: Optional[Mapping[str, object]] = None,
+) -> None:
+    """Record a single exhibit attempt in the debug OCF log."""
+
+    _record_debug_ocf(
+        url=filing_url,
+        form_type=form_type,
+        status=status,
+        note=note,
+        exhibit_href=exhibit_url,
+        exhibit_doc_type=exhibit_doc_type,
+        html_source="exhibit",
+        extra=extra,
+    )
+
+
+__all__ = ["log_parse_event", "log_runway_outcome", "log_exhibit_attempt"]

@@ -13,7 +13,7 @@ from .htmlutil import (
     strip_html,
     unescape_html_entities,
 )
-from .logging import log_parse_event
+from .logging import log_exhibit_attempt, log_parse_event
 from .router import (
     _form_defaults,  # type: ignore[attr-defined]
     _infer_form_type_from_text,  # type: ignore[attr-defined]
@@ -280,6 +280,14 @@ def follow_exhibits_and_parse(filing_url: str, html_text: Optional[str]) -> dict
                 url=exhibit_url,
                 error=f"{exc.__class__.__name__}: {exc}",
             )
+            log_exhibit_attempt(
+                filing_url=filing_url,
+                form_type=form_type,
+                exhibit_url=exhibit_url,
+                exhibit_doc_type=candidate.get("doc_type"),
+                status="EXHIBIT_FETCH_FAILED",
+                note=f"{exc.__class__.__name__}: {exc}",
+            )
             continue
 
         exhibit_html = raw_html.decode("utf-8", errors="ignore")
@@ -317,6 +325,14 @@ def follow_exhibits_and_parse(filing_url: str, html_text: Optional[str]) -> dict
             status = "OK (from exhibit)"
             if candidate.get("doc_type"):
                 status = f"OK (from exhibit {candidate.get('doc_type')})"
+            log_exhibit_attempt(
+                filing_url=filing_url,
+                form_type=form_type,
+                exhibit_url=exhibit_url,
+                exhibit_doc_type=candidate.get("doc_type"),
+                status="EXHIBIT_SUCCESS",
+                note=status,
+            )
             return {
                 "source": "exhibit",
                 "cash_value": cash_val,
@@ -339,12 +355,29 @@ def follow_exhibits_and_parse(filing_url: str, html_text: Optional[str]) -> dict
                 cash_found=cash_val is not None,
                 ocf_found=ocf_val is not None,
             )
+            log_exhibit_attempt(
+                filing_url=filing_url,
+                form_type=form_type,
+                exhibit_url=exhibit_url,
+                exhibit_doc_type=candidate.get("doc_type"),
+                status="EXHIBIT_MISSING_TABLE",
+                note=f"cash_found={cash_val is not None}; ocf_found={ocf_val is not None}",
+            )
         else:
             log_parse_event(
                 logging.DEBUG,
                 f"runway: exhibit {label_lower} missing period",
                 url=exhibit_url,
                 period=period_inferred,
+            )
+            log_exhibit_attempt(
+                filing_url=filing_url,
+                form_type=form_type,
+                exhibit_url=exhibit_url,
+                exhibit_doc_type=candidate.get("doc_type"),
+                status="EXHIBIT_MISSING_PERIOD",
+                note=f"period_inferred={period_inferred}",
+                extra={"units_scale": units_scale} if units_scale is not None else None,
             )
 
     return {}
