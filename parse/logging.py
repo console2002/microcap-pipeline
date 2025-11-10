@@ -115,10 +115,24 @@ def _maybe_record_debug_ocf(
 ) -> None:
     status_raw = str(result.get("status") or "").strip()
     status_upper = status_raw.upper()
-    if not status_upper:
+    ocf_missing = (
+        result.get("ocf_raw") is None
+        and result.get("ocf_quarterly_raw") is None
+        and result.get("ocf_quarterly") is None
+    )
+
+    if (
+        not status_upper
+        and not ocf_missing
+        and "NOTIMPLEMENTED" not in status_upper
+    ):
         return
 
-    if "MISSING OCF" not in status_upper and "NOTIMPLEMENTED" not in status_upper:
+    if (
+        "MISSING OCF" not in status_upper
+        and "NOTIMPLEMENTED" not in status_upper
+        and not ocf_missing
+    ):
         return
 
     note = str(result.get("note") or "")
