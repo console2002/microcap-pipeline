@@ -21,21 +21,21 @@ _USER_AGENT: Optional[str] = None
 _FORM_TYPE_PATTERN = re.compile(
     r"""
     (
-        10[-\s]?QT?|
-        10[-\s]?KT?|
-        20[-\s]?F|
-        40[-\s]?F|
-        6[-\s]?K|
-        8[-\s]?K|
-        S[-\s]?3|
-        S[-\s]?4|
-        S[-\s]?8|
-        8[-\s]?A12B|
+        10[\-\s_/x]?QT?|
+        10[\-\s_/x]?KT?|
+        20[\-\s_/x]?F|
+        40[\-\s_/x]?F|
+        6[\-\s_/x]?K|
+        8[\-\s_/x]?K|
+        S[\-\s_/x]?3|
+        S[\-\s_/x]?4|
+        S[\-\s_/x]?8|
+        8[\-\s_/x]?A12B|
         424B[1-8]|
         DEF\s*14A|
         13D|
         13G|
-        13F[-\s]?HR
+        13F[\-\s_/x]?HR
     )
     """,
     re.IGNORECASE | re.VERBOSE,
@@ -229,6 +229,7 @@ def _normalize_form_type(value: object) -> Optional[str]:
 
     for match in matches:
         normalized_raw = match.group(1).upper().replace(" ", "")
+        normalized_raw = normalized_raw.replace("X", "").replace("/", "")
         normalized = normalized_raw.replace("QT", "Q").replace("KT", "K").replace("-", "")
         if normalized.endswith("/A"):
             normalized = normalized[:-2]
