@@ -17,12 +17,12 @@ _DEBUG_OCF_HEADER = [
     "form_type",
     "status",
     "note",
-    "exhibit_href",
-    "exhibit_doc_type",
-    "html_source",
+    "source",
     "extra",
     "timestamp",
 ]
+
+_DEBUG_OCF_FAILURE_KEYS: set[tuple[str, str]] = set()
 
 _IMAGE_EXTENSIONS = (
     ".jpg",
@@ -102,31 +102,35 @@ def _record_debug_ocf(
     form_type: Optional[str],
     status: str,
     note: str,
-    exhibit_href: Optional[str],
-    exhibit_doc_type: Optional[str],
-    html_source: Optional[str],
+    source: Optional[str],
     extra: Optional[Mapping[str, object]],
+    dedupe_on_url: bool = False,
 ) -> None:
     path = _resolve_debug_ocf_path()
     if not path:
         return
 
     note_clean = " ".join((note or "").split())
-    html_source_value = html_source or ""
     extra_serialized = _serialize_mapping(extra) if isinstance(extra, Mapping) else ""
-    exhibit_href_value = None if _is_image_href(exhibit_href) else exhibit_href
+    normalized_url = (url or "").strip()
+    source_value = (source or "").strip()
+    form_value = (form_type or "").strip()
+
+    if dedupe_on_url and normalized_url:
+        key = (normalized_url, status.strip().upper())
+        if key in _DEBUG_OCF_FAILURE_KEYS:
+            return
+        _DEBUG_OCF_FAILURE_KEYS.add(key)
 
     try:
         with open(path, "a", newline="", encoding="utf-8") as handle:
             csv.writer(handle).writerow(
                 [
-                    url,
-                    form_type or "",
+                    normalized_url,
+                    form_value,
                     status,
                     note_clean,
-                    exhibit_href_value or "",
-                    exhibit_doc_type or "",
-                    html_source_value,
+                    source_value,
                     extra_serialized,
                     datetime.now(UTC).isoformat(),
                 ]
@@ -151,15 +155,13 @@ def _maybe_record_debug_ocf(
         and result.get("ocf_quarterly") is None
     )
 
-    normalized_form_value = str(form_type or result.get("form_type") or "").upper()
-    is_primary_filing = normalized_form_value.startswith("10-Q") or normalized_form_value.startswith(
-        "10-K"
+    incomplete = not bool(result.get("complete"))
+    should_record = (
+        ocf_missing
+        or "MISSING OCF" in status_upper
+        or "NOTIMPLEMENTED" in status_upper
+        or incomplete
     )
-
-    should_record = ocf_missing or "MISSING OCF" in status_upper or "NOTIMPLEMENTED" in status_upper
-    if not should_record and is_primary_filing and not result.get("complete"):
-        should_record = True
-
     if not should_record:
         return
 
@@ -181,15 +183,30 @@ def _maybe_record_debug_ocf(
         exhibit_doc_type = None
         html_source = None if html_source == "exhibit" else html_source
 
+    combined_extra: dict[str, object] = {}
+    if isinstance(extra, Mapping):
+        combined_extra.update({k: v for k, v in extra.items() if v is not None})
+    if exhibit_href:
+        combined_extra.setdefault("exhibit_href", exhibit_href)
+    if exhibit_doc_type:
+        combined_extra.setdefault("exhibit_doc_type", exhibit_doc_type)
+    if html_source:
+        combined_extra.setdefault("html_source", html_source)
+
+    source_label = None
+    if exhibit_doc_type:
+        source_label = str(exhibit_doc_type)
+    elif html_source:
+        source_label = str(html_source)
+
     _record_debug_ocf(
         url=url,
         form_type=form_type or result.get("form_type"),
         status=status_raw,
         note=note,
-        exhibit_href=str(exhibit_href or "") or None,
-        exhibit_doc_type=str(exhibit_doc_type or "") or None,
-        html_source=str(html_source or "") or None,
-        extra=extra,
+        source=source_label,
+        extra=combined_extra,
+        dedupe_on_url=True,
     )
 
 
@@ -298,15 +315,22 @@ def log_exhibit_attempt(
     if _is_image_href(exhibit_url):
         return
 
+    display_form = "Exhibit"
+    if form_type:
+        display_form = f"Exhibit ({form_type})"
+
+    combined_extra: dict[str, object] = {"filing_url": filing_url}
+    if isinstance(extra, Mapping):
+        combined_extra.update({k: v for k, v in extra.items() if v is not None})
+
     _record_debug_ocf(
-        url=filing_url,
-        form_type=form_type,
+        url=exhibit_url,
+        form_type=display_form,
         status=status,
         note=note,
-        exhibit_href=exhibit_url,
-        exhibit_doc_type=exhibit_doc_type,
-        html_source="exhibit",
-        extra=extra,
+        source=exhibit_doc_type or "exhibit",
+        extra=combined_extra,
+        dedupe_on_url=True,
     )
 
 

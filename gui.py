@@ -59,7 +59,7 @@ class ParseStatsWidget(QtWidgets.QTreeWidget):
         self.setAlternatingRowColors(True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-    def update_from_tracker(self, form_stats: dict[str, FormCount], exhibit_stats: FormCount) -> None:
+    def update_from_tracker(self, form_stats: dict[str, FormCount]) -> None:
         self.setUpdatesEnabled(False)
         self.clear()
         for form in sorted(form_stats.keys()):
@@ -73,16 +73,6 @@ class ParseStatsWidget(QtWidgets.QTreeWidget):
             ])
             self._apply_balance_indicator(item, 4, stats)
             self.addTopLevelItem(item)
-
-        exhibit_item = QtWidgets.QTreeWidgetItem([
-            "Exhibit",
-            str(exhibit_stats.parsed),
-            str(exhibit_stats.valid),
-            str(exhibit_stats.missing),
-            "",
-        ])
-        self._apply_balance_indicator(exhibit_item, 4, exhibit_stats)
-        self.addTopLevelItem(exhibit_item)
         self.setUpdatesEnabled(True)
 
     def _apply_balance_indicator(self, item: QtWidgets.QTreeWidgetItem, column: int, stats: FormCount) -> None:
@@ -161,10 +151,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.log_tail = QtWidgets.QPlainTextEdit()
         self.log_tail.setReadOnly(True)
         self.parse_stats_view = ParseStatsWidget()
-        self.exhibit_tail_view = QtWidgets.QPlainTextEdit()
-        self.exhibit_tail_view.setReadOnly(True)
-        self.exhibit_tail_view.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
-        self.exhibit_tail_view.setMaximumBlockCount(200)
         self.parse_tracker = ParseProgressTracker(self._update_parse_progress)
         self.parse_tracker.reset()
 
@@ -191,8 +177,6 @@ class MainWindow(QtWidgets.QMainWindow):
         stats_panel = QtWidgets.QVBoxLayout()
         stats_panel.addWidget(QtWidgets.QLabel("Parse Counts"))
         stats_panel.addWidget(self.parse_stats_view)
-        stats_panel.addWidget(QtWidgets.QLabel("Exhibit Tail"))
-        stats_panel.addWidget(self.exhibit_tail_view)
         stats_panel.addStretch(1)
 
         log_and_stats_layout.addLayout(stats_panel, 1)
@@ -202,26 +186,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_weekly.clicked.connect(self.start_weekly)
         self.btn_daily.clicked.connect(self.start_daily)
         self.btn_cancel.clicked.connect(self.cancel_run)
-
-        # --- Logs tab ---
-        self.logs_tab = QtWidgets.QWidget()
-        tabs.addTab(self.logs_tab, "Logs")
-
-        self.runlog_view = QtWidgets.QPlainTextEdit()
-        self.runlog_view.setReadOnly(True)
-        self.errorlog_view = QtWidgets.QPlainTextEdit()
-        self.errorlog_view.setReadOnly(True)
-        self.btn_refresh_logs = QtWidgets.QPushButton("Refresh Now")
-
-        logs_layout = QtWidgets.QVBoxLayout()
-        logs_layout.addWidget(QtWidgets.QLabel("runlog.csv"))
-        logs_layout.addWidget(self.runlog_view)
-        logs_layout.addWidget(QtWidgets.QLabel("errorlog.csv"))
-        logs_layout.addWidget(self.errorlog_view)
-        logs_layout.addWidget(self.btn_refresh_logs)
-        self.logs_tab.setLayout(logs_layout)
-
-        self.btn_refresh_logs.clicked.connect(self.refresh_logs)
 
         # --- Config tab ---
         self.config_tab = QtWidgets.QWidget()
@@ -329,11 +293,6 @@ class MainWindow(QtWidgets.QMainWindow):
         sb = self.log_tail.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def _render_exhibit_tail(self, tail_lines: list[str]) -> None:
-        self.exhibit_tail_view.setPlainText("\n".join(tail_lines))
-        sb = self.exhibit_tail_view.verticalScrollBar()
-        sb.setValue(sb.maximum())
-
     def _update_progress_bar_from_msg(self, msg: str):
         match = re.search(r"\((\d{1,3})%\)", msg)
         if match:
@@ -342,32 +301,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(pct)
 
-    def _update_parse_progress(
-        self,
-        form_stats: dict[str, FormCount],
-        exhibit_stats: FormCount,
-        exhibit_tail: list[str],
-    ) -> None:
-        self.parse_stats_view.update_from_tracker(form_stats, exhibit_stats)
-        self._render_exhibit_tail(exhibit_tail)
+    def _update_parse_progress(self, form_stats: dict[str, FormCount]) -> None:
+        self.parse_stats_view.update_from_tracker(form_stats)
 
     def refresh_logs(self):
         """
-        Refresh the Logs tab from runlog.csv / errorlog.csv.
-        When idle (and only if we are not showing messages from an in-memory run)
-        mirror runlog.csv into the live panel as a convenience.
+        Mirror runlog.csv into the live log when idle.
         While a run is active we never overwrite live_buffer so the tail stays
         intact for the entire execution.
         """
         paths = load_config()["Paths"]
         runlog_path = os.path.join(paths["logs"], "runlog.csv")
-        errlog_path = os.path.join(paths["logs"], "errorlog.csv")
-
         runlog_txt = self._read_file(runlog_path)
-        errlog_txt = self._read_file(errlog_path)
-
-        self.runlog_view.setPlainText(runlog_txt)
-        self.errorlog_view.setPlainText(errlog_txt)
 
         if not self.is_running and not self.tail_from_live_run:
             # when idle and not currently showing an in-memory run log,

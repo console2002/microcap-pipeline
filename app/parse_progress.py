@@ -1,5 +1,4 @@
 import re
-from collections import deque
 from dataclasses import dataclass
 from typing import Callable
 
@@ -20,24 +19,20 @@ class FormCount:
 
 
 class ParseProgressTracker:
-    def __init__(self, on_change: Callable[[dict[str, FormCount], FormCount, list[str]], None] | None):
+    def __init__(self, on_change: Callable[[dict[str, FormCount]], None] | None):
         self.on_change = on_change
         self.form_stats: dict[str, FormCount] = {}
-        self.exhibit_stats = FormCount()
         self.ticker_last_form: dict[str, str] = {}
         self.ticker_last_key: dict[str, tuple[str, str, str]] = {}
         self.ticker_outcomes: set[tuple[str, str, str]] = set()
         self.compute_events: set[tuple[str, str, str]] = set()
-        self.exhibit_tail: deque[str] = deque(maxlen=20)
 
     def reset(self) -> None:
         self.form_stats = {}
-        self.exhibit_stats = FormCount()
         self.ticker_last_form = {}
         self.ticker_last_key = {}
         self.ticker_outcomes = set()
         self.compute_events = set()
-        self.exhibit_tail.clear()
         self._notify()
 
     def process_message(self, full_message: str) -> None:
@@ -176,18 +171,7 @@ class ParseProgressTracker:
         stats.ensure_consistency()
         self.ticker_outcomes.add(key)
 
-        changed = True
-        if status_text and "exhibit" in status_text.lower():
-            if is_valid:
-                self.exhibit_stats.valid += 1
-            else:
-                self.exhibit_stats.missing += 1
-            self.exhibit_stats.ensure_consistency()
-            entry = f"{ticker} – {status_text}"
-            self.exhibit_tail.append(entry)
-            changed = True
-
-        return changed
+        return True
 
     def _status_is_valid(self, status: str) -> bool:
         return status.strip().lower().startswith("ok")
@@ -218,4 +202,4 @@ class ParseProgressTracker:
 
     def _notify(self) -> None:
         if self.on_change:
-            self.on_change(self.form_stats, self.exhibit_stats, list(self.exhibit_tail))
+            self.on_change(self.form_stats)
