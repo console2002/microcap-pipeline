@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import UTC, datetime
 from typing import Mapping, Optional
+from urllib.parse import urlparse
 
 _LOGGER = logging.getLogger("parser_10q")
 
@@ -22,6 +23,34 @@ _DEBUG_OCF_HEADER = [
     "extra",
     "timestamp",
 ]
+
+_IMAGE_EXTENSIONS = (
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".bmp",
+    ".webp",
+    ".tif",
+    ".tiff",
+    ".svg",
+)
+
+
+def _is_image_href(href: Optional[str]) -> bool:
+    """Return True when the supplied href points to an image asset."""
+
+    if not href:
+        return False
+
+    try:
+        parsed = urlparse(href)
+        path = parsed.path or href
+    except Exception:
+        path = href
+
+    lowered = path.lower()
+    return any(lowered.endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
 def _resolve_debug_ocf_path() -> Optional[str]:
@@ -85,6 +114,7 @@ def _record_debug_ocf(
     note_clean = " ".join((note or "").split())
     html_source_value = html_source or ""
     extra_serialized = _serialize_mapping(extra) if isinstance(extra, Mapping) else ""
+    exhibit_href_value = None if _is_image_href(exhibit_href) else exhibit_href
 
     try:
         with open(path, "a", newline="", encoding="utf-8") as handle:
@@ -94,7 +124,7 @@ def _record_debug_ocf(
                     form_type or "",
                     status,
                     note_clean,
-                    exhibit_href or "",
+                    exhibit_href_value or "",
                     exhibit_doc_type or "",
                     html_source_value,
                     extra_serialized,
@@ -121,18 +151,16 @@ def _maybe_record_debug_ocf(
         and result.get("ocf_quarterly") is None
     )
 
-    if (
-        not status_upper
-        and not ocf_missing
-        and "NOTIMPLEMENTED" not in status_upper
-    ):
-        return
+    normalized_form_value = str(form_type or result.get("form_type") or "").upper()
+    is_primary_filing = normalized_form_value.startswith("10-Q") or normalized_form_value.startswith(
+        "10-K"
+    )
 
-    if (
-        "MISSING OCF" not in status_upper
-        and "NOTIMPLEMENTED" not in status_upper
-        and not ocf_missing
-    ):
+    should_record = ocf_missing or "MISSING OCF" in status_upper or "NOTIMPLEMENTED" in status_upper
+    if not should_record and is_primary_filing and not result.get("complete"):
+        should_record = True
+
+    if not should_record:
         return
 
     note = str(result.get("note") or "")
@@ -147,6 +175,11 @@ def _maybe_record_debug_ocf(
         if not exhibit_doc_type:
             exhibit_doc_type = html_info.get("exhibit_doc_type")
         html_source = html_info.get("source") or html_info.get("html_source")
+
+    if _is_image_href(exhibit_href):
+        exhibit_href = None
+        exhibit_doc_type = None
+        html_source = None if html_source == "exhibit" else html_source
 
     _record_debug_ocf(
         url=url,
@@ -261,6 +294,9 @@ def log_exhibit_attempt(
     extra: Optional[Mapping[str, object]] = None,
 ) -> None:
     """Record a single exhibit attempt in the debug OCF log."""
+
+    if _is_image_href(exhibit_url):
+        return
 
     _record_debug_ocf(
         url=filing_url,

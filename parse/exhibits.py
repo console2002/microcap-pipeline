@@ -24,6 +24,18 @@ _TABLE_PATTERN = re.compile(r"<table[^>]*>.*?</table>", re.IGNORECASE | re.DOTAL
 _ROW_PATTERN = re.compile(r"<tr[^>]*>.*?</tr>", re.IGNORECASE | re.DOTALL)
 _CELL_PATTERN = re.compile(r"<t[hd][^>]*>.*?</t[hd]>", re.IGNORECASE | re.DOTALL)
 
+_IMAGE_EXTENSIONS = (
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".bmp",
+    ".webp",
+    ".tif",
+    ".tiff",
+    ".svg",
+)
+
 # ---- EX-99 filename hint (tie-breaker only) ----
 # Numbers here are only a HINT. Do NOT rely on them exclusively.
 _EXHIBIT_PRIORITY_NUMBERS: Iterable[str] = ("1", "2", "3", "5")
@@ -32,6 +44,20 @@ _EX99_PATTERNS = [
     re.compile(fr'(?i)\bex(?:hibit)?[-_. ]?99[-_. ]?{n}[a-z]?(\.\d+)?\b')
     for n in _EXHIBIT_PRIORITY_NUMBERS
 ]
+
+
+def _is_image_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
+
+    try:
+        parsed = urlparse(url)
+        path = parsed.path or url
+    except Exception:
+        path = url
+
+    lowered = path.lower()
+    return any(lowered.endswith(ext) for ext in _IMAGE_EXTENSIONS)
 
 
 def filename_has_priority_hint(name: str) -> bool:
@@ -242,12 +268,25 @@ def follow_exhibits_and_parse(filing_url: str, html_text: Optional[str]) -> dict
     if not candidates:
         return {}
 
+    filtered_candidates: list[dict] = []
     for candidate in candidates:
+        absolute_href = urljoin(base_dir, candidate.get("href", ""))
+        candidate["absolute_href"] = absolute_href
+        if _is_image_url(absolute_href):
+            log_parse_event(
+                logging.DEBUG,
+                "runway: skipping exhibit candidate with image href",
+                url=absolute_href,
+            )
+            continue
         candidate["score"] = _score_exhibit_candidate(candidate, form_type)
-        candidate["absolute_href"] = urljoin(base_dir, candidate.get("href", ""))
+        filtered_candidates.append(candidate)
+
+    if not filtered_candidates:
+        return {}
 
     ranked = sorted(
-        candidates,
+        filtered_candidates,
         key=lambda item: (
             int(item.get("score", 0)),
             str(item.get("doc_type") or ""),
