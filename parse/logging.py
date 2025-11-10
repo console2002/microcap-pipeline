@@ -4,7 +4,6 @@ from __future__ import annotations
 import csv
 import logging
 import os
-from datetime import UTC, datetime
 from typing import Mapping, Optional
 from urllib.parse import urlparse
 
@@ -19,10 +18,7 @@ _DEBUG_OCF_HEADER = [
     "note",
     "source",
     "extra",
-    "timestamp",
 ]
-
-_DEBUG_OCF_FAILURE_KEYS: set[tuple[str, str]] = set()
 
 _IMAGE_EXTENSIONS = (
     ".jpg",
@@ -76,7 +72,27 @@ def _resolve_debug_ocf_path() -> Optional[str]:
     try:
         os.makedirs(logs_dir, exist_ok=True)
         path = os.path.join(logs_dir, "debugOCF.csv")
-        if not os.path.exists(path):
+        if os.path.exists(path):
+            try:
+                with open(path, "r", newline="", encoding="utf-8") as handle:
+                    reader_rows = list(csv.reader(handle))
+            except Exception:
+                reader_rows = []
+            if reader_rows:
+                header = reader_rows[0]
+                if header and header[-1].strip().lower() == "timestamp":
+                    trimmed_rows = [
+                        row[: len(_DEBUG_OCF_HEADER)] if row else []
+                        for row in reader_rows[1:]
+                    ]
+                    with open(path, "w", newline="", encoding="utf-8") as handle:
+                        writer = csv.writer(handle)
+                        writer.writerow(_DEBUG_OCF_HEADER)
+                        writer.writerows(trimmed_rows)
+            else:
+                with open(path, "w", newline="", encoding="utf-8") as handle:
+                    csv.writer(handle).writerow(_DEBUG_OCF_HEADER)
+        else:
             with open(path, "w", newline="", encoding="utf-8") as handle:
                 csv.writer(handle).writerow(_DEBUG_OCF_HEADER)
         _DEBUG_OCF_PATH = path
@@ -104,7 +120,6 @@ def _record_debug_ocf(
     note: str,
     source: Optional[str],
     extra: Optional[Mapping[str, object]],
-    dedupe_on_url: bool = False,
 ) -> None:
     path = _resolve_debug_ocf_path()
     if not path:
@@ -116,12 +131,6 @@ def _record_debug_ocf(
     source_value = (source or "").strip()
     form_value = (form_type or "").strip()
 
-    if dedupe_on_url and normalized_url:
-        key = (normalized_url, status.strip().upper())
-        if key in _DEBUG_OCF_FAILURE_KEYS:
-            return
-        _DEBUG_OCF_FAILURE_KEYS.add(key)
-
     try:
         with open(path, "a", newline="", encoding="utf-8") as handle:
             csv.writer(handle).writerow(
@@ -132,7 +141,6 @@ def _record_debug_ocf(
                     note_clean,
                     source_value,
                     extra_serialized,
-                    datetime.now(UTC).isoformat(),
                 ]
             )
     except Exception as exc:  # pragma: no cover - filesystem edge cases
@@ -156,12 +164,11 @@ def _maybe_record_debug_ocf(
     )
 
     incomplete = not bool(result.get("complete"))
-    should_record = (
-        ocf_missing
-        or "MISSING OCF" in status_upper
-        or "NOTIMPLEMENTED" in status_upper
-        or incomplete
-    )
+    failure_status = bool(status_raw) and status_upper not in {
+        "OK",
+        "OCF POSITIVE (SELF-FUNDING)",
+    }
+    should_record = ocf_missing or incomplete or failure_status
     if not should_record:
         return
 
@@ -206,7 +213,6 @@ def _maybe_record_debug_ocf(
         note=note,
         source=source_label,
         extra=combined_extra,
-        dedupe_on_url=True,
     )
 
 
@@ -330,7 +336,6 @@ def log_exhibit_attempt(
         note=note,
         source=exhibit_doc_type or "exhibit",
         extra=combined_extra,
-        dedupe_on_url=True,
     )
 
 
