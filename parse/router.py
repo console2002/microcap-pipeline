@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, unquote, urlparse, urlunparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 
 from importlib import import_module
 
@@ -19,9 +19,51 @@ from .postproc import finalize_runway_result
 _USER_AGENT: Optional[str] = None
 
 _FORM_TYPE_PATTERN = re.compile(
-    r"(10-QT?|10-KT?|20-F|40-F|6-K|8-K|S-3|S-4|S-8|8-A12B|424B[1-8]|DEF\s*14A|13D|13G|13F-HR)",
-    re.IGNORECASE,
+    r"""
+    (
+        10[-\s]?QT?|
+        10[-\s]?KT?|
+        20[-\s]?F|
+        40[-\s]?F|
+        6[-\s]?K|
+        8[-\s]?K|
+        S[-\s]?3|
+        S[-\s]?4|
+        S[-\s]?8|
+        8[-\s]?A12B|
+        424B[1-8]|
+        DEF\s*14A|
+        13D|
+        13G|
+        13F[-\s]?HR
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
 )
+
+_FORM_SELECTION_PRIORITY: dict[str, int] = {
+    "6-K": 0,
+    "10-Q": 1,
+    "10-K": 2,
+    "20-F": 3,
+    "40-F": 4,
+    "8-K": 5,
+    "S-3": 6,
+    "S-4": 7,
+    "S-8": 8,
+    "8-A12B": 9,
+    "424B1": 10,
+    "424B2": 10,
+    "424B3": 10,
+    "424B4": 10,
+    "424B5": 10,
+    "424B7": 10,
+    "424B8": 10,
+    "DEF 14A": 11,
+    "13D": 12,
+    "13G": 13,
+    "13F-HR": 14,
+}
 
 _FORM_ADAPTERS = {
     "10-Q": "US_Quarterly",
@@ -161,15 +203,11 @@ def _normalize_form_type(value: object) -> Optional[str]:
     text = str(value or "").strip()
     if not text:
         return None
-    match = _FORM_TYPE_PATTERN.search(text)
-    if not match:
+
+    matches = list(_FORM_TYPE_PATTERN.finditer(text))
+    if not matches:
         return None
-    normalized_raw = match.group(1).upper().replace(" ", "")
-    normalized = normalized_raw.replace("QT", "Q").replace("KT", "K").replace("-", "")
-    if normalized.endswith("/A"):
-        normalized = normalized[:-2]
-    elif normalized.endswith("A") and normalized not in {"DEF14A"}:
-        normalized = normalized[:-1]
+
     mapping = {
         "10Q": "10-Q",
         "10K": "10-K",
@@ -186,10 +224,29 @@ def _normalize_form_type(value: object) -> Optional[str]:
         "13G": "13G",
         "13FHR": "13F-HR",
     }
-    if normalized.startswith("424B"):
-        return normalized
-    canonical = mapping.get(normalized)
-    return canonical or normalized
+
+    candidates: list[tuple[int, int, str]] = []
+
+    for match in matches:
+        normalized_raw = match.group(1).upper().replace(" ", "")
+        normalized = normalized_raw.replace("QT", "Q").replace("KT", "K").replace("-", "")
+        if normalized.endswith("/A"):
+            normalized = normalized[:-2]
+        elif normalized.endswith("A") and normalized not in {"DEF14A"}:
+            normalized = normalized[:-1]
+        if normalized.startswith("424B"):
+            canonical = normalized
+        else:
+            canonical = mapping.get(normalized) or normalized
+
+        priority = _FORM_SELECTION_PRIORITY.get(canonical, 100)
+        candidates.append((match.start(), priority, canonical))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    return candidates[0][2]
 
 
 def _extract_form_hint_from_url(filing_url: str) -> Optional[str]:
@@ -275,6 +332,60 @@ def _canonicalize_sec_filing_url(url: str) -> str:
         parsed = urlparse(url)
     except Exception:
         return url
+
+    if parsed.scheme == "file":
+        query_params = parse_qs(parsed.query)
+        doc_values = query_params.get("doc") or []
+        viewer_path = Path(unquote(parsed.path or "")) if parsed.path else None
+        viewer_dir = viewer_path.parent if (viewer_path and viewer_path.exists()) else None
+
+        def _resolve_candidate(doc_value: str) -> Optional[Path]:
+            cleaned = unquote(str(doc_value or "")).strip()
+            if not cleaned:
+                return None
+            if cleaned.lower().startswith("file://"):
+                try:
+                    nested_parsed = urlparse(cleaned)
+                    nested_path = Path(unquote(nested_parsed.path or ""))
+                except Exception:
+                    return None
+                return nested_path.resolve() if nested_path.exists() else None
+
+            candidate_path = Path(cleaned)
+            if candidate_path.exists():
+                return candidate_path.resolve()
+
+            if viewer_dir is not None:
+                if cleaned.startswith("/"):
+                    candidate_from_root = (viewer_dir / cleaned.lstrip("/")).resolve()
+                    if candidate_from_root.exists():
+                        return candidate_from_root
+                relative_candidate = (viewer_dir / cleaned).resolve()
+                if relative_candidate.exists():
+                    return relative_candidate
+                last_segment = Path(cleaned).name
+                if last_segment:
+                    sibling_candidate = (viewer_dir / last_segment).resolve()
+                    if sibling_candidate.exists():
+                        return sibling_candidate
+            return None
+
+        for doc_value in doc_values:
+            target_path = _resolve_candidate(doc_value)
+            if target_path is None:
+                continue
+
+            remaining_params: list[tuple[str, str]] = []
+            for key, values in query_params.items():
+                if key.lower() == "doc":
+                    continue
+                for value in values:
+                    if value:
+                        remaining_params.append((key, value))
+
+            query_string = urlencode(remaining_params) if remaining_params else ""
+            canonical_base = target_path.as_uri()
+            return f"{canonical_base}?{query_string}" if query_string else canonical_base
 
     host = (parsed.netloc or "").lower()
     path = (parsed.path or "").lower()

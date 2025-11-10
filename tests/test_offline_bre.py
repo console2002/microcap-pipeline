@@ -87,6 +87,34 @@ def test_offline_brera_6k_exhibit() -> None:
         assert status == "Missing OCF"
 
 
+@pytest.mark.parametrize(
+    "doc_param",
+    [
+        "ea025948901ex99-1_brera.htm",
+        "/Archives/edgar/data/1939965/000121390025102293/ea025948901ex99-1_brera.htm",
+    ],
+)
+def test_offline_brera_ixviewer_redirect(doc_param: str) -> None:
+    base_path = Path(__file__).resolve().parent / "BRERA Exhibit99_1.htm"
+    doc_path = Path(__file__).resolve().parent / "ea025948901ex99-1_brera.htm"
+
+    assert base_path.exists()
+    assert doc_path.exists()
+
+    query = f"doc={doc_param}&form=6-K"
+    uri = f"{base_path.resolve().as_uri()}?{query}"
+
+    result = parser_10q.get_runway_from_filing(uri)
+
+    assert result.get("form_type") == "6-K"
+    assert result.get("status") == "OK"
+    assert result.get("period_months") == 6
+    assert result.get("ocf_raw") == pytest.approx(-3_160_656, rel=0.02)
+    assert result.get("cash_raw") == pytest.approx(658_136, rel=0.02)
+    assert result.get("quarterly_burn") == pytest.approx(1_580_328, rel=0.02)
+    assert result.get("runway_quarters") == pytest.approx(0.42, rel=0.02)
+
+
 def test_offline_goldmining_6k_may_2025() -> None:
     result = _load_offline_result("ex_837171.htm", "6-K")
 
