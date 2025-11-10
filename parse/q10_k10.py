@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 from urllib.error import HTTPError, URLError
 
-from .exhibits import follow_exhibits_and_parse
+from .exhibits import maybe_enrich_with_exhibit_cashflows
 from .htmlutil import parse_html_cashflow_sections, strip_html, unescape_html_entities
 from .ixbrl import derive_from_xbrl
 from .logging import log_parse_event, log_runway_outcome
@@ -333,58 +333,31 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     exhibit_href: Optional[str] = None
     exhibit_doc_type: Optional[str] = None
 
-    is_40f_filing = any(candidate == "40-F" for candidate in normalized_candidates)
-    needs_exhibit = False
-    if is_40f_filing:
-        missing_cash = html_cash is None
-        missing_ocf = html_ocf_raw_value is None
-        missing_period = html_period_inferred not in {3, 6, 9, 12}
-        missing_header = html_info.get("found_cashflow_header") is False
-        needs_exhibit = missing_cash or missing_ocf or missing_period or missing_header
+    exhibit_update = maybe_enrich_with_exhibit_cashflows(
+        filing_url=canonical_url,
+        html_text=html_text,
+        html_info=html_info,
+        html_cash=html_cash,
+        html_ocf_raw_value=html_ocf_raw_value,
+        html_period_inferred=html_period_inferred,
+        html_units_scale=html_units_scale,
+        normalized_form_candidates=normalized_candidates,
+    )
 
-    exhibit_parse: Optional[dict] = None
-    if needs_exhibit:
-        exhibit_parse = follow_exhibits_and_parse(canonical_url, html_text)
-        if exhibit_parse:
-            exhibit_status = exhibit_parse.get("status")
-            exhibit_href = exhibit_parse.get("exhibit_href")
-            exhibit_doc_type = exhibit_parse.get("exhibit_doc_type")
-            html_source = exhibit_parse.get("source") or "exhibit"
-
-            exhibit_html_info = exhibit_parse.get("html_info")
-            if isinstance(exhibit_html_info, dict) and exhibit_html_info:
-                html_info = dict(exhibit_html_info)
-                if exhibit_parse.get("evidence"):
-                    existing_evidence = html_info.get("evidence")
-                    combined_evidence_parts = [part for part in (existing_evidence, exhibit_parse.get("evidence")) if part]
-                    if combined_evidence_parts:
-                        html_info["evidence"] = "; ".join(combined_evidence_parts)
-            elif exhibit_parse.get("evidence"):
-                html_info = dict(html_info)
-                existing_evidence = html_info.get("evidence")
-                combined_evidence_parts = [part for part in (existing_evidence, exhibit_parse.get("evidence")) if part]
-                if combined_evidence_parts:
-                    html_info["evidence"] = "; ".join(combined_evidence_parts)
-
-            if html_cash is None and exhibit_parse.get("cash_value") is not None:
-                html_cash = exhibit_parse.get("cash_value")
-            if html_ocf_raw_value is None and exhibit_parse.get("ocf_value") is not None:
-                html_ocf_raw_value = exhibit_parse.get("ocf_value")
-
-            exhibit_period = exhibit_parse.get("period_months")
-            if exhibit_period in {3, 6, 9, 12}:
-                html_period_inferred = exhibit_period
-
-            exhibit_units = exhibit_parse.get("units_scale")
-            if exhibit_units:
-                html_units_scale = exhibit_units
-
-    if needs_exhibit and not exhibit_parse:
-        log_parse_event(
-            logging.DEBUG,
-            "runway: 40-F exhibit fallback attempted but no exhibit data found",
-            url=canonical_url,
+    if exhibit_update:
+        html_info = exhibit_update.get("html_info", html_info)
+        html_cash = exhibit_update.get("html_cash", html_cash)
+        html_ocf_raw_value = exhibit_update.get(
+            "html_ocf_raw_value", html_ocf_raw_value
         )
+        html_period_inferred = exhibit_update.get(
+            "html_period_inferred", html_period_inferred
+        )
+        html_units_scale = exhibit_update.get("html_units_scale", html_units_scale)
+        html_source = exhibit_update.get("html_source", html_source)
+        exhibit_status = exhibit_update.get("exhibit_status")
+        exhibit_href = exhibit_update.get("exhibit_href")
+        exhibit_doc_type = exhibit_update.get("exhibit_doc_type")
 
     defaults = _form_defaults(form_type)
 
