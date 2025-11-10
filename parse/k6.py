@@ -110,12 +110,12 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     text_form = _infer_form_type_from_text(text)
 
     form_type_candidates = [
-        detected_form_type,
-        xbrl_result.get("form_type") if xbrl_result else None,
         parsed_form_hint,
         form_hint_query,
         form_type_hint,
         text_form,
+        detected_form_type,
+        xbrl_result.get("form_type") if xbrl_result else None,
     ]
     form_type: Optional[str] = None
     for candidate in form_type_candidates:
