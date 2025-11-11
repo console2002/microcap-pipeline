@@ -164,10 +164,13 @@ def _maybe_record_debug_ocf(
     )
 
     incomplete = not bool(result.get("complete"))
-    failure_status = bool(status_raw) and status_upper not in {
-        "OK",
-        "OCF POSITIVE (SELF-FUNDING)",
-    }
+    success_status = False
+    if status_upper:
+        if status_upper.startswith("OK"):
+            success_status = True
+        elif status_upper == "OCF POSITIVE (SELF-FUNDING)":
+            success_status = True
+    failure_status = bool(status_raw) and not success_status
     should_record = ocf_missing or incomplete or failure_status
     if not should_record:
         return
