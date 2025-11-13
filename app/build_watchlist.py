@@ -4,14 +4,20 @@ from __future__ import annotations
 import csv
 import os
 import re
+from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Iterable, Optional
 from urllib.parse import parse_qs, unquote, urlsplit
+from pathlib import Path
 
 import pandas as pd
 
 from app.config import load_config
 from app.utils import ensure_csv, log_line, utc_now_iso
+from parse import k8 as parse_k8
+from parse.htmlutil import preview_text
+from parse.router import _fetch_url
 
 
 ProgressFn = Optional[Callable[[str], None]]
@@ -93,6 +99,31 @@ _OUTPUT_COLUMNS = [
     "RiskFlag",
     "Tier1Type",
     "Tier1Trigger",
+]
+
+_EIGHT_K_EVENTS_COLUMNS = [
+    "CIK",
+    "Ticker",
+    "FilingDate",
+    "FilingURL",
+    "ItemsPresent",
+    "IsCatalyst",
+    "CatalystType",
+    "Tier1Type",
+    "Tier1Trigger",
+    "IsDilution",
+    "DilutionTags",
+    "IgnoreReason",
+]
+
+_EIGHT_K_DEBUG_HEADER = [
+    "ts",
+    "url",
+    "reason",
+    "items_detected",
+    "bytes_html",
+    "bytes_exhibits",
+    "sample_text",
 ]
 
 _NEGATIVE_DILUTION_TERMS = (
@@ -258,6 +289,349 @@ def _clean_text(value: object) -> str:
     if text.lower() == "nan":
         return ""
     return text
+
+
+def _normalize_url(url: str) -> str:
+    if not url:
+        return ""
+    return url.strip().rstrip(";.,")
+
+
+@dataclass
+class EightKEvent:
+    cik: str
+    ticker: str
+    filing_date: Optional[str]
+    filing_url: str
+    items_present: str
+    is_catalyst: bool
+    catalyst_type: str
+    catalyst_label: str
+    tier1_type: str
+    tier1_trigger: str
+    is_dilution: bool
+    dilution_tags: list[str]
+    ignore_reason: str
+
+    def dilution_tags_joined(self) -> str:
+        return ";".join(self.dilution_tags)
+
+
+class EightKLookup:
+    def __init__(self, events: Iterable[EightKEvent]):
+        self.by_url: dict[str, EightKEvent] = {}
+        self.by_cik: dict[str, list[EightKEvent]] = defaultdict(list)
+        self.by_ticker: dict[str, list[EightKEvent]] = defaultdict(list)
+
+        for event in events:
+            normalized_url = _normalize_url(event.filing_url)
+            if normalized_url and normalized_url not in self.by_url:
+                self.by_url[normalized_url] = event
+            if event.cik:
+                self.by_cik[event.cik].append(event)
+            if event.ticker:
+                self.by_ticker[event.ticker].append(event)
+
+        def _sort_events(mapping: dict[str, list[EightKEvent]]) -> None:
+            for key, seq in mapping.items():
+                seq.sort(
+                    key=lambda evt: (
+                        evt.filing_date or "",
+                        evt.filing_url,
+                    ),
+                    reverse=True,
+                )
+
+        _sort_events(self.by_cik)
+        _sort_events(self.by_ticker)
+
+    def match(self, ticker: str, cik: str, candidate_urls: Iterable[str]) -> Optional[EightKEvent]:
+        for raw_url in candidate_urls:
+            normalized = _normalize_url(raw_url)
+            if not normalized:
+                continue
+            event = self.by_url.get(normalized)
+            if event:
+                return event
+
+        normalized_cik = _normalize_cik(cik)
+        if normalized_cik and self.by_cik.get(normalized_cik):
+            return self.by_cik[normalized_cik][0]
+
+        normalized_ticker = _normalize_ticker(ticker)
+        if normalized_ticker and self.by_ticker.get(normalized_ticker):
+            return self.by_ticker[normalized_ticker][0]
+
+        return None
+
+
+def _eight_k_debug_path() -> str:
+    cfg = load_config()
+    logs_dir = cfg.get("Paths", {}).get("logs", "./logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    path = os.path.join(logs_dir, "debug8k.csv")
+    ensure_csv(path, _EIGHT_K_DEBUG_HEADER)
+    return path
+
+
+def _write_eight_k_debug(entries: list[list[object]]) -> None:
+    if not entries:
+        return
+    path = _eight_k_debug_path()
+    with open(path, "a", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerows(entries)
+
+
+def _read_eight_k_html(url: str) -> tuple[Optional[str], Optional[str]]:
+    if not url:
+        return None, "empty_url"
+    parsed = urlsplit(url)
+    if parsed.scheme == "file":
+        path_text = unquote(parsed.path or "")
+        if parsed.netloc:
+            path_text = f"//{parsed.netloc}{path_text}"
+        candidate = Path(path_text)
+        if not candidate.exists():
+            return None, "file_missing"
+        try:
+            return candidate.read_text(encoding="utf-8", errors="ignore"), None
+        except OSError as exc:
+            return None, str(exc)
+    try:
+        raw = _fetch_url(url)
+    except Exception as exc:  # pragma: no cover - network errors
+        return None, str(exc)
+    return raw.decode("utf-8", errors="ignore"), None
+
+
+def _format_event_label(event: EightKEvent) -> str:
+    if not event.is_catalyst:
+        return ""
+    if event.catalyst_label:
+        return event.catalyst_label
+    return event.catalyst_type
+
+
+def _build_eight_k_event(
+    row,
+    html_text: str,
+    result: dict,
+) -> Optional[EightKEvent]:
+    items = result.get("items") or []
+    classification = result.get("classification") or {}
+    exhibits = result.get("exhibits") or []
+    items_present = ";".join(
+        item.get("item", "") for item in items if item.get("item")
+    )
+    if not items_present:
+        return None
+
+    is_catalyst = bool(classification.get("is_catalyst"))
+    is_dilution = bool(classification.get("is_dilution"))
+    ignore_reason = _clean_text(classification.get("ignore_reason"))
+    if not (is_catalyst or is_dilution or ignore_reason):
+        return None
+
+    tier_raw = _clean_text(classification.get("tier"))
+    catalyst_type = tier_raw if tier_raw in {"Tier-1", "Tier-2"} else "NONE"
+    tier1_type = _clean_text(classification.get("tier1_type"))
+    tier1_trigger = _clean_text(classification.get("tier1_trigger"))
+
+    dilution_tags = []
+    for tag in classification.get("dilution_tags") or []:
+        text = _clean_text(tag)
+        if text and text not in dilution_tags:
+            dilution_tags.append(text)
+
+    filing_date = _clean_text(result.get("filing_date"))
+    if not filing_date:
+        filed_at = getattr(row, "FiledAt", "")
+        parsed_date = _parse_date_value(filed_at)
+        filing_date = _format_date(parsed_date)
+
+    cik = _normalize_cik(getattr(row, "CIK", ""))
+    ticker = _normalize_ticker(getattr(row, "Ticker", ""))
+    filing_url = _clean_text(getattr(row, "URL", "")) or _clean_text(result.get("url", ""))
+
+    label_parts: list[str] = []
+    if is_catalyst:
+        label_parts.append(catalyst_type)
+        if catalyst_type == "Tier-1" and tier1_type:
+            label_parts.append(tier1_type)
+    catalyst_label = " ".join(part for part in label_parts if part)
+
+    return EightKEvent(
+        cik=cik,
+        ticker=ticker,
+        filing_date=filing_date or "",
+        filing_url=filing_url,
+        items_present=items_present,
+        is_catalyst=is_catalyst,
+        catalyst_type=catalyst_type or "NONE",
+        catalyst_label=catalyst_label,
+        tier1_type=tier1_type,
+        tier1_trigger=tier1_trigger,
+        is_dilution=is_dilution,
+        dilution_tags=dilution_tags,
+        ignore_reason=ignore_reason,
+    )
+
+
+def _generate_eight_k_events(
+    data_dir: str,
+    progress_fn: ProgressFn,
+) -> tuple[pd.DataFrame, EightKLookup]:
+    filings_path = _resolve_path("filings.csv", data_dir)
+    if not os.path.exists(filings_path):
+        events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
+        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        _emit("INFO", "eight_k: parsed 0", progress_fn)
+        _emit("INFO", "eight_k: failed 0", progress_fn)
+        return events_df, EightKLookup([])
+
+    filings_df = pd.read_csv(filings_path, encoding="utf-8")
+    if filings_df.empty or "Form" not in filings_df.columns or "URL" not in filings_df.columns:
+        events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
+        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        _emit("INFO", "eight_k: parsed 0", progress_fn)
+        _emit("INFO", "eight_k: failed 0", progress_fn)
+        return events_df, EightKLookup([])
+
+    df = filings_df.copy()
+    df["Form_norm"] = df["Form"].astype(str).str.upper()
+    df = df[df["Form_norm"].str.startswith("8-K")]
+    if df.empty:
+        events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
+        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        _emit("INFO", "eight_k: parsed 0", progress_fn)
+        _emit("INFO", "eight_k: failed 0", progress_fn)
+        return events_df, EightKLookup([])
+
+    df = df.drop_duplicates(subset=["URL"], keep="last")
+
+    csv_rows: list[dict[str, object]] = []
+    events: list[EightKEvent] = []
+    debug_entries: list[list[object]] = []
+
+    for row in df.itertuples(index=False):
+        url = _clean_text(getattr(row, "URL", ""))
+        if not url:
+            continue
+        html_text, fetch_error = _read_eight_k_html(url)
+        if html_text is None:
+            debug_entries.append(
+                [
+                    utc_now_iso(),
+                    url,
+                    f"fetch_failed:{fetch_error}",
+                    "",
+                    0,
+                    0,
+                    "",
+                ]
+            )
+            continue
+
+        form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
+        try:
+            result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
+        except Exception as exc:  # pragma: no cover - unexpected parser failures
+            debug_entries.append(
+                [
+                    utc_now_iso(),
+                    url,
+                    f"parse_error:{exc}",
+                    "",
+                    len(html_text.encode("utf-8", errors="ignore")),
+                    0,
+                    preview_text(html_text),
+                ]
+            )
+            continue
+
+        event = _build_eight_k_event(row, html_text, result)
+        exhibits = result.get("exhibits") or []
+        exhibit_bytes = sum(len(_clean_text(exhibit.get("text", ""))) for exhibit in exhibits)
+        if event is None:
+            items = result.get("items") or []
+            items_present = ";".join(item.get("item", "") for item in items if item.get("item"))
+            debug_entries.append(
+                [
+                    utc_now_iso(),
+                    url,
+                    "no_actionable_items",
+                    items_present,
+                    len(html_text.encode("utf-8", errors="ignore")),
+                    exhibit_bytes,
+                    preview_text(html_text),
+                ]
+            )
+            continue
+
+        events.append(event)
+        csv_rows.append(
+            {
+                "CIK": event.cik,
+                "Ticker": event.ticker,
+                "FilingDate": event.filing_date,
+                "FilingURL": event.filing_url,
+                "ItemsPresent": event.items_present,
+                "IsCatalyst": event.is_catalyst,
+                "CatalystType": event.catalyst_type,
+                "Tier1Type": event.tier1_type,
+                "Tier1Trigger": event.tier1_trigger,
+                "IsDilution": event.is_dilution,
+                "DilutionTags": event.dilution_tags_joined(),
+                "IgnoreReason": event.ignore_reason,
+            }
+        )
+
+    events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
+    events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+
+    _eight_k_debug_path()
+    _write_eight_k_debug(debug_entries)
+
+    _emit("INFO", f"eight_k: parsed {len(events_df)}", progress_fn)
+    _emit("INFO", f"eight_k: failed {len(debug_entries)}", progress_fn)
+
+    return events_df, EightKLookup(events)
+
+
+def _collect_candidate_urls(row) -> list[str]:
+    texts = [
+        _clean_text(getattr(row, "CatalystPrimaryLink", "")),
+        _clean_text(getattr(row, "CatalystPrimaryURL", "")),
+        _clean_text(getattr(row, "Catalyst", "")),
+        _clean_text(getattr(row, "Dilution", "")),
+        _clean_text(getattr(row, "DilutionLinks", "")),
+        _clean_text(getattr(row, "FilingsSummary", "")),
+    ]
+    urls: list[str] = []
+    for text in texts:
+        urls.extend(_extract_urls_list(text))
+    return urls
+
+
+def _apply_event_to_catalyst_summary(
+    summary: dict,
+    event: EightKEvent,
+    now: pd.Timestamp,
+) -> dict:
+    if not event.is_catalyst:
+        return summary
+    updated = dict(summary)
+    updated["status"] = "Pass"
+    updated["primary_form"] = "8-K"
+    updated["primary_url"] = event.filing_url
+    updated["primary_text"] = _format_event_label(event)
+    updated["primary_raw"] = updated["primary_text"]
+    updated["primary_entry"] = None
+    updated["primary_date"] = event.filing_date or summary.get("primary_date", "")
+    date_val = _parse_date_value(event.filing_date) if event.filing_date else None
+    updated["primary_days_ago"] = _compute_days_ago(date_val, now)
+    return updated
 
 
 def _csv_cell_value(value: object) -> object:
@@ -894,6 +1268,9 @@ def run(
         now_utc = now_utc.tz_localize("UTC")
     else:
         now_utc = now_utc.tz_convert("UTC")
+
+    _, eight_k_lookup = _generate_eight_k_events(data_dir, progress_fn)
+
     survivors: list[dict] = []
     status = "ok"
 
@@ -911,6 +1288,9 @@ def run(
         identifier = ticker_value or cik_value
         company_value = getattr(row, "Company", "")
         sector_text = _clean_text(getattr(row, "Sector", ""))
+
+        row_urls = _collect_candidate_urls(row)
+        eight_k_event = eight_k_lookup.match(ticker_value, cik_value, row_urls)
 
         price_val = _to_float(getattr(row, "Price", None))
         market_cap_val = _to_float(getattr(row, "MarketCap", None))
@@ -990,7 +1370,10 @@ def run(
         runway_source_days = _compute_days_ago(runway_source_date_ts, now_utc)
 
         catalyst_text = _clean_text(getattr(row, "Catalyst", ""))
-        if not catalyst_text or catalyst_text.upper() == "TBD":
+        event_catalyst = bool(eight_k_event and eight_k_event.is_catalyst)
+        if not catalyst_text and event_catalyst:
+            catalyst_text = _format_event_label(eight_k_event)
+        if (not catalyst_text or catalyst_text.upper() == "TBD") and not event_catalyst:
             _emit("WARN", f"Dropped: Catalyst evidence missing ({identifier})", progress_fn)
             continue
 
@@ -1030,6 +1413,8 @@ def run(
         ]
         catalyst_summary = _summarize_category(catalyst_entries, now_utc)
         catalyst_summary = _enforce_form_url_guard(identifier, "Catalyst", catalyst_summary, catalyst_entries, now_utc, progress_fn)
+        if eight_k_event and eight_k_event.is_catalyst:
+            catalyst_summary = _apply_event_to_catalyst_summary(catalyst_summary, eight_k_event, now_utc)
         if catalyst_summary.get("status") != "Pass":
             _emit("WARN", f"Dropped: Catalyst evidence missing ({identifier})", progress_fn)
             continue
@@ -1043,6 +1428,12 @@ def run(
             catalyst_summary.get("primary_form", ""),
             catalyst_text,
         ) or _clean_text(getattr(row, "CatalystType", ""))
+        if eight_k_event and eight_k_event.is_catalyst:
+            event_label = _format_event_label(eight_k_event)
+            if event_label:
+                catalyst_field = event_label
+                catalyst_evidence = event_label
+            catalyst_type = eight_k_event.catalyst_type or catalyst_type
 
         dilution_entries = _parse_evidence_entries(dilution_text)
         dilution_summary = _summarize_category(dilution_entries, now_utc)
@@ -1089,11 +1480,29 @@ def run(
             dilution_status = "None"
             dilution_flag = False
 
+        if eight_k_event and eight_k_event.is_dilution:
+            dilution_flag = True
+            dilution_status = "Pass (Offering)"
+            dilution_summary["primary_form"] = "8-K"
+            if eight_k_event.filing_url:
+                dilution_summary["primary_url"] = eight_k_event.filing_url
+            if eight_k_event.filing_date:
+                dilution_summary["primary_date"] = eight_k_event.filing_date
+            event_label = _format_event_label(eight_k_event)
+            if event_label:
+                dilution_summary["primary_text"] = event_label
+            dilution_forms_hit = ["8-K"]
+            if eight_k_event.dilution_tags:
+                dilution_keywords_hit = list(dict.fromkeys(eight_k_event.dilution_tags))
+
         if not dilution_flag:
             _emit("WARN", f"Dropped: Dilution filing missing ({identifier})", progress_fn)
             continue
         dilution_evidence = _format_evidence_entries(dilution_entries) or dilution_text
         dilution_field = dilution_summary.get("primary_text") or dilution_text
+        if eight_k_event and eight_k_event.is_dilution:
+            dilution_field = "Pass (Offering)"
+            dilution_evidence = f"8-K {eight_k_event.filing_url}".strip()
 
         governance_entries = _parse_evidence_entries(governance_text)
         governance_summary = _summarize_category(governance_entries, now_utc)
@@ -1162,12 +1571,48 @@ def run(
             "Ownership": ownership_status_label,
         }
 
+        evidence_text = f"{catalyst_evidence} {dilution_evidence}".strip()
+        tier1_label_detected, tier1_flag = detect_tier1(evidence_text)
+        tier1_type_value = tier1_label_detected
+        tier1_trigger_value = "Detected" if tier1_flag else ""
+        if eight_k_event and eight_k_event.is_catalyst:
+            if eight_k_event.catalyst_type == "Tier-1":
+                if eight_k_event.tier1_type:
+                    tier1_type_value = eight_k_event.tier1_type
+                if eight_k_event.tier1_trigger:
+                    tier1_trigger_value = eight_k_event.tier1_trigger
+            else:
+                tier1_type_value = ""
+                tier1_trigger_value = ""
+
+        catalyst_primary_form = catalyst_summary.get("primary_form", "")
+        catalyst_primary_date = catalyst_summary.get("primary_date", "")
+        catalyst_primary_days = catalyst_summary.get("primary_days_ago", "")
+        catalyst_primary_url = catalyst_summary.get("primary_url", "")
+
+        catalyst_type_clean = _clean_text(catalyst_type).upper()
+        if catalyst_type_clean not in {"TIER-1", "TIER-2"}:
+            catalyst_type = "NONE"
+            catalyst_summary["status"] = "Missing"
+            checklist_statuses["Catalyst"] = "Missing"
+            catalyst_field = ""
+            catalyst_primary_form = ""
+            catalyst_primary_date = ""
+            catalyst_primary_days = ""
+            catalyst_primary_url = ""
+            catalyst_summary["primary_form"] = ""
+            catalyst_summary["primary_date"] = ""
+            catalyst_summary["primary_days_ago"] = ""
+            catalyst_summary["primary_url"] = ""
+            catalyst_summary["primary_text"] = ""
+        else:
+            catalyst_type = "Tier-1" if catalyst_type_clean == "TIER-1" else "Tier-2"
+            if catalyst_summary.get("status") == "Pass" and eight_k_event and eight_k_event.is_catalyst:
+                catalyst_primary_form = "8-K"
+
         passed_count = sum(1 for status in checklist_statuses.values() if status == "Pass")
         total_checks = len(checklist_statuses)
         checklist_passed_value = f"{passed_count}/{total_checks}"
-
-        evidence_text = f"{catalyst_evidence} {dilution_evidence}".strip()
-        tier1_type, tier1_trigger = detect_tier1(evidence_text)
 
         mandatory_pass = (
             checklist_statuses["Catalyst"] == "Pass"
@@ -1176,11 +1621,6 @@ def run(
         )
         if not mandatory_pass:
             status_text = "TBD - exclude"
-
-        catalyst_primary_form = catalyst_summary.get("primary_form", "")
-        catalyst_primary_date = catalyst_summary.get("primary_date", "")
-        catalyst_primary_days = catalyst_summary.get("primary_days_ago", "")
-        catalyst_primary_url = catalyst_summary.get("primary_url", "")
 
         dilution_primary_form = dilution_summary.get("primary_form", "")
         dilution_primary_date = dilution_summary.get("primary_date", "")
@@ -1297,8 +1737,8 @@ def run(
             "ChecklistInsider": checklist_statuses["Insider"],
             "ChecklistOwnership": checklist_statuses["Ownership"],
             "RiskFlag": risk_flag,
-            "Tier1Type": tier1_type,
-            "Tier1Trigger": tier1_trigger,
+            "Tier1Type": tier1_type_value,
+            "Tier1Trigger": tier1_trigger_value,
         }
 
         survivors.append(record)
