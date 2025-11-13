@@ -26,6 +26,8 @@ class ParseProgressTracker:
         self.ticker_last_key: dict[str, tuple[str, str, str]] = {}
         self.ticker_outcomes: set[tuple[str, str, str]] = set()
         self.compute_events: set[tuple[str, str, str]] = set()
+        self.eight_k_parsed = 0
+        self.eight_k_failed = 0
 
     def reset(self) -> None:
         self.form_stats = {}
@@ -33,11 +35,29 @@ class ParseProgressTracker:
         self.ticker_last_key = {}
         self.ticker_outcomes = set()
         self.compute_events = set()
+        self.eight_k_parsed = 0
+        self.eight_k_failed = 0
+        self._update_eight_k_stats()
         self._notify()
+
+    def _update_eight_k_stats(self) -> None:
+        if self.eight_k_parsed == 0 and self.eight_k_failed == 0:
+            self.form_stats.pop("8-K Events", None)
+            return
+        stats = self.form_stats.setdefault("8-K Events", FormCount())
+        stats.parsed = self.eight_k_parsed
+        stats.valid = max(self.eight_k_parsed - self.eight_k_failed, 0)
+        stats.missing = self.eight_k_failed
+        stats.ensure_consistency()
 
     def process_message(self, full_message: str) -> None:
         detail = self._extract_parse_detail(full_message)
         if not detail:
+            return
+
+        if detail.startswith("eight_k:"):
+            if self._handle_eight_k(detail):
+                self._notify()
             return
 
         if detail.startswith("parse_q10:"):
@@ -68,10 +88,31 @@ class ParseProgressTracker:
         if changed:
             self._notify()
 
+    def _handle_eight_k(self, detail: str) -> bool:
+        body = detail[len("eight_k:"):].strip()
+        if not body:
+            return False
+        changed = False
+        parsed_match = re.match(r"parsed\s+(\d+)", body)
+        failed_match = re.match(r"failed\s+(\d+)", body)
+        if parsed_match:
+            parsed_value = int(parsed_match.group(1))
+            if parsed_value != self.eight_k_parsed:
+                self.eight_k_parsed = parsed_value
+                changed = True
+        if failed_match:
+            failed_value = int(failed_match.group(1))
+            if failed_value != self.eight_k_failed:
+                self.eight_k_failed = failed_value
+                changed = True
+        if changed:
+            self._update_eight_k_stats()
+        return changed
+
     def _extract_parse_detail(self, message: str) -> str | None:
         parts = message.split("|", 1)
         detail = parts[1].strip() if len(parts) == 2 else message.strip()
-        if not detail.startswith("parse_q10"):
+        if not (detail.startswith("parse_q10") or detail.startswith("eight_k")):
             return None
         return detail
 
