@@ -941,6 +941,14 @@ def run(
 
         runway_estimate = _clean_text(getattr(row, "RunwayEstimate", ""))
         runway_notes = _clean_text(getattr(row, "RunwayNotes", ""))
+
+        runway_burn_missing = (
+            (runway_burn_raw is None or runway_burn_raw <= 0)
+            and (runway_burn is None or runway_burn <= 0)
+        )
+        if runway_burn_missing or not runway_estimate:
+            _emit("WARN", f"Dropped: Missing runway burn metrics ({identifier})", progress_fn)
+            continue
         runway_source_form = _normalize_form_name(_clean_text(getattr(row, "RunwaySourceForm", "")))
         runway_source_date_ts = _parse_date_value(getattr(row, "RunwaySourceDate", ""))
         runway_source_url = _clean_text(getattr(row, "RunwaySourceURL", ""))
