@@ -4,46 +4,46 @@ timestamp,module,rows_added,duration_ms,note
 2025-11-04T21:41:38.992529+00:00,profiles,268,484535,append+purge
 2025-11-04T21:43:11.818404+00:00,filings,4824,92787,append+purge
 2025-11-04T21:44:00.998712+00:00,prices,14478,48977,append+purge
-2025-11-04T21:44:01.637953+00:00,hydrate,267,600,write candidates
-2025-11-04T21:44:01.681117+00:00,shortlist,184,41,write shortlist
-2025-11-04T21:44:02.191414+00:00,deep_research,184,507,write research_results
-2025-11-04T21:56:55.837661+00:00,parse_q10,184,773643,write research_results_runway
-2025-11-04T21:56:58.093246+00:00,dr_populate,184,2252,write research_results_full
+2025-11-04T21:44:01.637953+00:00,hydrate,267,600,write 01_hydrated_candidates
+2025-11-04T21:44:01.681117+00:00,shortlist,184,41,write 02_shortlist_candidates
+2025-11-04T21:44:02.191414+00:00,deep_research,184,507,write 03_deep_research_results
+2025-11-04T21:56:55.837661+00:00,parse_q10,184,773643,write 04_runway_extract_results
+2025-11-04T21:56:58.093246+00:00,dr_populate,184,2252,write 05_dr_populate_results
 2025-11-04T21:57:01.943125+00:00,build_watchlist,101,3848,write validated_watchlist
 2025-11-04T23:21:33.351622+00:00,SEC_universe,8937,1793,loaded
 2025-11-04T23:27:13.375533+00:00,profiles,288,340020,append+purge
 2025-11-04T23:28:19.745138+00:00,filings,5145,66315,append+purge
 2025-11-04T23:29:11.387927+00:00,prices,15841,51500,append+purge
-2025-11-04T23:29:11.945310+00:00,hydrate,287,513,write candidates
-2025-11-04T23:29:11.991935+00:00,shortlist,203,45,write shortlist
-2025-11-04T23:29:12.484591+00:00,deep_research,203,489,write research_results
-2025-11-04T23:43:39.154484+00:00,parse_q10,203,866667,write research_results_runway
-2025-11-05T00:04:32.076102+00:00,parse_q10,203,852644,write research_results_runway
-2025-11-05T00:04:33.521269+00:00,dr_populate,203,1441,write research_results_full
+2025-11-04T23:29:11.945310+00:00,hydrate,287,513,write 01_hydrated_candidates
+2025-11-04T23:29:11.991935+00:00,shortlist,203,45,write 02_shortlist_candidates
+2025-11-04T23:29:12.484591+00:00,deep_research,203,489,write 03_deep_research_results
+2025-11-04T23:43:39.154484+00:00,parse_q10,203,866667,write 04_runway_extract_results
+2025-11-05T00:04:32.076102+00:00,parse_q10,203,852644,write 04_runway_extract_results
+2025-11-05T00:04:33.521269+00:00,dr_populate,203,1441,write 05_dr_populate_results
 2025-11-05T00:04:36.356909+00:00,build_watchlist,106,2833,write validated_watchlist
-2025-11-05T00:52:39.205474+00:00,parse_q10,203,706940,write research_results_runway
+2025-11-05T00:52:39.205474+00:00,parse_q10,203,706940,write 04_runway_extract_results
 2025-11-05T01:00:05.681822+00:00,SEC_universe,8937,1559,loaded
 2025-11-05T01:06:14.899707+00:00,profiles,225,369216,append+purge
 2025-11-05T01:07:14.462641+00:00,filings,3887,59513,append+purge
 2025-11-05T01:07:59.997429+00:00,prices,12061,45423,append+purge
-2025-11-05T01:08:00.569797+00:00,hydrate,225,528,write candidates
-2025-11-05T01:08:00.601977+00:00,shortlist,142,31,write shortlist
-2025-11-05T01:08:00.933465+00:00,deep_research,142,329,write research_results
+2025-11-05T01:08:00.569797+00:00,hydrate,225,528,write 01_hydrated_candidates
+2025-11-05T01:08:00.601977+00:00,shortlist,142,31,write 02_shortlist_candidates
+2025-11-05T01:08:00.933465+00:00,deep_research,142,329,write 03_deep_research_results
 2025-11-05T12:38:47.530676+00:00,SEC_universe,8937,1403,loaded
 2025-11-05T12:44:15.461162+00:00,profiles,301,327928,append+purge
 2025-11-05T12:45:22.355318+00:00,filings,5415,66873,append+purge
 2025-11-05T12:46:19.654043+00:00,prices,16734,57167,append+purge
 2025-11-05T12:48:06.093713+00:00,fda,69,106402,append+purge
-2025-11-05T12:48:06.674451+00:00,hydrate,301,533,write candidates
-2025-11-05T12:48:06.716752+00:00,shortlist,212,41,write shortlist
-2025-11-05T12:48:07.170783+00:00,deep_research,212,451,write research_results
+2025-11-05T12:48:06.674451+00:00,hydrate,301,533,write 01_hydrated_candidates
+2025-11-05T12:48:06.716752+00:00,shortlist,212,41,write 02_shortlist_candidates
+2025-11-05T12:48:07.170783+00:00,deep_research,212,451,write 03_deep_research_results
 2025-11-05T15:11:40.130377+00:00,SEC_universe,8937,1616,loaded
 2025-11-05T15:17:20.295634+00:00,profiles,689,340162,append+purge
 2025-11-05T15:21:25.943544+00:00,filings,11603,245618,append+purge
 2025-11-05T15:24:32.928487+00:00,prices,38572,186740,append+purge
-2025-11-05T15:24:33.877997+00:00,hydrate,689,895,write candidates
-2025-11-05T15:24:33.954232+00:00,shortlist,487,75,write shortlist
-2025-11-05T15:24:34.941524+00:00,deep_research,487,985,write research_results
-2025-11-05T16:31:00.543334+00:00,parse_q10,487,942423,write research_results_runway
-2025-11-05T16:31:03.148989+00:00,dr_populate,487,2602,write research_results_full
+2025-11-05T15:24:33.877997+00:00,hydrate,689,895,write 01_hydrated_candidates
+2025-11-05T15:24:33.954232+00:00,shortlist,487,75,write 02_shortlist_candidates
+2025-11-05T15:24:34.941524+00:00,deep_research,487,985,write 03_deep_research_results
+2025-11-05T16:31:00.543334+00:00,parse_q10,487,942423,write 04_runway_extract_results
+2025-11-05T16:31:03.148989+00:00,dr_populate,487,2602,write 05_dr_populate_results
 2025-11-05T16:31:09.305930+00:00,build_watchlist,259,6155,write validated_watchlist
