@@ -169,6 +169,8 @@ _GOVERNANCE_VALID_FORMS = {"DEF 14A", "10-K", "20-F", "40-F"}
 _INSIDER_LINK_RE = re.compile(r"(form[345]|xslf345)", re.IGNORECASE)
 _OWNERSHIP_LINK_RE = re.compile(r"(13f|sc13d|sc13g)", re.IGNORECASE)
 
+_CATALYST_DILUTION_FORM_GUARDS = {"s3", "424b5", "424b3"}
+
 _CATALYST_ITEM_LABELS = {
     "1.01": "Material Agreement",
     "2.02": "Earnings Results",
@@ -317,6 +319,11 @@ def _form_guard_key(value: str) -> str:
 def _is_manager_form(value: str) -> bool:
     text = _normalize_form_name(value)
     return any(text.startswith(prefix) for prefix in _MANAGER_FORM_PREFIXES)
+
+
+def _is_dilution_only_form(value: str) -> bool:
+    key = _form_guard_key(value)
+    return key in _CATALYST_DILUTION_FORM_GUARDS
 
 
 def _url_matches_form(form: str, url: str) -> bool:
@@ -1016,6 +1023,11 @@ def run(
         latest_filed_age_days = _compute_days_ago(latest_filed_ts, now_utc)
 
         catalyst_entries = _parse_evidence_entries(catalyst_text)
+        catalyst_entries = [
+            entry
+            for entry in catalyst_entries
+            if not _is_dilution_only_form(entry.get("form", ""))
+        ]
         catalyst_summary = _summarize_category(catalyst_entries, now_utc)
         catalyst_summary = _enforce_form_url_guard(identifier, "Catalyst", catalyst_summary, catalyst_entries, now_utc, progress_fn)
         if catalyst_summary.get("status") != "Pass":
