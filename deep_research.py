@@ -374,7 +374,7 @@ def run(data_dir: str | None = None, *, echo: bool = False) -> None:
             cfg = load_config()
             data_dir = cfg.get("Paths", {}).get("data", ".")
 
-    shortlist_path = os.path.join(data_dir, "02_shortlist_candidates.csv")
+        shortlist_path = os.path.join(data_dir, "02_shortlist_candidates.csv")
         results_path = os.path.join(data_dir, "03_deep_research_results.csv")
 
         shortlist_rows = load_research_rows(shortlist_path)
