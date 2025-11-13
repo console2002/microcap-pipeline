@@ -1008,9 +1008,9 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "hydrate: start")
     cands = hydrate_candidates(cfg)
-    cands_path = os.path.join(cfg["Paths"]["data"], "candidates.csv")
+    cands_path = os.path.join(cfg["Paths"]["data"], "01_hydrated_candidates.csv")
     cands.to_csv(cands_path, index=False, encoding="utf-8")
-    _log_step(runlog, "hydrate", len(cands), t0, "write candidates")
+    _log_step(runlog, "hydrate", len(cands), t0, "write 01_hydrated_candidates")
     _emit(progress_fn, f"hydrate: wrote {len(cands)} candidates")
 
     if stop_flag.get("stop"):
@@ -1019,9 +1019,9 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     t1 = time.time()
     _emit(progress_fn, "shortlist: start")
     short = build_shortlist(cfg, cands)
-    short_path = os.path.join(cfg["Paths"]["data"], "shortlist.csv")
+    short_path = os.path.join(cfg["Paths"]["data"], "02_shortlist_candidates.csv")
     short.to_csv(short_path, index=False, encoding="utf-8")
-    _log_step(runlog, "shortlist", len(short), t1, "write shortlist")
+    _log_step(runlog, "shortlist", len(short), t1, "write 02_shortlist_candidates")
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
 
@@ -1030,23 +1030,23 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise CancelledRun("cancel before deep_research")
 
     data_dir = cfg["Paths"]["data"]
-    short_path = os.path.join(data_dir, "shortlist.csv")
+    short_path = os.path.join(data_dir, "02_shortlist_candidates.csv")
     if not os.path.exists(short_path):
-        raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
+        raise RuntimeError("02_shortlist_candidates.csv missing; run hydrate stage first or stage requires it")
 
     t0 = time.time()
     _emit(progress_fn, "deep_research: start")
 
     deep_research_run(data_dir)
 
-    results_path = os.path.join(data_dir, "research_results.csv")
+    results_path = os.path.join(data_dir, "03_deep_research_results.csv")
     if not os.path.exists(results_path):
-        raise RuntimeError("deep research did not create research_results.csv")
+        raise RuntimeError("deep research did not create 03_deep_research_results.csv")
 
     df_results = pd.read_csv(results_path, encoding="utf-8")
     row_count = len(df_results)
 
-    _log_step(runlog, "deep_research", row_count, t0, "write research_results")
+    _log_step(runlog, "deep_research", row_count, t0, "write 03_deep_research_results")
     _emit(progress_fn, f"deep_research: wrote {row_count} rows")
 
     return results_path
@@ -1057,11 +1057,11 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise CancelledRun("cancel before parse_q10")
 
     data_dir = cfg["Paths"]["data"]
-    research_path = os.path.join(data_dir, "research_results.csv")
+    research_path = os.path.join(data_dir, "03_deep_research_results.csv")
     filings_path = os.path.join(data_dir, "filings.csv")
 
     if not os.path.exists(research_path):
-        raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+        raise RuntimeError("03_deep_research_results.csv missing; run deep_research stage first or stage requires it")
 
     if not os.path.exists(filings_path):
         raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
@@ -1084,7 +1084,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
         if callback:
             runway_extract.set_progress_callback(None)
 
-    runway_path = os.path.join(data_dir, "research_results_runway.csv")
+    runway_path = os.path.join(data_dir, "04_runway_extract_results.csv")
     row_count = 0
     if os.path.exists(runway_path):
         try:
@@ -1093,7 +1093,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
         except Exception as exc:
             _log_err(errlog, "parse_q10", f"failed to read output CSV: {exc}")
 
-    _log_step(runlog, "parse_q10", row_count, t0, "write research_results_runway")
+    _log_step(runlog, "parse_q10", row_count, t0, "write 04_runway_extract_results")
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
@@ -1102,11 +1102,11 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise CancelledRun("cancel before dr_populate")
 
     data_dir = cfg["Paths"]["data"]
-    runway_path = os.path.join(data_dir, "research_results_runway.csv")
+    runway_path = os.path.join(data_dir, "04_runway_extract_results.csv")
     filings_path = os.path.join(data_dir, "filings.csv")
 
     if not os.path.exists(runway_path):
-        raise RuntimeError("research_results_runway.csv missing; run parse_q10 stage first or stage requires it")
+        raise RuntimeError("04_runway_extract_results.csv missing; run parse_q10 stage first or stage requires it")
 
     if not os.path.exists(filings_path):
         raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
@@ -1122,7 +1122,7 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
 
     dr_populate.run(data_dir=data_dir, progress_callback=callback)
 
-    full_path = os.path.join(data_dir, "research_results_full.csv")
+    full_path = os.path.join(data_dir, "05_dr_populate_results.csv")
     row_count = 0
     if os.path.exists(full_path):
         try:
@@ -1131,7 +1131,7 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
         except Exception as exc:
             _log_err(errlog, "dr_populate", f"failed to read output CSV: {exc}")
 
-    _log_step(runlog, "dr_populate", row_count, t0, "write research_results_full")
+    _log_step(runlog, "dr_populate", row_count, t0, "write 05_dr_populate_results")
     _emit(progress_fn, f"dr_populate: wrote {row_count} rows")
 
 
@@ -1150,8 +1150,8 @@ def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     )
 
     if status == "missing_source":
-        _emit(progress_fn, "build_watchlist: research_results_full.csv missing")
-        _log_err(errlog, "build_watchlist", "research_results_full.csv not found")
+        _emit(progress_fn, "build_watchlist: 05_dr_populate_results.csv missing")
+        _log_err(errlog, "build_watchlist", "05_dr_populate_results.csv not found")
         return 0
 
     if status == "stopped":
@@ -1264,32 +1264,32 @@ def run_weekly_pipeline(
         if start_idx <= stages.index("hydrate"):
             hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            short_path = os.path.join(cfg["Paths"]["data"], "shortlist.csv")
+            short_path = os.path.join(cfg["Paths"]["data"], "02_shortlist_candidates.csv")
             if not os.path.exists(short_path):
-                raise RuntimeError("shortlist.csv missing; run hydrate stage first or stage requires it")
+                raise RuntimeError("02_shortlist_candidates.csv missing; run hydrate stage first or stage requires it")
             _emit(progress_fn, "hydrate: skipped (starting later stage)")
             _emit(progress_fn, "shortlist: skipped (starting later stage)")
 
         if start_idx <= stages.index("deep_research"):
             deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            results_path = os.path.join(cfg["Paths"]["data"], "research_results.csv")
+            results_path = os.path.join(cfg["Paths"]["data"], "03_deep_research_results.csv")
             if not os.path.exists(results_path):
-                raise RuntimeError("research_results.csv missing; run deep_research stage first or stage requires it")
+                raise RuntimeError("03_deep_research_results.csv missing; run deep_research stage first or stage requires it")
 
         if start_idx <= stages.index("parse_q10"):
             parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            runway_path = os.path.join(cfg["Paths"]["data"], "research_results_runway.csv")
+            runway_path = os.path.join(cfg["Paths"]["data"], "04_runway_extract_results.csv")
             if not os.path.exists(runway_path):
-                raise RuntimeError("research_results_runway.csv missing; run parse_q10 stage first or stage requires it")
+                raise RuntimeError("04_runway_extract_results.csv missing; run parse_q10 stage first or stage requires it")
 
         if start_idx <= stages.index("dr_populate"):
             dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            full_path = os.path.join(cfg["Paths"]["data"], "research_results_full.csv")
+            full_path = os.path.join(cfg["Paths"]["data"], "05_dr_populate_results.csv")
             if not os.path.exists(full_path):
-                raise RuntimeError("research_results_full.csv missing; run dr_populate stage first or stage requires it")
+                raise RuntimeError("05_dr_populate_results.csv missing; run dr_populate stage first or stage requires it")
 
         if start_idx <= stages.index("build_watchlist"):
             build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn)

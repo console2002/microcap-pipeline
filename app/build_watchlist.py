@@ -846,12 +846,12 @@ def run(
 
     os.makedirs(data_dir, exist_ok=True)
 
-    research_path = _resolve_path("research_results_full.csv", data_dir)
+    research_path = _resolve_path("05_dr_populate_results.csv", data_dir)
     if not os.path.exists(research_path):
-        _emit("ERROR", "build_watchlist: research_results_full.csv not found", progress_fn)
+        _emit("ERROR", "build_watchlist: 05_dr_populate_results.csv not found", progress_fn)
         return 0, "missing_source"
 
-    _emit("INFO", "build_watchlist: reading research_results_full.csv", progress_fn)
+    _emit("INFO", "build_watchlist: reading 05_dr_populate_results.csv", progress_fn)
     research_df = pd.read_csv(research_path, encoding="utf-8")
 
     if research_df.empty:
@@ -870,7 +870,7 @@ def run(
     research_df["CIK_norm"] = research_df["CIK"].apply(_normalize_cik)
     research_df["SubscoresEvidencedCount"] = research_df["SubscoresEvidenced"].apply(_count_subscores)
 
-    candidates_path = _resolve_path("candidates.csv", data_dir)
+    candidates_path = _resolve_path("01_hydrated_candidates.csv", data_dir)
     prices_path = _resolve_path("prices.csv", data_dir)
 
     market_frames = []

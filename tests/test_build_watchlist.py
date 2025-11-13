@@ -37,7 +37,7 @@ def test_run_drops_dilution_only_catalyst(tmp_path):
         }
     ]
 
-    research_path = data_dir / "research_results_full.csv"
+    research_path = data_dir / "05_dr_populate_results.csv"
     pd.DataFrame(research_rows).to_csv(research_path, index=False)
 
     rows_written, status = build_watchlist.run(data_dir=str(data_dir))

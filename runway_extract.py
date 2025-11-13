@@ -279,7 +279,7 @@ def _format_raw_value(value: Optional[float]) -> str:
 
 
 def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
-    research_path = _resolve_path("research_results.csv", data_dir)
+    research_path = _resolve_path("03_deep_research_results.csv", data_dir)
     filings_path = _resolve_path("filings.csv", data_dir)
 
     research_rows, fieldnames = _read_csv_rows(research_path)
@@ -585,7 +585,7 @@ def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
-    output_path = os.path.join(output_dir, "research_results_runway.csv") if output_dir else "research_results_runway.csv"
+    output_path = os.path.join(output_dir, "04_runway_extract_results.csv") if output_dir else "04_runway_extract_results.csv"
 
     fieldnames_out = list(fieldnames)
     for col in [
