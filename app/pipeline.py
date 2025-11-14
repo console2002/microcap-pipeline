@@ -5,7 +5,7 @@ from typing import Any
 
 import runway_extract
 from app import dr_populate
-from app.build_watchlist import run as build_watchlist_run
+from app.build_watchlist import run as build_watchlist_run, generate_eight_k_events
 from app.config import load_config, filings_max_lookback
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
@@ -1097,6 +1097,37 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
+def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel before parse_8k")
+
+    data_dir = cfg["Paths"]["data"]
+    filings_path = os.path.join(data_dir, "filings.csv")
+
+    if not os.path.exists(filings_path):
+        raise RuntimeError("filings.csv missing; run filings stage first or stage requires it")
+
+    t0 = time.time()
+    _emit(progress_fn, "eight_k: start")
+
+    callback = None
+    if progress_fn is not None:
+        def adapter(message: str) -> None:
+            detail = message.split(" ", 1)[1] if " " in message else message
+            _emit(progress_fn, detail)
+
+        callback = adapter
+
+    events_df, _ = generate_eight_k_events(data_dir=data_dir, progress_fn=callback)
+    row_count = len(events_df.index)
+
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel during parse_8k")
+
+    _log_step(runlog, "parse_8k", row_count, t0, "write 8k_events")
+    _emit(progress_fn, f"eight_k: wrote {row_count} rows")
+
+
 def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
     if stop_flag.get("stop"):
         raise CancelledRun("cancel before dr_populate")
@@ -1191,6 +1222,7 @@ def run_weekly_pipeline(
         "hydrate",
         "deep_research",
         "parse_q10",
+        "parse_8k",
         "dr_populate",
         "build_watchlist",
     ]
@@ -1283,6 +1315,13 @@ def run_weekly_pipeline(
             runway_path = os.path.join(cfg["Paths"]["data"], "04_runway_extract_results.csv")
             if not os.path.exists(runway_path):
                 raise RuntimeError("04_runway_extract_results.csv missing; run parse_q10 stage first or stage requires it")
+
+        if start_idx <= stages.index("parse_8k"):
+            parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            events_path = os.path.join(cfg["Paths"]["data"], "8k_events.csv")
+            if not os.path.exists(events_path):
+                raise RuntimeError("8k_events.csv missing; run parse_8k stage first or stage requires it")
 
         if start_idx <= stages.index("dr_populate"):
             dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn)

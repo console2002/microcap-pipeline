@@ -127,6 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weekly_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
         self.weekly_stage_combo.addItem("Deep Research", "deep_research")
         self.weekly_stage_combo.addItem("Parse Q10", "parse_q10")
+        self.weekly_stage_combo.addItem("Parse 8-K", "parse_8k")
         self.weekly_stage_combo.addItem("Populate DR Output", "dr_populate")
         self.weekly_stage_combo.addItem("Build Validated Watchlist", "build_watchlist")
 

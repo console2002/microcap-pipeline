@@ -291,6 +291,26 @@ def _clean_text(value: object) -> str:
     return text
 
 
+def _coerce_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"", "0", "false", "no", "n"}:
+            return False
+        if text in {"1", "true", "yes", "y", "t"}:
+            return True
+        return False
+    try:
+        if pd.isna(value):  # type: ignore[arg-type]
+            return False
+    except TypeError:
+        pass
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return bool(value)
+
+
 def _normalize_url(url: str) -> str:
     if not url:
         return ""
@@ -597,6 +617,71 @@ def _generate_eight_k_events(
     _emit("INFO", f"eight_k: failed {len(debug_entries)}", progress_fn)
 
     return events_df, EightKLookup(events)
+
+
+def _load_eight_k_events_from_csv(
+    data_dir: str,
+) -> tuple[pd.DataFrame, EightKLookup] | None:
+    events_path = os.path.join(data_dir, "8k_events.csv")
+    if not os.path.exists(events_path):
+        return None
+
+    try:
+        df = pd.read_csv(events_path, encoding="utf-8")
+    except Exception:
+        return None
+
+    if df.empty:
+        return df, EightKLookup([])
+
+    events: list[EightKEvent] = []
+    for row in df.itertuples(index=False):
+        dilution_tags_text = _clean_text(getattr(row, "DilutionTags", ""))
+        dilution_tags = [tag.strip() for tag in dilution_tags_text.split(";") if tag.strip()]
+        event = EightKEvent(
+            cik=_normalize_cik(getattr(row, "CIK", "")),
+            ticker=_normalize_ticker(getattr(row, "Ticker", "")),
+            filing_date=_clean_text(getattr(row, "FilingDate", "")),
+            filing_url=_clean_text(getattr(row, "FilingURL", "")),
+            items_present=_clean_text(getattr(row, "ItemsPresent", "")),
+            is_catalyst=_coerce_bool(getattr(row, "IsCatalyst", False)),
+            catalyst_type=_clean_text(getattr(row, "CatalystType", "")) or "NONE",
+            catalyst_label="",
+            tier1_type=_clean_text(getattr(row, "Tier1Type", "")),
+            tier1_trigger=_clean_text(getattr(row, "Tier1Trigger", "")),
+            is_dilution=_coerce_bool(getattr(row, "IsDilution", False)),
+            dilution_tags=dilution_tags,
+            ignore_reason=_clean_text(getattr(row, "IgnoreReason", "")),
+        )
+        events.append(event)
+
+    return df, EightKLookup(events)
+
+
+def generate_eight_k_events(
+    data_dir: str | None = None,
+    progress_fn: ProgressFn = None,
+) -> tuple[pd.DataFrame, EightKLookup]:
+    if data_dir is None:
+        cfg = load_config()
+        data_dir = cfg.get("Paths", {}).get("data", "data")
+
+    os.makedirs(data_dir, exist_ok=True)
+    return _generate_eight_k_events(data_dir, progress_fn)
+
+
+def load_or_generate_eight_k_events(
+    data_dir: str,
+    progress_fn: ProgressFn,
+) -> tuple[pd.DataFrame, EightKLookup]:
+    os.makedirs(data_dir, exist_ok=True)
+    loaded = _load_eight_k_events_from_csv(data_dir)
+    if loaded is not None:
+        df, lookup = loaded
+        _emit("INFO", f"eight_k: loaded {len(df)} events from 8k_events.csv", progress_fn)
+        return df, lookup
+
+    return _generate_eight_k_events(data_dir, progress_fn)
 
 
 def _collect_candidate_urls(row) -> list[str]:
@@ -1269,7 +1354,7 @@ def run(
     else:
         now_utc = now_utc.tz_convert("UTC")
 
-    _, eight_k_lookup = _generate_eight_k_events(data_dir, progress_fn)
+    _, eight_k_lookup = load_or_generate_eight_k_events(data_dir, progress_fn)
 
     survivors: list[dict] = []
     status = "ok"
