@@ -301,6 +301,13 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.progress_bar.maximum() != 100 or self.progress_bar.minimum() != 0:
                 self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(pct)
+        else:
+            # Messages without an explicit percentage (for example the new
+            # parse_8k stage) should return the bar to an indeterminate state so
+            # we don't appear "stuck" at 100% from the previous stage.
+            if self.progress_bar.minimum() != 0 or self.progress_bar.maximum() != 0:
+                self.progress_bar.setRange(0, 0)
+                self.progress_bar.setValue(0)
 
     def _update_parse_progress(self, form_stats: dict[str, FormCount]) -> None:
         self.parse_stats_view.update_from_tracker(form_stats)
