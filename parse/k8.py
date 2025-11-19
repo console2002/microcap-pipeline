@@ -7,15 +7,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
-from urllib.parse import urljoin, urlparse
+from urllib import request as urllib_request
+from urllib.parse import parse_qs, urljoin, urlparse
 
 from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event
-from .router import _fetch_url
+from .router import _fetch_url, _user_agent
 
 
 _ITEM_PATTERN = re.compile(r"item[\s\u00A0]*([0-9]{1,2}\.[0-9]{2})", re.IGNORECASE)
-_TARGET_ITEMS = {"1.01", "2.02", "5.02", "7.01", "8.01"}
+_TARGET_ITEMS = {"1.01", "2.02", "3.02", "5.02", "7.01", "8.01", "9.01"}
 
 _CONTRACT_KEYWORDS = [
     "obligated",
@@ -98,6 +99,62 @@ class _ItemSection:
     text: str
 
 
+def _canonicalize_sec_url(url: str) -> str:
+    if not url:
+        return url
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url
+    scheme = parsed.scheme or "https"
+    netloc = parsed.netloc or ""
+    path = parsed.path or ""
+    lower_host = netloc.lower()
+    lower_path = path.lower()
+    if lower_host.endswith("sec.gov"):
+        canonical_host = "www.sec.gov"
+        viewer_paths = ("/ix", "/ixviewer", "/cgi-bin/viewer")
+        if any(lower_path.startswith(prefix) for prefix in viewer_paths):
+            query = parse_qs(parsed.query or "")
+            candidates = query.get("doc") or []
+            for candidate in candidates:
+                doc = candidate.strip()
+                if not doc:
+                    continue
+                if "?" in doc:
+                    doc = doc.split("?", 1)[0]
+                if doc.startswith("http://") or doc.startswith("https://"):
+                    return _canonicalize_sec_url(doc)
+                if not doc.startswith("/"):
+                    doc = f"/{doc}"
+                return f"https://{canonical_host}{doc}"
+        query = f"?{parsed.query}" if parsed.query else ""
+        fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+        params = f";{parsed.params}" if parsed.params else ""
+        return f"{scheme}://{canonical_host}{path}{params}{query}{fragment}"
+    return url
+
+
+def _accession_directory(path: str) -> Optional[str]:
+    if not path:
+        return None
+    marker = "/archives/edgar/data/"
+    lower_path = path.lower()
+    idx = lower_path.find(marker)
+    if idx == -1:
+        return None
+    remainder = path[idx + len(marker) :]
+    parts = remainder.split("/")
+    if len(parts) < 2:
+        return None
+    cik = parts[0].strip()
+    accession = parts[1].strip()
+    if not cik or not accession:
+        return None
+    prefix = path[: idx + len(marker)]
+    return f"{prefix}{cik}/{accession}/"
+
+
 def _read_local_file(parsed) -> Optional[str]:
     try:
         path_text = parsed.path or ""
@@ -114,20 +171,27 @@ def _read_local_file(parsed) -> Optional[str]:
         return None
 
 
-def _fetch_html(url: str, html: Optional[str]) -> Optional[str]:
+def _fetch_html(url: str, html: Optional[str]) -> tuple[Optional[str], bool]:
+    url_plain = bool(url and url.lower().endswith(".txt"))
     if html:
-        return html
+        return html, url_plain
     if not url:
-        return None
+        return None, False
     parsed = urlparse(url)
     if parsed.scheme == "file":
-        return _read_local_file(parsed)
+        content = _read_local_file(parsed)
+        return content, url_plain or bool((parsed.path or "").lower().endswith(".txt"))
     try:
-        raw = _fetch_url(url)
+        req = urllib_request.Request(url, headers={"User-Agent": _user_agent()})
+        with urllib_request.urlopen(req) as response:  # pragma: no cover - network
+            content_type = response.headers.get("Content-Type", "")
+            raw = response.read()
     except Exception as exc:  # pragma: no cover - network errors
         log_parse_event(logging.DEBUG, "8k fetch failed", url=url, error=str(exc))
-        return None
-    return raw.decode("utf-8", errors="ignore")
+        return None, False
+    text = raw.decode("utf-8", errors="ignore")
+    is_plain = "text/plain" in (content_type or "").lower()
+    return text, is_plain or url_plain
 
 
 def _html_to_text(html_text: str) -> str:
@@ -167,24 +231,41 @@ def _gather_target_items(sections: Iterable[_ItemSection]) -> list[_ItemSection]
 def _same_filing_link(base_url: str, href: str) -> Optional[str]:
     if not href:
         return None
-    resolved = urljoin(base_url, href)
-    parsed_base = urlparse(base_url)
+    canonical_base = _canonicalize_sec_url(base_url)
+    resolved = href
+    parsed_candidate = urlparse(href)
+    if not parsed_candidate.scheme:
+        resolved = urljoin(canonical_base, href)
+    resolved = _canonicalize_sec_url(resolved)
+    parsed_base = urlparse(canonical_base)
     parsed_resolved = urlparse(resolved)
-    base_path = parsed_base.path or ""
-    resolved_path = parsed_resolved.path or ""
-    if "/Archives/" not in base_path or "/Archives/" not in resolved_path:
-        return None
-    base_dir = base_path.rsplit("/", 1)[0] if "/" in base_path else base_path
-    resolved_dir = resolved_path.rsplit("/", 1)[0] if "/" in resolved_path else resolved_path
-    if base_dir.lower() != resolved_dir.lower():
-        return None
-    return resolved
+    base_dir = _accession_directory(parsed_base.path or "")
+    resolved_dir = _accession_directory(parsed_resolved.path or "")
+    if base_dir and resolved_dir:
+        if parsed_resolved.netloc.lower() != "www.sec.gov":
+            return None
+        if base_dir.lower() != resolved_dir.lower():
+            return None
+        return resolved
+    # Fallback for local fixtures (file:// paths)
+    if parsed_base.scheme == parsed_resolved.scheme == "file":
+        base_path = parsed_base.path or ""
+        resolved_path = parsed_resolved.path or ""
+        if not base_path or not resolved_path:
+            return None
+        base_dir = base_path.rsplit("/", 1)[0] if "/" in base_path else base_path
+        resolved_dir = resolved_path.rsplit("/", 1)[0] if "/" in resolved_path else resolved_path
+        if base_dir.lower() != resolved_dir.lower():
+            return None
+        return resolved
+    return None
 
 
 def _extract_exhibits(html_text: str, base_url: str) -> list[dict[str, str]]:
     exhibits: list[dict[str, str]] = []
     if not html_text:
         return exhibits
+    canonical_base = _canonicalize_sec_url(base_url)
     link_pattern = re.compile(r"<a[^>]+href\s*=\s*['\"]([^'\"]+)['\"][^>]*>(.*?)</a>", re.IGNORECASE | re.DOTALL)
     for match in link_pattern.finditer(html_text):
         href = match.group(1)
@@ -203,7 +284,7 @@ def _extract_exhibits(html_text: str, base_url: str) -> list[dict[str, str]]:
         ]
         if not any(keyword in normalized_href or keyword in normalized_text for keyword in keywords):
             continue
-        resolved = _same_filing_link(base_url, href)
+        resolved = _same_filing_link(canonical_base, href)
         if not resolved:
             continue
         exhibits.append({"url": resolved, "name": Path(resolved).name or resolved})
@@ -361,7 +442,7 @@ def _best_effort_filing_date(text: str) -> Optional[str]:
 
 def parse(url: str, html: str | None = None, form_hint: str | None = None) -> dict:
     form_type = form_hint or "8-K"
-    html_text = _fetch_html(url, html)
+    html_text, is_plain = _fetch_html(url, html)
     if not html_text:
         log_parse_event(logging.DEBUG, "8k missing html", url=url)
         return {
@@ -382,6 +463,7 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
             },
         }
 
+    canonical_url = _canonicalize_sec_url(url)
     unescaped = unescape_html_entities(html_text, context=url)
     text = _html_to_text(unescaped)
     sections = _split_item_sections(text)
@@ -389,16 +471,17 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
     exhibits_info = []
     appended_text_segments: list[str] = []
-    for exhibit in _extract_exhibits(unescaped, url):
-        exhibit_text = _fetch_exhibit_text(exhibit["url"])
-        if not exhibit_text:
-            continue
-        exhibit_entry = {
-            "name": exhibit["name"],
-            "text": exhibit_text,
-        }
-        exhibits_info.append(exhibit_entry)
-        appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
+    if not is_plain:
+        for exhibit in _extract_exhibits(unescaped, canonical_url):
+            exhibit_text = _fetch_exhibit_text(exhibit["url"])
+            if not exhibit_text:
+                continue
+            exhibit_entry = {
+                "name": exhibit["name"],
+                "text": exhibit_text,
+            }
+            exhibits_info.append(exhibit_entry)
+            appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
 
     combined_text_parts = [section.text for section in target_items] + appended_text_segments
     combined_text = " \n".join(part for part in combined_text_parts if part)
