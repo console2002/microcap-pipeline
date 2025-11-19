@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -67,6 +68,32 @@ def test_k8_parser_nonbinding_loi():
     classification = result["classification"]
     assert classification["is_catalyst"] is False
     assert classification["ignore_reason"] == "Non-binding LOI"
+
+
+def test_k8_parser_plain_text_items():
+    path, text = load_fixture("plain_item_801.txt")
+    result = parse_k8.parse(path.as_uri(), html=text)
+    items = {item["item"] for item in result["items"]}
+    assert "8.01" in items
+    assert result["exhibits"] == []
+
+
+def test_k8_parser_ix_viewer_exhibits():
+    path, html = load_fixture("ix_viewer_item_502.htm")
+    base_url = "https://www.sec.gov/ix?doc=/Archives/edgar/data/1234567/0000000000-24-000001/ix_viewer_item_502.htm"
+    with patch.object(parse_k8, "_fetch_exhibit_text", return_value="press release text") as mocked_fetch:
+        result = parse_k8.parse(base_url, html=html)
+    items = {item["item"] for item in result["items"]}
+    assert "5.02" in items
+    assert result["exhibits"]
+    assert mocked_fetch.called
+
+
+def test_k8_parser_additional_items_detected():
+    path, html = load_fixture("items_302_901.htm")
+    result = parse_k8.parse(path.as_uri(), html=html)
+    items = {item["item"] for item in result["items"]}
+    assert {"3.02", "9.01"}.issubset(items)
 
 
 def test_k8_watchlist_integration(tmp_path):
