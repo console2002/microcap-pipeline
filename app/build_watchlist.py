@@ -530,11 +530,18 @@ def _generate_eight_k_events(
 
     df = df.drop_duplicates(subset=["URL"], keep="last")
 
+    total_filings = len(df.index)
+    _emit("INFO", f"eight_k: (0%) processing {total_filings} filings", progress_fn)
+    report_every = max(1, total_filings // 20)
+
     csv_rows: list[dict[str, object]] = []
     events: list[EightKEvent] = []
     debug_entries: list[list[object]] = []
 
+    processed = 0
+
     for row in df.itertuples(index=False):
+        processed += 1
         url = _clean_text(getattr(row, "URL", ""))
         if not url:
             continue
@@ -606,6 +613,14 @@ def _generate_eight_k_events(
                 "IgnoreReason": event.ignore_reason,
             }
         )
+
+        if processed == total_filings or processed % report_every == 0:
+            pct = int((processed / total_filings) * 100)
+            _emit(
+                "INFO",
+                f"eight_k: ({pct}%) processed {processed}/{total_filings}",
+                progress_fn,
+            )
 
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
     events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
@@ -840,6 +855,8 @@ def _parse_date_value(value: object) -> Optional[pd.Timestamp]:
     try:
         if _is_iso_date_string(text):
             ts = pd.to_datetime(text, utc=True, errors="coerce", format="%Y-%m-%d")
+        elif re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", text):
+            ts = pd.to_datetime(text, utc=True, errors="coerce", format="%Y-%m-%d %H:%M:%S")
         else:
             ts = pd.to_datetime(text, utc=True, errors="coerce", dayfirst=True)
     except Exception:

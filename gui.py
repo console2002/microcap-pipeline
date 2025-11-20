@@ -295,6 +295,10 @@ class MainWindow(QtWidgets.QMainWindow):
         sb.setValue(sb.maximum())
 
     def _update_progress_bar_from_msg(self, msg: str):
+        # Extract the pipeline message without the timestamp prefix so we can
+        # detect stage transitions and embedded percentages consistently.
+        body = msg.split("|", 1)[1].strip() if "|" in msg else msg
+
         match = re.search(r"\((\d{1,3})%\)", msg)
         if match:
             pct = max(0, min(100, int(match.group(1))))
@@ -302,10 +306,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(pct)
         else:
-            # Messages without an explicit percentage (for example the new
-            # parse_8k stage) should return the bar to an indeterminate state so
-            # we don't appear "stuck" at 100% from the previous stage.
-            if self.progress_bar.minimum() != 0 or self.progress_bar.maximum() != 0:
+            # Only reset the bar for explicit stage starts; otherwise retain
+            # the last determinate value so parse progress stays visible even
+            # when intermittent log messages do not include percentages.
+            if re.search(r"\bstart\b", body):
                 self.progress_bar.setRange(0, 0)
                 self.progress_bar.setValue(0)
 
