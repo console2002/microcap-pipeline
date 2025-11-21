@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from app.config import load_config
+from app.csv_names import csv_filename, csv_path
 from app.utils import ensure_csv, log_line, utc_now_iso
 from parse import k8 as parse_k8
 from parse.htmlutil import preview_text
@@ -502,10 +503,10 @@ def _generate_eight_k_events(
     data_dir: str,
     progress_fn: ProgressFn,
 ) -> tuple[pd.DataFrame, EightKLookup]:
-    filings_path = _resolve_path("filings.csv", data_dir)
+    filings_path = _resolve_path(csv_filename("filings"), data_dir)
     if not os.path.exists(filings_path):
         events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
-        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
         return events_df, EightKLookup([])
@@ -513,7 +514,7 @@ def _generate_eight_k_events(
     filings_df = pd.read_csv(filings_path, encoding="utf-8")
     if filings_df.empty or "Form" not in filings_df.columns or "URL" not in filings_df.columns:
         events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
-        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
         return events_df, EightKLookup([])
@@ -523,7 +524,7 @@ def _generate_eight_k_events(
     df = df[df["Form_norm"].str.startswith("8-K")]
     if df.empty:
         events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
-        events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+        events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
         return events_df, EightKLookup([])
@@ -623,7 +624,7 @@ def _generate_eight_k_events(
             )
 
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
-    events_df.to_csv(os.path.join(data_dir, "8k_events.csv"), index=False)
+    events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
 
     _eight_k_debug_path()
     _write_eight_k_debug(debug_entries)
@@ -637,7 +638,7 @@ def _generate_eight_k_events(
 def _load_eight_k_events_from_csv(
     data_dir: str,
 ) -> tuple[pd.DataFrame, EightKLookup] | None:
-    events_path = os.path.join(data_dir, "8k_events.csv")
+    events_path = csv_path(data_dir, "eight_k_events")
     if not os.path.exists(events_path):
         return None
 
@@ -693,7 +694,7 @@ def load_or_generate_eight_k_events(
     loaded = _load_eight_k_events_from_csv(data_dir)
     if loaded is not None:
         df, lookup = loaded
-        _emit("INFO", f"eight_k: loaded {len(df)} events from 8k_events.csv", progress_fn)
+        _emit("INFO", f"eight_k: loaded {len(df)} events from {csv_filename('eight_k_events')}", progress_fn)
         return df, lookup
 
     return _generate_eight_k_events(data_dir, progress_fn)
@@ -1322,12 +1323,12 @@ def run(
 
     os.makedirs(data_dir, exist_ok=True)
 
-    research_path = _resolve_path("05_dr_populate_results.csv", data_dir)
+    research_path = _resolve_path(csv_filename("dr_populate_results"), data_dir)
     if not os.path.exists(research_path):
-        _emit("ERROR", "build_watchlist: 05_dr_populate_results.csv not found", progress_fn)
+        _emit("ERROR", f"build_watchlist: {csv_filename('dr_populate_results')} not found", progress_fn)
         return 0, "missing_source"
 
-    _emit("INFO", "build_watchlist: reading 05_dr_populate_results.csv", progress_fn)
+    _emit("INFO", f"build_watchlist: reading {csv_filename('dr_populate_results')}", progress_fn)
     research_df = pd.read_csv(research_path, encoding="utf-8")
 
     if research_df.empty:
@@ -1346,8 +1347,8 @@ def run(
     research_df["CIK_norm"] = research_df["CIK"].apply(_normalize_cik)
     research_df["SubscoresEvidencedCount"] = research_df["SubscoresEvidenced"].apply(_count_subscores)
 
-    candidates_path = _resolve_path("01_hydrated_candidates.csv", data_dir)
-    prices_path = _resolve_path("prices.csv", data_dir)
+    candidates_path = _resolve_path(csv_filename("hydrated_candidates"), data_dir)
+    prices_path = _resolve_path(csv_filename("prices"), data_dir)
 
     market_frames = []
     for path in (candidates_path, prices_path):
@@ -1845,7 +1846,7 @@ def run(
 
         survivors.append(record)
 
-    output_path = os.path.join(data_dir, "validated_watchlist.csv")
+    output_path = csv_path(data_dir, "validated_watchlist")
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(_OUTPUT_COLUMNS)
@@ -1857,13 +1858,13 @@ def run(
     if status == "stopped":
         _emit(
             "INFO",
-            f"build_watchlist: stop requested; wrote validated_watchlist.csv with {rows_written} rows",
+            f"build_watchlist: stop requested; wrote {csv_filename('validated_watchlist')} with {rows_written} rows",
             progress_fn,
         )
     else:
         _emit(
             "OK",
-            f"build_watchlist: wrote validated_watchlist.csv with {rows_written} rows",
+            f"build_watchlist: wrote {csv_filename('validated_watchlist')} with {rows_written} rows",
             progress_fn,
         )
 

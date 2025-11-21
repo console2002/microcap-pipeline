@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 
+from app.csv_names import csv_path
+
 
 def _normalize_cik(series: pd.Series) -> pd.Series:
     """Normalize CIK values while preserving missing entries."""
@@ -18,10 +20,10 @@ def hydrate_candidates(cfg: dict) -> pd.DataFrame:
     base = cfg["Paths"]["data"]
 
     # load caches
-    profiles_path = os.path.join(base, "profiles.csv")
-    prices_path   = os.path.join(base, "prices.csv")
-    filings_path  = os.path.join(base, "filings.csv")
-    fda_path      = os.path.join(base, "fda.csv")
+    profiles_path = csv_path(base, "profiles")
+    prices_path = csv_path(base, "prices")
+    filings_path = csv_path(base, "filings")
+    fda_path = csv_path(base, "fda")
 
     profiles = pd.read_csv(profiles_path, encoding="utf-8") if os.path.exists(profiles_path) else pd.DataFrame()
     prices   = pd.read_csv(prices_path,   encoding="utf-8") if os.path.exists(prices_path)   else pd.DataFrame()

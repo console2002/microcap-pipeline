@@ -2,8 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 
-def _csv_path(cfg: dict, name: str) -> str:
-    return os.path.join(cfg["Paths"]["data"], f"{name}.csv")
+from app.csv_names import csv_path
 
 def _load_csv(path: str, columns: list[str] | None = None) -> pd.DataFrame:
     if not os.path.exists(path):
@@ -31,7 +30,7 @@ def append_antijoin_purge(
     - Save back to disk with headers
     - Return how many new rows we added
     """
-    path = _csv_path(cfg, name)
+    path = csv_path(cfg["Paths"]["data"], name)
 
     # Make sure df_new has stable columns (even if df_new is empty)
     new_cols = df_new.columns.tolist()
