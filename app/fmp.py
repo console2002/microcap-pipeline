@@ -471,7 +471,7 @@ def fetch_prices(
         # NOTE:
         #   FMP's `serietype=line` parameter trims the payload down to
         #   date/close-only entries.  That was unintentionally stripping the
-        #   open/high/low/volume fields we persist to prices.csv.  By omitting
+        #   open/high/low/volume fields we persist to 03_prices.csv.  By omitting
         #   the parameter we receive the full OHLCV payload again.
         params = {"apikey": key, "timeseries": days}
         resp   = client.get(url, params, ratelimit)

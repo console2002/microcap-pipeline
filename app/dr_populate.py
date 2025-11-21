@@ -9,6 +9,7 @@ from typing import Callable, Iterable, Optional
 import pandas as pd
 
 from app.config import load_config, filings_form_lookbacks, filings_max_lookback
+from app.csv_names import csv_filename, csv_path
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 
@@ -253,7 +254,10 @@ def _load_optional_scores(data_dir: str) -> tuple[dict[str, dict], dict[str, dic
 
     by_cik: dict[str, dict] = {}
     by_ticker: dict[str, dict] = {}
-    for filename in ("02_shortlist_candidates.csv", "01_hydrated_candidates.csv"):
+    for filename in (
+        csv_filename("shortlist_candidates"),
+        csv_filename("hydrated_candidates"),
+    ):
         path = os.path.join(data_dir, filename)
         if not os.path.exists(path):
             continue
@@ -287,20 +291,20 @@ def _load_optional_scores(data_dir: str) -> tuple[dict[str, dict], dict[str, dic
 
 
 def run(data_dir: str | None = None, progress_callback: ProgressCallback = None) -> str:
-    """Populate ``05_dr_populate_results.csv`` and return its path."""
+    """Populate the numbered deep-research output and return its path."""
 
     cfg = load_config()
     base_dir = data_dir or cfg.get("Paths", {}).get("data", "./data")
     os.makedirs(base_dir, exist_ok=True)
 
-    runway_path = os.path.join(base_dir, "04_runway_extract_results.csv")
-    filings_path = os.path.join(base_dir, "filings.csv")
-    fda_path = os.path.join(base_dir, "fda.csv")
+    runway_path = csv_path(base_dir, "runway_extract_results")
+    filings_path = csv_path(base_dir, "filings")
+    fda_path = csv_path(base_dir, "fda")
 
     if not os.path.exists(runway_path):
-        raise FileNotFoundError("04_runway_extract_results.csv not found; run parse_q10 stage first")
+        raise FileNotFoundError(f"{csv_filename('runway_extract_results')} not found; run parse_q10 stage first")
     if not os.path.exists(filings_path):
-        raise FileNotFoundError("filings.csv not found; run filings stage first")
+        raise FileNotFoundError(f"{csv_filename('filings')} not found; run filings stage first")
 
     df_runway = pd.read_csv(runway_path, encoding="utf-8")
     df_filings = pd.read_csv(filings_path, encoding="utf-8")
@@ -315,7 +319,7 @@ def run(data_dir: str | None = None, progress_callback: ProgressCallback = None)
     total_rows = len(df_runway)
     _emit("INFO", f"dr_populate start ({total_rows} rows)", progress_callback)
 
-    output_path = os.path.join(base_dir, "05_dr_populate_results.csv")
+    output_path = csv_path(base_dir, "dr_populate_results")
     if df_runway.empty:
         df_runway.to_csv(output_path, index=False, encoding="utf-8")
         _emit("OK", f"dr_populate complete -> {output_path}", progress_callback)

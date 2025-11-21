@@ -9,6 +9,7 @@ import sys
 from typing import Iterable, List, Sequence
 
 from app.config import load_config
+from app.csv_names import csv_filename, csv_path
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 
@@ -203,7 +204,7 @@ def load_research_rows(path: str | None = None) -> list[dict]:
     if path is None:
         cfg = load_config()
         data_dir = cfg.get("Paths", {}).get("data", ".")
-        path = os.path.join(data_dir, "02_shortlist_candidates.csv")
+        path = csv_path(data_dir, "shortlist_candidates")
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found")
@@ -293,7 +294,7 @@ def build_bundle_for_row(row: dict) -> dict:
     }
 
 
-def write_research_results(bundles: Sequence[dict], path: str = "03_deep_research_results.csv") -> None:
+def write_research_results(bundles: Sequence[dict], path: str = csv_filename("deep_research_results")) -> None:
     """Flatten bundles into CSV output for downstream steps."""
     fieldnames = [
         "Ticker",
@@ -374,8 +375,8 @@ def run(data_dir: str | None = None, *, echo: bool = False) -> None:
             cfg = load_config()
             data_dir = cfg.get("Paths", {}).get("data", ".")
 
-        shortlist_path = os.path.join(data_dir, "02_shortlist_candidates.csv")
-        results_path = os.path.join(data_dir, "03_deep_research_results.csv")
+        shortlist_path = csv_path(data_dir, "shortlist_candidates")
+        results_path = csv_path(data_dir, "deep_research_results")
 
         shortlist_rows = load_research_rows(shortlist_path)
         bundles: List[dict] = []
@@ -394,7 +395,7 @@ def run(data_dir: str | None = None, *, echo: bool = False) -> None:
                 progress("OK", f"{ticker}: no dilution flag")
 
         write_research_results(bundles, results_path)
-        progress("OK", "DeepResearch complete -> 03_deep_research_results.csv")
+        progress("OK", f"DeepResearch complete -> {csv_filename('deep_research_results')}")
     finally:
         set_progress_echo(prev_echo)
 

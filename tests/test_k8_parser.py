@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import pandas as pd
 
+from app.csv_names import csv_filename
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from parse import k8 as parse_k8
@@ -110,7 +112,7 @@ def test_k8_watchlist_integration(tmp_path):
             }
         ]
     )
-    filings_df.to_csv(data_dir / "filings.csv", index=False)
+    filings_df.to_csv(data_dir / csv_filename("filings"), index=False)
 
     research_rows = [
         {
@@ -142,20 +144,20 @@ def test_k8_watchlist_integration(tmp_path):
             "OwnershipStatus": "Pass",
         }
     ]
-    pd.DataFrame(research_rows).to_csv(data_dir / "05_dr_populate_results.csv", index=False)
+    pd.DataFrame(research_rows).to_csv(data_dir / csv_filename("dr_populate_results"), index=False)
 
     rows_written, status = build_watchlist.run(data_dir=str(data_dir))
     assert status == "ok"
     assert rows_written == 1
 
-    events_df = pd.read_csv(data_dir / "8k_events.csv")
+    events_df = pd.read_csv(data_dir / csv_filename("eight_k_events"))
     assert len(events_df) == 1
     event_row = events_df.iloc[0]
     assert bool(event_row["IsCatalyst"]) is True
     assert event_row["CatalystType"] == "Tier-1"
     assert event_row["Tier1Type"] == "FUNDED_AWARD"
 
-    validated = pd.read_csv(data_dir / "validated_watchlist.csv")
+    validated = pd.read_csv(data_dir / csv_filename("validated_watchlist"))
     assert len(validated) == 1
     validated_row = validated.iloc[0]
     assert validated_row["CatalystType"] == "Tier-1"

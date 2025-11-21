@@ -10,6 +10,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from app.config import load_config
+from app.csv_names import csv_filename, csv_path
 from app.utils import ensure_csv, log_line, utc_now_iso
 from app.cancel import CancelledRun
 
@@ -279,8 +280,8 @@ def _format_raw_value(value: Optional[float]) -> str:
 
 
 def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
-    research_path = _resolve_path("03_deep_research_results.csv", data_dir)
-    filings_path = _resolve_path("filings.csv", data_dir)
+    research_path = _resolve_path(csv_filename("deep_research_results"), data_dir)
+    filings_path = _resolve_path(csv_filename("filings"), data_dir)
 
     research_rows, fieldnames = _read_csv_rows(research_path)
     filings_rows, _ = _read_csv_rows(filings_path)
@@ -585,7 +586,7 @@ def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
-    output_path = os.path.join(output_dir, "04_runway_extract_results.csv") if output_dir else "04_runway_extract_results.csv"
+    output_path = os.path.join(output_dir, csv_filename("runway_extract_results")) if output_dir else csv_filename("runway_extract_results")
 
     fieldnames_out = list(fieldnames)
     for col in [

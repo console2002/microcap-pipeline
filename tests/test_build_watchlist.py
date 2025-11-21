@@ -3,6 +3,8 @@ import sys
 
 import pandas as pd
 
+from app.csv_names import csv_filename
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app import build_watchlist
@@ -37,7 +39,7 @@ def test_run_drops_dilution_only_catalyst(tmp_path):
         }
     ]
 
-    research_path = data_dir / "05_dr_populate_results.csv"
+    research_path = data_dir / csv_filename("dr_populate_results")
     pd.DataFrame(research_rows).to_csv(research_path, index=False)
 
     rows_written, status = build_watchlist.run(data_dir=str(data_dir))
@@ -45,6 +47,6 @@ def test_run_drops_dilution_only_catalyst(tmp_path):
     assert status == "ok"
     assert rows_written == 0
 
-    output_path = data_dir / "validated_watchlist.csv"
+    output_path = data_dir / csv_filename("validated_watchlist")
     output = output_path.read_text(encoding="utf-8").strip().splitlines()
     assert len(output) == 1  # header only
