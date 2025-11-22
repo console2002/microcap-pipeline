@@ -650,7 +650,7 @@ def _generate_eight_k_events(
             )
 
         now = time.time()
-        if now - last_heartbeat > 60:
+        if now - last_heartbeat > 30:
             _emit(
                 "INFO",
                 f"eight_k: heartbeat processed {processed}/{total_filings}",
