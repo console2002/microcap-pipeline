@@ -254,8 +254,12 @@ def _same_filing_link(base_url: str, href: str) -> Optional[str]:
     if base_dir:
         prefix_lower = base_dir.lower()
         resolved_path = parsed_resolved.path or ""
-        if parsed_resolved.netloc.lower() != "www.sec.gov":
+        resolved_netloc = (parsed_resolved.netloc or "").lower()
+        if not resolved_netloc.endswith("sec.gov"):
             return None
+        if resolved_netloc != "www.sec.gov":
+            parsed_resolved = parsed_resolved._replace(netloc="www.sec.gov")
+            resolved = parsed_resolved.geturl()
         if resolved_path.lower().startswith(prefix_lower):
             return resolved
         return None
