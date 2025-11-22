@@ -6,6 +6,7 @@ import os
 import re
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Callable, Iterable, Optional
@@ -427,6 +428,102 @@ def _read_eight_k_html(url: str) -> tuple[Optional[str], Optional[str]]:
     return raw.decode("utf-8", errors="ignore"), None
 
 
+@dataclass
+class _EightKProcessResult:
+    url: str
+    event: Optional[EightKEvent]
+    csv_row: Optional[dict[str, object]]
+    debug_entry: Optional[list[object]]
+    log_messages: list[str]
+
+
+def _process_eight_k_row(row) -> _EightKProcessResult:
+    url = _clean_text(getattr(row, "URL", ""))
+    if not url:
+        return _EightKProcessResult(url="", event=None, csv_row=None, debug_entry=None, log_messages=[])
+
+    log_messages: list[str] = []
+
+    fetch_started = time.time()
+    html_text, fetch_error = _read_eight_k_html(url)
+    fetch_elapsed = time.time() - fetch_started
+    if fetch_elapsed > 10:
+        log_messages.append(f"eight_k: slow fetch {fetch_elapsed:.1f}s for {url}")
+
+    if html_text is None:
+        debug_entry = [
+            utc_now_iso(),
+            url,
+            f"fetch_failed:{fetch_error}",
+            "",
+            0,
+            0,
+            "",
+        ]
+        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
+
+    form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
+    parse_started = time.time()
+    try:
+        result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
+    except Exception as exc:  # pragma: no cover - unexpected parser failures
+        debug_entry = [
+            utc_now_iso(),
+            url,
+            f"parse_error:{exc}",
+            "",
+            len(html_text.encode("utf-8", errors="ignore")),
+            0,
+            preview_text(html_text),
+        ]
+        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
+
+    parse_elapsed = time.time() - parse_started
+    if parse_elapsed > 10:
+        log_messages.append(f"eight_k: slow parse {parse_elapsed:.1f}s for {url}")
+
+    event = _build_eight_k_event(row, html_text, result)
+    exhibits = result.get("exhibits") or []
+    exhibit_bytes = sum(len(_clean_text(exhibit.get("text", ""))) for exhibit in exhibits)
+
+    if event is None:
+        items = result.get("items") or []
+        items_present = ";".join(item.get("item", "") for item in items if item.get("item"))
+        debug_entry = [
+            utc_now_iso(),
+            url,
+            "no_actionable_items",
+            items_present,
+            len(html_text.encode("utf-8", errors="ignore")),
+            exhibit_bytes,
+            preview_text(html_text),
+        ]
+        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
+
+    csv_row = {
+        "CIK": event.cik,
+        "Ticker": event.ticker,
+        "FilingDate": event.filing_date,
+        "FilingURL": event.filing_url,
+        "ItemsPresent": event.items_present,
+        "IsCatalyst": event.is_catalyst,
+        "CatalystType": event.catalyst_type,
+        "Tier1Type": event.tier1_type,
+        "Tier1Trigger": event.tier1_trigger,
+        "IsDilution": event.is_dilution,
+        "DilutionTags": event.dilution_tags_joined(),
+        "IgnoreReason": event.ignore_reason,
+    }
+
+    return _EightKProcessResult(
+        url=url,
+        event=event,
+        csv_row=csv_row,
+        debug_entry=None,
+        log_messages=log_messages,
+    )
+
+
 def _format_event_label(event: EightKEvent) -> str:
     if not event.is_catalyst:
         return ""
@@ -547,116 +644,45 @@ def _generate_eight_k_events(
 
     last_heartbeat = time.time()
 
-    for row in df.itertuples(index=False):
-        processed += 1
-        url = _clean_text(getattr(row, "URL", ""))
-        if not url:
-            continue
+    _emit("INFO", "eight_k: start", progress_fn)
 
-        if processed <= 3 or processed % max(1, report_every * 2) == 0:
-            _emit("INFO", f"eight_k: fetching {processed}/{total_filings} {url}", progress_fn)
+    max_workers = min(8, max(1, os.cpu_count() or 1))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_process_eight_k_row, row) for row in df.itertuples(index=False)]
 
-        fetch_started = time.time()
-        html_text, fetch_error = _read_eight_k_html(url)
-        fetch_elapsed = time.time() - fetch_started
-        if fetch_elapsed > 10:
-            _emit(
-                "INFO",
-                f"eight_k: slow fetch {fetch_elapsed:.1f}s for {url}",
-                progress_fn,
-            )
-        if html_text is None:
-            debug_entries.append(
-                [
-                    utc_now_iso(),
-                    url,
-                    f"fetch_failed:{fetch_error}",
-                    "",
-                    0,
-                    0,
-                    "",
-                ]
-            )
-            continue
+        for future in as_completed(futures):
+            result = future.result()
+            processed += 1
 
-        form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
-        parse_started = time.time()
-        try:
-            result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
-        except Exception as exc:  # pragma: no cover - unexpected parser failures
-            debug_entries.append(
-                [
-                    utc_now_iso(),
-                    url,
-                    f"parse_error:{exc}",
-                    "",
-                    len(html_text.encode("utf-8", errors="ignore")),
-                    0,
-                    preview_text(html_text),
-                ]
-            )
-            continue
-        parse_elapsed = time.time() - parse_started
-        if parse_elapsed > 10:
-            _emit(
-                "INFO",
-                f"eight_k: slow parse {parse_elapsed:.1f}s for {url}",
-                progress_fn,
-            )
+            if result.url and (processed <= 3 or processed % max(1, report_every * 2) == 0):
+                _emit("INFO", f"eight_k: fetching {processed}/{total_filings} {result.url}", progress_fn)
 
-        event = _build_eight_k_event(row, html_text, result)
-        exhibits = result.get("exhibits") or []
-        exhibit_bytes = sum(len(_clean_text(exhibit.get("text", ""))) for exhibit in exhibits)
-        if event is None:
-            items = result.get("items") or []
-            items_present = ";".join(item.get("item", "") for item in items if item.get("item"))
-            debug_entries.append(
-                [
-                    utc_now_iso(),
-                    url,
-                    "no_actionable_items",
-                    items_present,
-                    len(html_text.encode("utf-8", errors="ignore")),
-                    exhibit_bytes,
-                    preview_text(html_text),
-                ]
-            )
-            continue
+            for log_message in result.log_messages:
+                _emit("INFO", log_message, progress_fn)
 
-        events.append(event)
-        csv_rows.append(
-            {
-                "CIK": event.cik,
-                "Ticker": event.ticker,
-                "FilingDate": event.filing_date,
-                "FilingURL": event.filing_url,
-                "ItemsPresent": event.items_present,
-                "IsCatalyst": event.is_catalyst,
-                "CatalystType": event.catalyst_type,
-                "Tier1Type": event.tier1_type,
-                "Tier1Trigger": event.tier1_trigger,
-                "IsDilution": event.is_dilution,
-                "DilutionTags": event.dilution_tags_joined(),
-                "IgnoreReason": event.ignore_reason,
-            }
-        )
+            if result.debug_entry is not None:
+                debug_entries.append(result.debug_entry)
 
-        if processed == total_filings or processed % report_every == 0:
-            pct = int((processed / total_filings) * 100)
-            _emit(
-                "INFO",
-                f"eight_k: ({pct}%) processed {processed}/{total_filings}",
-                progress_fn,
-            )
+            if result.event is not None and result.csv_row is not None:
+                events.append(result.event)
+                csv_rows.append(result.csv_row)
 
-        now = time.time()
-        if now - last_heartbeat > 30:
-            _emit(
-                "INFO",
-                f"eight_k: heartbeat processed {processed}/{total_filings}",
-                progress_fn,
-            )
-            last_heartbeat = now
+            if processed == total_filings or processed % report_every == 0:
+                pct = int((processed / total_filings) * 100)
+                _emit(
+                    "INFO",
+                    f"eight_k: ({pct}%) processed {processed}/{total_filings}",
+                    progress_fn,
+                )
+
+            now = time.time()
+            if now - last_heartbeat > 30:
+                _emit(
+                    "INFO",
+                    f"eight_k: heartbeat processed {processed}/{total_filings}",
+                    progress_fn,
+                )
+                last_heartbeat = now
 
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
     events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
