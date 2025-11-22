@@ -94,6 +94,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cfg = load_config()
         self.worker = None
         self.is_running = False
+        self.current_stage = None
 
         # live_buffer holds all recent progress msgs so we don't lose them
         self.live_buffer: list[str] = []
@@ -233,8 +234,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label.setText(f"{mode} starting…")
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)
-        self.progress_bar.setValue(0)
+        self._set_stage_progress(stage, 0)
         self.btn_cancel.setEnabled(True)
         self.btn_weekly.setEnabled(False)
         self.btn_daily.setEnabled(False)
@@ -273,7 +273,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.status_label.setText(final_line)
         self.progress_bar.setVisible(False)
-        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.btn_cancel.setEnabled(False)
         self.btn_weekly.setEnabled(True)
@@ -300,23 +300,64 @@ class MainWindow(QtWidgets.QMainWindow):
         # detect stage transitions and embedded percentages consistently.
         body = msg.split("|", 1)[1].strip() if "|" in msg else msg
 
+        stage = self._extract_stage_name(body)
+        if stage:
+            if "start" in body:
+                self._set_stage_progress(stage, 0)
+            elif re.search(r"\b(done|skipped)\b", body):
+                self._set_stage_progress(stage, 100)
+
         match = re.search(r"\((\d{1,3})%\)", msg)
         if match:
             pct = max(0, min(100, int(match.group(1))))
-            if self.progress_bar.maximum() != 100 or self.progress_bar.minimum() != 0:
-                self.progress_bar.setRange(0, 100)
-            self.progress_bar.setValue(pct)
-        else:
-            # Only reset the bar for explicit stage starts; otherwise retain
-            # the last determinate value so parse progress stays visible even
-            # when intermittent log messages do not include percentages.
-            if re.search(r"\bstart\b", body):
-                self.progress_bar.setRange(0, 0)
-                self.progress_bar.setValue(0)
+            self._set_stage_progress(self.current_stage, pct)
 
     def _strip_timestamp(self, message: str) -> str:
         text = message.strip()
         return text.split("|", 1)[1].strip() if "|" in text else text
+
+    def _extract_stage_name(self, body: str) -> str | None:
+        """Return the normalized stage name from a pipeline message."""
+
+        stage_match = re.match(r"^(?P<stage>[a-z_]+):\s+", body)
+        if stage_match:
+            stage = stage_match.group("stage")
+            known_stages = {
+                "universe",
+                "profiles",
+                "filings",
+                "prices",
+                "fda",
+                "hydrate",
+                "shortlist",
+                "deep_research",
+                "parse_q10",
+                "eight_k",
+                "dr_populate",
+                "build_watchlist",
+            }
+            if stage in known_stages:
+                return stage
+        return None
+
+    def _set_stage_progress(self, stage: str | None, value: int) -> None:
+        """Ensure a determinate progress bar for the current stage."""
+
+        clamped = max(0, min(100, value))
+        self.progress_bar.setRange(0, 100)
+        if stage:
+            self.current_stage = stage
+            self.progress_bar.setFormat(f"{self._pretty_stage_label(stage)} %p%")
+        self.progress_bar.setValue(clamped)
+
+    def _pretty_stage_label(self, stage: str) -> str:
+        custom = {
+            "eight_k": "8-K",
+            "dr_populate": "Populate DR",
+        }
+        if stage in custom:
+            return custom[stage]
+        return stage.replace("_", " ").title()
 
     def _update_parse_progress(self, form_stats: dict[str, FormCount]) -> None:
         self.parse_stats_view.update_from_tracker(form_stats)
