@@ -641,6 +641,8 @@ def _generate_eight_k_events(
     debug_entries: list[list[object]] = []
 
     processed = 0
+    last_reported_parsed = 0
+    last_reported_failed = 0
 
     last_heartbeat = time.time()
 
@@ -662,16 +664,30 @@ def _generate_eight_k_events(
 
             if result.debug_entry is not None:
                 debug_entries.append(result.debug_entry)
+                if len(debug_entries) != last_reported_failed:
+                    last_reported_failed = len(debug_entries)
+                    _emit(
+                        "INFO",
+                        f"eight_k: failed {last_reported_failed}",
+                        progress_fn,
+                    )
 
             if result.event is not None and result.csv_row is not None:
                 events.append(result.event)
                 csv_rows.append(result.csv_row)
+                if len(events) != last_reported_parsed:
+                    last_reported_parsed = len(events)
+                    _emit(
+                        "INFO",
+                        f"eight_k: parsed {last_reported_parsed}",
+                        progress_fn,
+                    )
 
             if processed == total_filings or processed % report_every == 0:
                 pct = int((processed / total_filings) * 100)
                 _emit(
                     "INFO",
-                    f"eight_k: ({pct}%) processed {processed}/{total_filings}",
+                    f"eight_k: ({pct}%) processed {processed}/{total_filings} (parsed {len(events)} failed {len(debug_entries)})",
                     progress_fn,
                 )
 
@@ -679,7 +695,7 @@ def _generate_eight_k_events(
             if now - last_heartbeat > 30:
                 _emit(
                     "INFO",
-                    f"eight_k: heartbeat processed {processed}/{total_filings}",
+                    f"eight_k: heartbeat processed {processed}/{total_filings} (parsed {len(events)} failed {len(debug_entries)})",
                     progress_fn,
                 )
                 last_heartbeat = now

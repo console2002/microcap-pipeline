@@ -320,6 +320,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """Return the normalized stage name from a pipeline message."""
 
         stage_match = re.match(r"^(?P<stage>[a-z_]+):\s+", body)
+        if not stage_match:
+            stage_match = re.match(r"^\[(?P<stage>[a-z_]+)\]\s+", body)
+
         if stage_match:
             stage = stage_match.group("stage")
             known_stages = {
