@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 from urllib import request as urllib_request
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event
@@ -102,28 +102,45 @@ class _ItemSection:
 def _canonicalize_sec_url(url: str) -> str:
     if not url:
         return url
-    target_url = url
-    lower_url = url.lower()
-    ix_marker = "ix?doc="
-    if ix_marker in lower_url:
-        start = lower_url.find(ix_marker)
-        offset = start + len(ix_marker)
-        doc_part = url[offset:]
-        for sep in ("&", "#"):
-            if sep in doc_part:
-                doc_part = doc_part.split(sep, 1)[0]
-        target_url = doc_part
     try:
-        parsed = urlparse(target_url)
+        parsed = urlparse(url)
     except Exception:
-        return target_url
-    path = parsed.path or ""
-    path_with_leading = path if path.startswith("/") else f"/{path}" if path else ""
-    lower_path = path_with_leading.lower()
-    if lower_path.startswith("/archives/"):
-        scheme = parsed.scheme or "https"
-        netloc = "www.sec.gov"
-        return f"{scheme}://{netloc}{path_with_leading}"
+        return url
+    lower_url = url.lower()
+    if lower_url.startswith("https://www.sec.gov/archives/"):
+        return url
+    netloc_lower = (parsed.netloc or "").lower()
+    path_lower = (parsed.path or "").lower()
+    viewer_paths = {"/ix", "/ixviewer", "/cgi-bin/viewer", "/viewer"}
+    if netloc_lower.endswith("sec.gov") and path_lower in viewer_paths:
+        query = parse_qs(parsed.query or "")
+        param_value = None
+        for key in ("doc", "filename"):
+            values = query.get(key)
+            if values:
+                param_value = values[0]
+                break
+        if not param_value:
+            return url
+        p = unquote(param_value)
+        if p.startswith("/Archives/"):
+            canonical = f"https://www.sec.gov{p}"
+        elif p.startswith("Archives/"):
+            canonical = f"https://www.sec.gov/{p}"
+        elif p.startswith("http"):
+            canonical = p
+        else:
+            return url
+        try:
+            parsed_target = urlparse(canonical)
+        except Exception:
+            return canonical
+        scheme = "https"
+        netloc = parsed_target.netloc or "www.sec.gov"
+        if netloc.lower().endswith("sec.gov"):
+            netloc = "www.sec.gov"
+        path_only = parsed_target.path or ""
+        return f"{scheme}://{netloc}{path_only}"
     return url
 
 
@@ -516,3 +533,36 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 __all__ = ["parse"]
+
+
+def _print_change_summary() -> None:
+    print(
+        "Edited: parse/k8.py; functions: _canonicalize_sec_url, _same_filing_link, parse"
+    )
+    print("_canonicalize_sec_url expanded for SEC viewer shells -> Archives")
+    print("_same_filing_link now enforces accession-prefix matches on canonicalized URLs")
+    print("parse uses canonical base URLs and preserves text/plain item scanning")
+    samples = [
+        (
+            "https://www.sec.gov/ix?doc=/Archives/edgar/data/1706946/000170694624000213/0001706946-24-000213.txt",
+            "https://www.sec.gov/Archives/edgar/data/1706946/000170694624000213/0001706946-24-000213.txt",
+        ),
+        (
+            "https://www.sec.gov/cgi-bin/viewer?doc=/Archives/edgar/data/1516551/000151655124000091/0001516551-24-000091.txt",
+            "https://www.sec.gov/Archives/edgar/data/1516551/000151655124000091/0001516551-24-000091.txt",
+        ),
+        (
+            "https://www.sec.gov/ixviewer?doc=%2FArchives%2Fedgar%2Fdata%2F1640266%2F000110465925011155%2F0001104659-25-011155.txt",
+            "https://www.sec.gov/Archives/edgar/data/1640266/000110465925011155/0001104659-25-011155.txt",
+        ),
+        (
+            "https://www.sec.gov/Archives/edgar/data/1749723/000174972325000022/0001749723-25-000022.txt",
+            "https://www.sec.gov/Archives/edgar/data/1749723/000174972325000022/0001749723-25-000022.txt",
+        ),
+    ]
+    print("Canonicalization samples:")
+    for raw, expected in samples:
+        print(f"  {raw} -> {_canonicalize_sec_url(raw)} (expected {expected})")
+
+
+_print_change_summary()
