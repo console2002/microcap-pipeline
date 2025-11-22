@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import os
 import re
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -511,6 +512,8 @@ def _generate_eight_k_events(
         _emit("INFO", "eight_k: failed 0", progress_fn)
         return events_df, EightKLookup([])
 
+    _emit("INFO", f"eight_k: loading filings from {filings_path}", progress_fn)
+
     filings_df = pd.read_csv(filings_path, encoding="utf-8")
     if filings_df.empty or "Form" not in filings_df.columns or "URL" not in filings_df.columns:
         events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
@@ -532,6 +535,7 @@ def _generate_eight_k_events(
     df = df.drop_duplicates(subset=["URL"], keep="last")
 
     total_filings = len(df.index)
+    _emit("INFO", f"eight_k: {total_filings} unique 8-K filings queued", progress_fn)
     _emit("INFO", f"eight_k: (0%) processing {total_filings} filings", progress_fn)
     report_every = max(1, total_filings // 20)
 
@@ -541,12 +545,26 @@ def _generate_eight_k_events(
 
     processed = 0
 
+    last_heartbeat = time.time()
+
     for row in df.itertuples(index=False):
         processed += 1
         url = _clean_text(getattr(row, "URL", ""))
         if not url:
             continue
+
+        if processed <= 3 or processed % max(1, report_every * 2) == 0:
+            _emit("INFO", f"eight_k: fetching {processed}/{total_filings} {url}", progress_fn)
+
+        fetch_started = time.time()
         html_text, fetch_error = _read_eight_k_html(url)
+        fetch_elapsed = time.time() - fetch_started
+        if fetch_elapsed > 10:
+            _emit(
+                "INFO",
+                f"eight_k: slow fetch {fetch_elapsed:.1f}s for {url}",
+                progress_fn,
+            )
         if html_text is None:
             debug_entries.append(
                 [
@@ -562,6 +580,7 @@ def _generate_eight_k_events(
             continue
 
         form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
+        parse_started = time.time()
         try:
             result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
         except Exception as exc:  # pragma: no cover - unexpected parser failures
@@ -577,6 +596,13 @@ def _generate_eight_k_events(
                 ]
             )
             continue
+        parse_elapsed = time.time() - parse_started
+        if parse_elapsed > 10:
+            _emit(
+                "INFO",
+                f"eight_k: slow parse {parse_elapsed:.1f}s for {url}",
+                progress_fn,
+            )
 
         event = _build_eight_k_event(row, html_text, result)
         exhibits = result.get("exhibits") or []
@@ -622,6 +648,15 @@ def _generate_eight_k_events(
                 f"eight_k: ({pct}%) processed {processed}/{total_filings}",
                 progress_fn,
             )
+
+        now = time.time()
+        if now - last_heartbeat > 60:
+            _emit(
+                "INFO",
+                f"eight_k: heartbeat processed {processed}/{total_filings}",
+                progress_fn,
+            )
+            last_heartbeat = now
 
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
     events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
