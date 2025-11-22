@@ -26,7 +26,8 @@ class ParseProgressTracker:
         self.ticker_last_key: dict[str, tuple[str, str, str]] = {}
         self.ticker_outcomes: set[tuple[str, str, str]] = set()
         self.compute_events: set[tuple[str, str, str]] = set()
-        self.eight_k_parsed = 0
+        self.eight_k_processed = 0
+        self.eight_k_success = 0
         self.eight_k_failed = 0
 
     def reset(self) -> None:
@@ -35,18 +36,19 @@ class ParseProgressTracker:
         self.ticker_last_key = {}
         self.ticker_outcomes = set()
         self.compute_events = set()
-        self.eight_k_parsed = 0
+        self.eight_k_processed = 0
+        self.eight_k_success = 0
         self.eight_k_failed = 0
         self._update_eight_k_stats()
         self._notify()
 
     def _update_eight_k_stats(self) -> None:
-        if self.eight_k_parsed == 0 and self.eight_k_failed == 0:
+        if self.eight_k_processed == 0 and self.eight_k_failed == 0 and self.eight_k_success == 0:
             self.form_stats.pop("8-K Events", None)
             return
         stats = self.form_stats.setdefault("8-K Events", FormCount())
-        stats.parsed = self.eight_k_parsed
-        stats.valid = max(self.eight_k_parsed - self.eight_k_failed, 0)
+        stats.parsed = max(self.eight_k_processed, self.eight_k_success + self.eight_k_failed)
+        stats.valid = self.eight_k_success
         stats.missing = self.eight_k_failed
         stats.ensure_consistency()
 
@@ -93,7 +95,8 @@ class ParseProgressTracker:
         if not body:
             return False
         if body.startswith("start"):
-            self.eight_k_parsed = 0
+            self.eight_k_processed = 0
+            self.eight_k_success = 0
             self.eight_k_failed = 0
             self._update_eight_k_stats()
             return True
@@ -101,15 +104,15 @@ class ParseProgressTracker:
         progress_match = re.search(r"processed\s+(\d+)/(\d+)", body)
         if progress_match:
             progress_value = int(progress_match.group(1))
-            if progress_value != self.eight_k_parsed:
-                self.eight_k_parsed = progress_value
+            if progress_value != self.eight_k_processed:
+                self.eight_k_processed = progress_value
                 changed = True
-        parsed_match = re.match(r"parsed\s+(\d+)", body)
-        failed_match = re.match(r"failed\s+(\d+)", body)
+        parsed_match = re.search(r"parsed\s+(\d+)", body)
+        failed_match = re.search(r"failed\s+(\d+)", body)
         if parsed_match:
             parsed_value = int(parsed_match.group(1))
-            if parsed_value != self.eight_k_parsed:
-                self.eight_k_parsed = parsed_value
+            if parsed_value != self.eight_k_success:
+                self.eight_k_success = parsed_value
                 changed = True
         if failed_match:
             failed_value = int(failed_match.group(1))
