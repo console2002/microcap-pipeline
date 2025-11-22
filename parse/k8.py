@@ -167,8 +167,11 @@ def _extract_accession_parts(canonical_path: str) -> tuple[str, str] | None:
     )
     if not match:
         return None
-    cik = match.group(1).strip().lower()
+    cik_raw = match.group(1).strip()
     accession = match.group(2).strip()
+    if not cik_raw or not accession:
+        return None
+    cik = cik_raw.lstrip("0") or "0"
     if not cik or not accession:
         return None
     return cik, accession
@@ -528,6 +531,12 @@ def _prepare_items_and_classification(
 def parse(url: str, html: str | None = None, form_hint: str | None = None) -> dict:
     form_type = form_hint or "8-K"
     base_url = _canonicalize_sec_url(url)
+    parsed = urlparse(base_url)
+    host_l = (parsed.netloc or "").lower()
+    path_l = (parsed.path or "").lower()
+    is_sec_archives = host_l.endswith("sec.gov") and path_l.startswith("/archives/edgar/data/")
+    is_html = path_l.endswith(".htm") or path_l.endswith(".html")
+    base_parts = _extract_accession_parts(parsed.path or "")
     parsed_original = urlparse(url)
     original_path_lower = (parsed_original.path or "").lower()
     original_netloc_lower = (parsed_original.netloc or "").lower()
@@ -554,8 +563,7 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     items_payload: list[dict] = []
     used_url = base_url
 
-    parsed_base = urlparse(base_url)
-    base_parts = _extract_accession_parts(parsed_base.path or "")
+    parsed_base = parsed
     master_txt_cached: Optional[str] = None
     master_txt_url: Optional[str] = None
 
@@ -565,15 +573,17 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     master_filing_date: Optional[str] = None
     master_items_payload: list[dict] = []
 
-    if is_viewer and base_parts:
+    if base_parts and (is_viewer or (is_sec_archives and is_html)):
         cik, acc = base_parts
         master_txt_url = _accession_master_txt(cik, acc)
-        master_text_raw, _ = _fetch_html(master_txt_url, None)
-        if master_text_raw:
-            master_txt_cached = unescape_html_entities(
-                master_text_raw.replace("\u00A0", " "),
-                context=master_txt_url,
-            )
+        if master_txt_cached is None:
+            master_text_raw, _ = _fetch_html(master_txt_url, None)
+            if master_text_raw:
+                master_txt_cached = unescape_html_entities(
+                    master_text_raw.replace("\u00A0", " "),
+                    context=master_txt_url,
+                )
+        if master_txt_cached:
             (
                 master_items,
                 master_exhibits,
@@ -629,7 +639,6 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
         )
         used_url = base_url
 
-        filename = Path(parsed_base.path or "").name
         fallback_needed = not target_items
         if fallback_needed and (parsed_base.netloc or "").lower().endswith("sec.gov"):
             parts = base_parts
@@ -689,7 +698,9 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 def _print_change_summary() -> None:
-    print("k8: viewer-first master .txt fallback enabled; FilingURL set to master_txt when available.")
+    print(
+        "k8: unconditional master .txt-first for SEC Archives HTML; FilingURL prefers accession .txt when items found."
+    )
 
 
 if __name__ == "__main__":
