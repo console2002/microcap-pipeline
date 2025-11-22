@@ -318,29 +318,62 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refresh_logs(self):
         """
-        Mirror runlog.csv into the live log when idle.
+        Mirror progress/run logs into the live log when idle.
         While a run is active we never overwrite live_buffer so the tail stays
         intact for the entire execution.
         """
-        paths = load_config()["Paths"]
-        runlog_path = os.path.join(paths["logs"], "runlog.csv")
-        runlog_txt = self._read_file(runlog_path)
+        if self.is_running or self.tail_from_live_run:
+            return
 
-        if not self.is_running and not self.tail_from_live_run:
-            # when idle and not currently showing an in-memory run log,
-            # mirror runlog.csv into the live panel as a convenience.
-            lines = runlog_txt.splitlines()
-            if lines and lines[0].startswith("timestamp"):
-                lines = lines[1:]
-            self.live_buffer = [line for line in lines if line]
-            self.tail_from_live_run = False
-            self._render_live_buffer()
+        paths = load_config()["Paths"]
+        logs_dir = paths.get("logs", "")
+        progress_path = os.path.join(logs_dir, "progress.csv")
+        runlog_path = os.path.join(logs_dir, "runlog.csv")
+
+        # Prefer progress.csv because it contains detailed parse status (e.g. 8-K
+        # percentages), and fall back to runlog.csv when unavailable.
+        lines = self._load_progress_lines(progress_path)
+        if not lines:
+            lines = self._load_runlog_lines(runlog_path)
+
+        self.live_buffer = lines
+        self.tail_from_live_run = False
+        self._render_live_buffer()
 
     def _read_file(self, path: str) -> str:
         if not os.path.exists(path):
             return ""
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def _load_progress_lines(self, path: str) -> list[str]:
+        content = self._read_file(path)
+        if not content:
+            return []
+
+        lines = content.splitlines()
+        if lines and lines[0].lower().startswith("timestamp"):
+            lines = lines[1:]
+
+        formatted: list[str] = []
+        for line in lines[-500:]:  # cap to avoid huge in-memory tails
+            parts = line.split(",", 2)
+            if len(parts) == 3:
+                ts, _, message = parts
+                formatted.append(f"{ts} | {message}")
+            elif line:
+                formatted.append(line)
+        return formatted
+
+    def _load_runlog_lines(self, path: str) -> list[str]:
+        content = self._read_file(path)
+        if not content:
+            return []
+
+        lines = content.splitlines()
+        if lines and lines[0].lower().startswith("timestamp"):
+            lines = lines[1:]
+        return [line for line in lines[-500:] if line]
 
     def load_cfg_into_editor(self):
         cfg = load_config()
