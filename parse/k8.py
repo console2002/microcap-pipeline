@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 from urllib import request as urllib_request
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event
@@ -102,36 +102,28 @@ class _ItemSection:
 def _canonicalize_sec_url(url: str) -> str:
     if not url:
         return url
+    target_url = url
+    lower_url = url.lower()
+    ix_marker = "ix?doc="
+    if ix_marker in lower_url:
+        start = lower_url.find(ix_marker)
+        offset = start + len(ix_marker)
+        doc_part = url[offset:]
+        for sep in ("&", "#"):
+            if sep in doc_part:
+                doc_part = doc_part.split(sep, 1)[0]
+        target_url = doc_part
     try:
-        parsed = urlparse(url)
+        parsed = urlparse(target_url)
     except Exception:
-        return url
-    scheme = parsed.scheme or "https"
-    netloc = parsed.netloc or ""
+        return target_url
     path = parsed.path or ""
-    lower_host = netloc.lower()
-    lower_path = path.lower()
-    if lower_host.endswith("sec.gov"):
-        canonical_host = "www.sec.gov"
-        viewer_paths = ("/ix", "/ixviewer", "/cgi-bin/viewer")
-        if any(lower_path.startswith(prefix) for prefix in viewer_paths):
-            query = parse_qs(parsed.query or "")
-            candidates = query.get("doc") or []
-            for candidate in candidates:
-                doc = candidate.strip()
-                if not doc:
-                    continue
-                if "?" in doc:
-                    doc = doc.split("?", 1)[0]
-                if doc.startswith("http://") or doc.startswith("https://"):
-                    return _canonicalize_sec_url(doc)
-                if not doc.startswith("/"):
-                    doc = f"/{doc}"
-                return f"https://{canonical_host}{doc}"
-        query = f"?{parsed.query}" if parsed.query else ""
-        fragment = f"#{parsed.fragment}" if parsed.fragment else ""
-        params = f";{parsed.params}" if parsed.params else ""
-        return f"{scheme}://{canonical_host}{path}{params}{query}{fragment}"
+    path_with_leading = path if path.startswith("/") else f"/{path}" if path else ""
+    lower_path = path_with_leading.lower()
+    if lower_path.startswith("/archives/"):
+        scheme = parsed.scheme or "https"
+        netloc = "www.sec.gov"
+        return f"{scheme}://{netloc}{path_with_leading}"
     return url
 
 
@@ -240,13 +232,14 @@ def _same_filing_link(base_url: str, href: str) -> Optional[str]:
     parsed_base = urlparse(canonical_base)
     parsed_resolved = urlparse(resolved)
     base_dir = _accession_directory(parsed_base.path or "")
-    resolved_dir = _accession_directory(parsed_resolved.path or "")
-    if base_dir and resolved_dir:
+    if base_dir:
+        prefix_lower = base_dir.lower()
+        resolved_path = parsed_resolved.path or ""
         if parsed_resolved.netloc.lower() != "www.sec.gov":
             return None
-        if base_dir.lower() != resolved_dir.lower():
-            return None
-        return resolved
+        if resolved_path.lower().startswith(prefix_lower):
+            return resolved
+        return None
     # Fallback for local fixtures (file:// paths)
     if parsed_base.scheme == parsed_resolved.scheme == "file":
         base_path = parsed_base.path or ""
@@ -442,7 +435,8 @@ def _best_effort_filing_date(text: str) -> Optional[str]:
 
 def parse(url: str, html: str | None = None, form_hint: str | None = None) -> dict:
     form_type = form_hint or "8-K"
-    html_text, is_plain = _fetch_html(url, html)
+    canonical_url = _canonicalize_sec_url(url)
+    html_text, is_plain = _fetch_html(canonical_url, html)
     if not html_text:
         log_parse_event(logging.DEBUG, "8k missing html", url=url)
         return {
@@ -463,9 +457,12 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
             },
         }
 
-    canonical_url = _canonicalize_sec_url(url)
-    unescaped = unescape_html_entities(html_text, context=url)
-    text = _html_to_text(unescaped)
+    if is_plain:
+        plain_text = unescape_html_entities(html_text.replace("\u00A0", " "), context=canonical_url)
+        text = plain_text
+    else:
+        unescaped = unescape_html_entities(html_text, context=canonical_url)
+        text = _html_to_text(unescaped)
     sections = _split_item_sections(text)
     target_items = _gather_target_items(sections)
 
