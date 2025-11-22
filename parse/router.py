@@ -436,12 +436,9 @@ def _user_agent() -> str:
     return _USER_AGENT
 
 
-_FETCH_TIMEOUT_SECS = 15
-
-
 def _fetch_url(url: str) -> bytes:
     req = request.Request(url, headers={"User-Agent": _user_agent()})
-    with request.urlopen(req, timeout=_FETCH_TIMEOUT_SECS) as response:
+    with request.urlopen(req) as response:
         return response.read()
 
 

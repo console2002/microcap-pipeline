@@ -92,6 +92,11 @@ class ParseProgressTracker:
         body = detail[len("eight_k:"):].strip()
         if not body:
             return False
+        if body.startswith("start"):
+            self.eight_k_parsed = 0
+            self.eight_k_failed = 0
+            self._update_eight_k_stats()
+            return True
         changed = False
         parsed_match = re.match(r"parsed\s+(\d+)", body)
         failed_match = re.match(r"failed\s+(\d+)", body)

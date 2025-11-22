@@ -255,13 +255,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_progress(self, msg: str):
         # append to live buffer
         self.tail_from_live_run = True
-        self.live_buffer.append(msg)
+        cleaned = self._strip_timestamp(msg)
+        self.live_buffer.append(cleaned)
         self._render_live_buffer(append_only=True)
 
         # update status label with the most recent message
-        self.status_label.setText(msg)
-        self._update_progress_bar_from_msg(msg)
-        self.parse_tracker.process_message(msg)
+        self.status_label.setText(cleaned)
+        self._update_progress_bar_from_msg(cleaned)
+        self.parse_tracker.process_message(cleaned)
 
     def on_finished(self, msg: str):
         self.is_running = False
@@ -313,6 +314,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.progress_bar.setRange(0, 0)
                 self.progress_bar.setValue(0)
 
+    def _strip_timestamp(self, message: str) -> str:
+        text = message.strip()
+        return text.split("|", 1)[1].strip() if "|" in text else text
+
     def _update_parse_progress(self, form_stats: dict[str, FormCount]) -> None:
         self.parse_stats_view.update_from_tracker(form_stats)
 
@@ -359,10 +364,11 @@ class MainWindow(QtWidgets.QMainWindow):
         for line in lines[-500:]:  # cap to avoid huge in-memory tails
             parts = line.split(",", 2)
             if len(parts) == 3:
-                ts, _, message = parts
-                formatted.append(f"{ts} | {message}")
+                _, status, message = parts
+                combined = f"{status.strip()} {message.strip()}".strip()
+                formatted.append(combined if combined else message.strip())
             elif line:
-                formatted.append(line)
+                formatted.append(self._strip_timestamp(line))
         return formatted
 
     def _load_runlog_lines(self, path: str) -> list[str]:
@@ -373,7 +379,18 @@ class MainWindow(QtWidgets.QMainWindow):
         lines = content.splitlines()
         if lines and lines[0].lower().startswith("timestamp"):
             lines = lines[1:]
-        return [line for line in lines[-500:] if line]
+        formatted: list[str] = []
+        for line in lines[-500:]:
+            if not line:
+                continue
+            parts = line.split(",", 2)
+            if len(parts) == 3:
+                _, status, message = parts
+                combined = f"{status.strip()} {message.strip()}".strip()
+                formatted.append(combined if combined else message.strip())
+            else:
+                formatted.append(self._strip_timestamp(line))
+        return formatted
 
     def load_cfg_into_editor(self):
         cfg = load_config()
