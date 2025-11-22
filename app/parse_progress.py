@@ -98,6 +98,12 @@ class ParseProgressTracker:
             self._update_eight_k_stats()
             return True
         changed = False
+        progress_match = re.search(r"processed\s+(\d+)/(\d+)", body)
+        if progress_match:
+            progress_value = int(progress_match.group(1))
+            if progress_value != self.eight_k_parsed:
+                self.eight_k_parsed = progress_value
+                changed = True
         parsed_match = re.match(r"parsed\s+(\d+)", body)
         failed_match = re.match(r"failed\s+(\d+)", body)
         if parsed_match:
