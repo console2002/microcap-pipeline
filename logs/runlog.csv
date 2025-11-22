@@ -1,12 +1,20 @@
 timestamp,module,rows_added,duration_ms,note
-2025-11-22T18:02:40.707191+00:00,SEC_universe,8960,1519,loaded
-2025-11-22T18:07:51.961307+00:00,profiles,208,311251,append+purge
-2025-11-22T18:08:28.675440+00:00,filings,3589,36691,append+purge
-2025-11-22T18:09:10.033073+00:00,prices,10883,41108,append+purge
-2025-11-22T18:09:10.624212+00:00,hydrate,208,557,write 05_hydrated_candidates.csv
-2025-11-22T18:09:10.662733+00:00,shortlist,131,36,write 06_shortlist_candidates.csv
-2025-11-22T18:09:11.107969+00:00,deep_research,131,442,write 07_deep_research_results.csv
-2025-11-22T18:13:42.485330+00:00,parse_q10,131,271374,write 08_runway_extract_results.csv
-2025-11-22T18:23:31.037187+00:00,parse_8k,97,588549,write 09_8k_events.csv
-2025-11-22T18:23:32.977722+00:00,dr_populate,131,1939,write 10_dr_populate_results.csv
-2025-11-22T18:23:35.108375+00:00,build_watchlist,11,2129,write validated_watchlist
+2025-11-22T20:08:32.737640+00:00,SEC_universe,8960,1763,loaded
+2025-11-22T20:13:44.187023+00:00,profiles,209,311446,append+purge
+2025-11-22T20:14:18.747140+00:00,filings,3613,34534,append+purge
+2025-11-22T20:15:00.495951+00:00,prices,10943,41644,append+purge
+2025-11-22T20:15:00.999903+00:00,hydrate,209,453,write 05_hydrated_candidates.csv
+2025-11-22T20:15:01.043908+00:00,shortlist,132,42,write 06_shortlist_candidates.csv
+2025-11-22T20:15:01.402798+00:00,deep_research,132,355,write 07_deep_research_results.csv
+2025-11-22T20:18:37.785231+00:00,parse_q10,132,216379,write 08_runway_extract_results.csv
+2025-11-22T20:36:03.561948+00:00,SEC_universe,8960,1387,loaded
+2025-11-22T20:41:15.079752+00:00,profiles,208,311515,append+purge
+2025-11-22T20:41:44.252351+00:00,filings,3589,29145,append+purge
+2025-11-22T20:42:29.142516+00:00,prices,10883,44790,append+purge
+2025-11-22T20:42:29.552886+00:00,hydrate,208,356,write 05_hydrated_candidates.csv
+2025-11-22T20:42:29.583192+00:00,shortlist,131,29,write 06_shortlist_candidates.csv
+2025-11-22T20:42:29.929856+00:00,deep_research,131,343,write 07_deep_research_results.csv
+2025-11-22T20:46:18.691183+00:00,parse_q10,131,228759,write 08_runway_extract_results.csv
+2025-11-22T21:16:43.129414+00:00,parse_8k,97,1034141,write 09_8k_events.csv
+2025-11-22T21:16:45.025104+00:00,dr_populate,131,1894,write 10_dr_populate_results.csv
+2025-11-22T21:16:47.627890+00:00,build_watchlist,11,2601,write validated_watchlist
