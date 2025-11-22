@@ -167,7 +167,7 @@ def _extract_accession_parts(canonical_path: str) -> tuple[str, str] | None:
     )
     if not match:
         return None
-    cik = match.group(1).strip()
+    cik = match.group(1).strip().lower()
     accession = match.group(2).strip()
     if not cik or not accession:
         return None
@@ -553,12 +553,17 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     filing_date: Optional[str] = None
     items_payload: list[dict] = []
     used_url = base_url
-    used_is_plain = False
 
     parsed_base = urlparse(base_url)
     base_parts = _extract_accession_parts(parsed_base.path or "")
     master_txt_cached: Optional[str] = None
     master_txt_url: Optional[str] = None
+
+    master_items: list[_ItemSection] = []
+    master_exhibits: list[dict[str, str]] = []
+    master_classification: dict = classification
+    master_filing_date: Optional[str] = None
+    master_items_payload: list[dict] = []
 
     if is_viewer and base_parts:
         cik, acc = base_parts
@@ -570,20 +575,25 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
                 context=master_txt_url,
             )
             (
-                target_items,
-                exhibits_info,
-                classification,
-                filing_date,
-                items_payload,
+                master_items,
+                master_exhibits,
+                master_classification,
+                master_filing_date,
+                master_items_payload,
             ) = _prepare_items_and_classification(
                 master_txt_cached,
                 True,
                 master_txt_url,
                 None,
             )
-            if target_items:
-                used_url = master_txt_url
-                used_is_plain = True
+
+    if master_items:
+        target_items = master_items
+        exhibits_info = master_exhibits
+        classification = master_classification
+        filing_date = master_filing_date
+        items_payload = master_items_payload
+        used_url = master_txt_url or used_url
 
     if not target_items:
         html_text, is_plain = _fetch_html(base_url, html)
@@ -618,10 +628,9 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
             unescaped,
         )
         used_url = base_url
-        used_is_plain = is_plain
 
         filename = Path(parsed_base.path or "").name
-        fallback_needed = not target_items or _is_exhibit_like(filename)
+        fallback_needed = not target_items
         if fallback_needed and (parsed_base.netloc or "").lower().endswith("sec.gov"):
             parts = base_parts
             if parts:
@@ -655,7 +664,6 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
                         filing_date = fallback_filing_date
                         items_payload = fallback_items_payload
                         used_url = master_txt
-                        used_is_plain = True
 
     log_parse_event(
         logging.DEBUG,
@@ -681,22 +689,7 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 def _print_change_summary() -> None:
-    print("k8: viewer-first master .txt parsing ENABLED")
-    print(
-        "a) https://www.sec.gov/ix?doc=/Archives/edgar/data/1640266/000110465925011155/"
-        "tm2517216d2_8k.htm -> https://www.sec.gov/Archives/edgar/data/1640266/"
-        "000110465925011155/000110465925011155.txt"
-    )
-    print(
-        "b) https://www.sec.gov/cgi-bin/viewer?doc=/Archives/edgar/data/842517/"
-        "000084251724000204/isba_2024q4xdivannxex991.htm -> https://www.sec.gov/"
-        "Archives/edgar/data/842517/000084251724000204/000084251724000204.txt"
-    )
-    print(
-        "c) https://www.sec.gov/ix?doc=/Archives/edgar/data/1782430/000149315225021084/"
-        "form8-k.htm -> https://www.sec.gov/Archives/edgar/data/1782430/"
-        "000149315225021084/000149315225021084.txt"
-    )
+    print("k8: viewer-first master .txt fallback enabled; FilingURL set to master_txt when available.")
 
 
 if __name__ == "__main__":
