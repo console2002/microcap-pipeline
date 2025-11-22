@@ -160,7 +160,11 @@ def _is_exhibit_like(path_or_filename: str) -> bool:
 def _extract_accession_parts(canonical_path: str) -> tuple[str, str] | None:
     if not canonical_path:
         return None
-    match = re.search(r"/archives/edgar/data/([^/]+)/([^/]+)/", canonical_path, re.IGNORECASE)
+    match = re.search(
+        r"/archives/edgar/data/([^/]+)/([0-9-]+)(?:/|$)",
+        canonical_path,
+        re.IGNORECASE,
+    )
     if not match:
         return None
     cik = match.group(1).strip()
@@ -524,77 +528,134 @@ def _prepare_items_and_classification(
 def parse(url: str, html: str | None = None, form_hint: str | None = None) -> dict:
     form_type = form_hint or "8-K"
     base_url = _canonicalize_sec_url(url)
-    html_text, is_plain = _fetch_html(base_url, html)
-    if not html_text:
-        log_parse_event(logging.DEBUG, "8k missing html", url=url)
-        return {
-            "complete": False,
-            "url": base_url,
-            "form_type": form_type,
-            "filing_date": None,
-            "items": [],
-            "exhibits": [],
-            "classification": {
-                "is_catalyst": False,
-                "tier": None,
-                "tier1_type": None,
-                "tier1_trigger": None,
-                "is_dilution": False,
-                "dilution_tags": [],
-                "ignore_reason": "html_unavailable",
-            },
-        }
-
-    if is_plain:
-        text = unescape_html_entities(html_text.replace("\u00A0", " "), context=base_url)
-        unescaped = None
-    else:
-        unescaped = unescape_html_entities(html_text, context=base_url)
-        text = _html_to_text(unescaped)
-    target_items, exhibits_info, classification, filing_date, items_payload = _prepare_items_and_classification(
-        text,
-        is_plain,
-        base_url,
-        unescaped,
+    parsed_original = urlparse(url)
+    original_path_lower = (parsed_original.path or "").lower()
+    original_netloc_lower = (parsed_original.netloc or "").lower()
+    viewer_paths = {"/ix", "/ixviewer", "/cgi-bin/viewer", "/viewer"}
+    original_query = parse_qs(parsed_original.query or "")
+    is_viewer = bool(
+        original_netloc_lower.endswith("sec.gov")
+        and original_path_lower in viewer_paths
+        and any(original_query.get(key) for key in ("doc", "filename"))
     )
 
+    target_items: list[_ItemSection] = []
+    exhibits_info: list[dict[str, str]] = []
+    classification: dict = {
+        "is_catalyst": False,
+        "tier": None,
+        "tier1_type": None,
+        "tier1_trigger": None,
+        "is_dilution": False,
+        "dilution_tags": [],
+        "ignore_reason": "html_unavailable",
+    }
+    filing_date: Optional[str] = None
+    items_payload: list[dict] = []
     used_url = base_url
-    used_is_plain = is_plain
+    used_is_plain = False
 
     parsed_base = urlparse(base_url)
-    filename = Path(parsed_base.path or "").name
-    fallback_needed = not target_items or _is_exhibit_like(filename)
-    if fallback_needed and (parsed_base.netloc or "").lower().endswith("sec.gov"):
-        parts = _extract_accession_parts(parsed_base.path or "")
-        if parts:
-            cik, acc = parts
-            master_txt = _accession_master_txt(cik, acc)
-            fallback_text, _ = _fetch_html(master_txt, None)
-            if fallback_text:
-                normalized_fallback = unescape_html_entities(
-                    fallback_text.replace("\u00A0", " "),
-                    context=master_txt,
-                )
-                (
-                    fallback_items,
-                    fallback_exhibits,
-                    fallback_classification,
-                    fallback_filing_date,
-                    fallback_items_payload,
-                ) = _prepare_items_and_classification(
-                    normalized_fallback,
-                    True,
-                    master_txt,
-                    None,
-                )
-                if fallback_items:
-                    target_items = fallback_items
-                    exhibits_info = fallback_exhibits
-                    classification = fallback_classification
-                    filing_date = fallback_filing_date
-                    items_payload = fallback_items_payload
-                    used_url = master_txt
-                    used_is_plain = True
+    base_parts = _extract_accession_parts(parsed_base.path or "")
+    master_txt_cached: Optional[str] = None
+    master_txt_url: Optional[str] = None
+
+    if is_viewer and base_parts:
+        cik, acc = base_parts
+        master_txt_url = _accession_master_txt(cik, acc)
+        master_text_raw, _ = _fetch_html(master_txt_url, None)
+        if master_text_raw:
+            master_txt_cached = unescape_html_entities(
+                master_text_raw.replace("\u00A0", " "),
+                context=master_txt_url,
+            )
+            (
+                target_items,
+                exhibits_info,
+                classification,
+                filing_date,
+                items_payload,
+            ) = _prepare_items_and_classification(
+                master_txt_cached,
+                True,
+                master_txt_url,
+                None,
+            )
+            if target_items:
+                used_url = master_txt_url
+                used_is_plain = True
+
+    if not target_items:
+        html_text, is_plain = _fetch_html(base_url, html)
+        if not html_text:
+            log_parse_event(logging.DEBUG, "8k missing html", url=url)
+            return {
+                "complete": False,
+                "url": used_url,
+                "form_type": form_type,
+                "filing_date": filing_date,
+                "items": items_payload,
+                "exhibits": exhibits_info,
+                "classification": classification,
+            }
+
+        if is_plain:
+            text = unescape_html_entities(html_text.replace("\u00A0", " "), context=base_url)
+            unescaped = None
+        else:
+            unescaped = unescape_html_entities(html_text, context=base_url)
+            text = _html_to_text(unescaped)
+        (
+            target_items,
+            exhibits_info,
+            classification,
+            filing_date,
+            items_payload,
+        ) = _prepare_items_and_classification(
+            text,
+            is_plain,
+            base_url,
+            unescaped,
+        )
+        used_url = base_url
+        used_is_plain = is_plain
+
+        filename = Path(parsed_base.path or "").name
+        fallback_needed = not target_items or _is_exhibit_like(filename)
+        if fallback_needed and (parsed_base.netloc or "").lower().endswith("sec.gov"):
+            parts = base_parts
+            if parts:
+                cik, acc = parts
+                master_txt = _accession_master_txt(cik, acc)
+                fallback_text = master_txt_cached if master_txt == master_txt_url else None
+                if fallback_text is None:
+                    fetched_text, _ = _fetch_html(master_txt, None)
+                    fallback_text = (
+                        unescape_html_entities(fetched_text.replace("\u00A0", " "), context=master_txt)
+                        if fetched_text
+                        else None
+                    )
+                if fallback_text:
+                    (
+                        fallback_items,
+                        fallback_exhibits,
+                        fallback_classification,
+                        fallback_filing_date,
+                        fallback_items_payload,
+                    ) = _prepare_items_and_classification(
+                        fallback_text,
+                        True,
+                        master_txt,
+                        None,
+                    )
+                    if fallback_items:
+                        target_items = fallback_items
+                        exhibits_info = fallback_exhibits
+                        classification = fallback_classification
+                        filing_date = fallback_filing_date
+                        items_payload = fallback_items_payload
+                        used_url = master_txt
+                        used_is_plain = True
 
     log_parse_event(
         logging.DEBUG,
@@ -608,11 +669,9 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
         ignore=classification["ignore_reason"],
     )
 
-    final_url = used_url if used_is_plain else base_url
-
     return {
         "complete": bool(target_items),
-        "url": final_url,
+        "url": used_url,
         "form_type": form_type,
         "filing_date": filing_date,
         "items": items_payload,
@@ -622,18 +681,26 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 def _print_change_summary() -> None:
-    edited = "parse/k8.py (_canonicalize_sec_url, parse, _is_exhibit_like, _extract_accession_parts, _accession_master_txt)"
-    example_acc = "0001234567-24-000001"
-    example_base = f"/Archives/edgar/data/1234567/{example_acc}"
-    master_example = _accession_master_txt("1234567", example_acc)
-    print(f"Edited: {edited}")
-    print("Fallback enabled: True")
-    print(f"a) /ix?doc={example_base}/ex99-1.htm -> {master_example}")
-    print(f"b) /cgi-bin/viewer?doc={example_base}/8k.htm -> {master_example}")
-    print(f"c) {master_example} -> {master_example}")
+    print("k8: viewer-first master .txt parsing ENABLED")
+    print(
+        "a) https://www.sec.gov/ix?doc=/Archives/edgar/data/1640266/000110465925011155/"
+        "tm2517216d2_8k.htm -> https://www.sec.gov/Archives/edgar/data/1640266/"
+        "000110465925011155/000110465925011155.txt"
+    )
+    print(
+        "b) https://www.sec.gov/cgi-bin/viewer?doc=/Archives/edgar/data/842517/"
+        "000084251724000204/isba_2024q4xdivannxex991.htm -> https://www.sec.gov/"
+        "Archives/edgar/data/842517/000084251724000204/000084251724000204.txt"
+    )
+    print(
+        "c) https://www.sec.gov/ix?doc=/Archives/edgar/data/1782430/000149315225021084/"
+        "form8-k.htm -> https://www.sec.gov/Archives/edgar/data/1782430/"
+        "000149315225021084/000149315225021084.txt"
+    )
 
 
-_print_change_summary()
+if __name__ == "__main__":
+    _print_change_summary()
 
 
 __all__ = ["parse"]
