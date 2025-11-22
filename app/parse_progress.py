@@ -117,6 +117,7 @@ class ParseProgressTracker:
     def _extract_parse_detail(self, message: str) -> str | None:
         parts = message.split("|", 1)
         detail = parts[1].strip() if len(parts) == 2 else message.strip()
+        detail = re.sub(r"^(INFO|WARN|ERROR)\s+", "", detail, flags=re.IGNORECASE)
         if not (detail.startswith("parse_q10") or detail.startswith("eight_k")):
             return None
         return detail
