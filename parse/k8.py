@@ -533,36 +533,3 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 __all__ = ["parse"]
-
-
-def _print_change_summary() -> None:
-    print(
-        "Edited: parse/k8.py; functions: _canonicalize_sec_url, _same_filing_link, parse"
-    )
-    print("_canonicalize_sec_url expanded for SEC viewer shells -> Archives")
-    print("_same_filing_link now enforces accession-prefix matches on canonicalized URLs")
-    print("parse uses canonical base URLs and preserves text/plain item scanning")
-    samples = [
-        (
-            "https://www.sec.gov/ix?doc=/Archives/edgar/data/1706946/000170694624000213/0001706946-24-000213.txt",
-            "https://www.sec.gov/Archives/edgar/data/1706946/000170694624000213/0001706946-24-000213.txt",
-        ),
-        (
-            "https://www.sec.gov/cgi-bin/viewer?doc=/Archives/edgar/data/1516551/000151655124000091/0001516551-24-000091.txt",
-            "https://www.sec.gov/Archives/edgar/data/1516551/000151655124000091/0001516551-24-000091.txt",
-        ),
-        (
-            "https://www.sec.gov/ixviewer?doc=%2FArchives%2Fedgar%2Fdata%2F1640266%2F000110465925011155%2F0001104659-25-011155.txt",
-            "https://www.sec.gov/Archives/edgar/data/1640266/000110465925011155/0001104659-25-011155.txt",
-        ),
-        (
-            "https://www.sec.gov/Archives/edgar/data/1749723/000174972325000022/0001749723-25-000022.txt",
-            "https://www.sec.gov/Archives/edgar/data/1749723/000174972325000022/0001749723-25-000022.txt",
-        ),
-    ]
-    print("Canonicalization samples:")
-    for raw, expected in samples:
-        print(f"  {raw} -> {_canonicalize_sec_url(raw)} (expected {expected})")
-
-
-_print_change_summary()
