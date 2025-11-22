@@ -111,8 +111,10 @@ def _canonicalize_sec_url(url: str) -> str:
         return url
     netloc_lower = (parsed.netloc or "").lower()
     path_lower = (parsed.path or "").lower()
-    viewer_paths = {"/ix", "/ixviewer", "/cgi-bin/viewer", "/viewer"}
-    if netloc_lower.endswith("sec.gov") and path_lower in viewer_paths:
+    viewer_paths = ("/ix", "/ixviewer", "/cgi-bin/viewer", "/viewer")
+    if netloc_lower.endswith("sec.gov") and any(
+        path_lower.startswith(prefix) for prefix in viewer_paths
+    ):
         query = parse_qs(parsed.query or "")
         param_value = None
         for key in ("doc", "filename"):
