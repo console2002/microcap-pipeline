@@ -119,6 +119,11 @@ _EIGHT_K_EVENTS_COLUMNS = [
     "IgnoreReason",
 ]
 
+
+def _join_items(items: Iterable[str]) -> str:
+    cleaned = [item.strip() for item in items if item and str(item).strip()]
+    return "; ".join(cleaned)
+
 _EIGHT_K_DEBUG_HEADER = [
     "ts",
     "url",
@@ -247,7 +252,8 @@ def _resolve_path(filename: str, base_dir: str | None) -> str:
     candidates: list[str] = []
     if base_dir:
         candidates.append(os.path.join(base_dir, filename))
-    candidates.extend([filename, os.path.join("data", filename)])
+    else:
+        candidates.extend([filename, os.path.join("data", filename)])
     for path in candidates:
         if os.path.exists(path):
             return path
@@ -524,9 +530,11 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
 
     if event is None:
         items = result.get("items") or []
-        items_present = ";".join(item.get("item", "") for item in items if item.get("item"))
+        items_present = _join_items(item.get("item", "") for item in items)
+        ignore_reason = _clean_text((result.get("classification") or {}).get("ignore_reason"))
+        reason_suffix = f" ({ignore_reason})" if ignore_reason else ""
         log_messages.append(
-            f"eight_k: {identifier} no actionable items url {url} items {items_present or 'none'}"
+            f"eight_k: {identifier} no actionable items{reason_suffix} url {url} items {items_present or 'none'}"
         )
         debug_entry = [
             utc_now_iso(),
@@ -596,9 +604,7 @@ def _build_eight_k_event(
     items = result.get("items") or []
     classification = result.get("classification") or {}
     exhibits = result.get("exhibits") or []
-    items_present = ";".join(
-        item.get("item", "") for item in items if item.get("item")
-    )
+    items_present = _join_items(item.get("item", "") for item in items)
     if not items_present:
         return None
 
