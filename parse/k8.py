@@ -167,8 +167,11 @@ def _extract_accession_parts(canonical_path: str) -> tuple[str, str] | None:
     )
     if not match:
         return None
-    cik = match.group(1).strip().lower()
+    cik_raw = match.group(1).strip()
     accession = match.group(2).strip()
+    if not cik_raw or not accession:
+        return None
+    cik = cik_raw.lstrip("0") or "0"
     if not cik or not accession:
         return None
     return cik, accession
@@ -488,6 +491,24 @@ def _best_effort_filing_date(text: str) -> Optional[str]:
     return None
 
 
+def _gather_exhibits(
+    unescaped_html: str, base_url: str
+) -> tuple[list[dict[str, str]], list[str]]:
+    exhibits_info: list[dict[str, str]] = []
+    appended_text_segments: list[str] = []
+    for exhibit in _extract_exhibits(unescaped_html, base_url):
+        exhibit_text = _fetch_exhibit_text(exhibit["url"])
+        if not exhibit_text:
+            continue
+        exhibit_entry = {
+            "name": exhibit["name"],
+            "text": exhibit_text,
+        }
+        exhibits_info.append(exhibit_entry)
+        appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
+    return exhibits_info, appended_text_segments
+
+
 def _prepare_items_and_classification(
     text: str,
     is_plain: bool,
@@ -500,16 +521,9 @@ def _prepare_items_and_classification(
     exhibits_info: list[dict[str, str]] = []
     appended_text_segments: list[str] = []
     if not is_plain and unescaped_html:
-        for exhibit in _extract_exhibits(unescaped_html, base_url):
-            exhibit_text = _fetch_exhibit_text(exhibit["url"])
-            if not exhibit_text:
-                continue
-            exhibit_entry = {
-                "name": exhibit["name"],
-                "text": exhibit_text,
-            }
-            exhibits_info.append(exhibit_entry)
-            appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
+        exhibits_info, appended_text_segments = _gather_exhibits(
+            unescaped_html, base_url
+        )
 
     combined_text_parts = [section.text for section in target_items] + appended_text_segments
     combined_text = " \n".join(part for part in combined_text_parts if part)
@@ -528,6 +542,12 @@ def _prepare_items_and_classification(
 def parse(url: str, html: str | None = None, form_hint: str | None = None) -> dict:
     form_type = form_hint or "8-K"
     base_url = _canonicalize_sec_url(url)
+    parsed = urlparse(base_url)
+    host_l = (parsed.netloc or "").lower()
+    path_l = (parsed.path or "").lower()
+    is_sec_archives = host_l.endswith("sec.gov") and path_l.startswith("/archives/edgar/data/")
+    is_html = path_l.endswith(".htm") or path_l.endswith(".html")
+    base_parts = _extract_accession_parts(parsed.path or "")
     parsed_original = urlparse(url)
     original_path_lower = (parsed_original.path or "").lower()
     original_netloc_lower = (parsed_original.netloc or "").lower()
@@ -554,10 +574,25 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     items_payload: list[dict] = []
     used_url = base_url
 
-    parsed_base = urlparse(base_url)
-    base_parts = _extract_accession_parts(parsed_base.path or "")
+    parsed_base = parsed
     master_txt_cached: Optional[str] = None
     master_txt_url: Optional[str] = None
+
+    base_html_text_cached: Optional[str] = None
+    base_html_is_plain: bool = False
+    base_html_unescaped: Optional[str] = None
+    base_html_fetched = False
+
+    def _ensure_base_html() -> None:
+        nonlocal base_html_text_cached, base_html_is_plain, base_html_unescaped, base_html_fetched
+        if base_html_fetched:
+            return
+        base_html_text_cached, base_html_is_plain = _fetch_html(base_url, html)
+        base_html_fetched = True
+        if base_html_text_cached and not base_html_is_plain:
+            base_html_unescaped = unescape_html_entities(
+                base_html_text_cached, context=base_url
+            )
 
     master_items: list[_ItemSection] = []
     master_exhibits: list[dict[str, str]] = []
@@ -565,15 +600,17 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     master_filing_date: Optional[str] = None
     master_items_payload: list[dict] = []
 
-    if is_viewer and base_parts:
+    if base_parts and (is_viewer or (is_sec_archives and is_html)):
         cik, acc = base_parts
         master_txt_url = _accession_master_txt(cik, acc)
-        master_text_raw, _ = _fetch_html(master_txt_url, None)
-        if master_text_raw:
-            master_txt_cached = unescape_html_entities(
-                master_text_raw.replace("\u00A0", " "),
-                context=master_txt_url,
-            )
+        if master_txt_cached is None:
+            master_text_raw, _ = _fetch_html(master_txt_url, None)
+            if master_text_raw:
+                master_txt_cached = unescape_html_entities(
+                    master_text_raw.replace("\u00A0", " "),
+                    context=master_txt_url,
+                )
+        if master_txt_cached:
             (
                 master_items,
                 master_exhibits,
@@ -595,8 +632,24 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
         items_payload = master_items_payload
         used_url = master_txt_url or used_url
 
+        if not exhibits_info:
+            _ensure_base_html()
+            if base_html_text_cached and not base_html_is_plain and base_html_unescaped:
+                exhibits_info, appended_segments = _gather_exhibits(
+                    base_html_unescaped, base_url
+                )
+                if appended_segments:
+                    combined_text_parts = [
+                        section.text for section in target_items if section.text
+                    ] + appended_segments
+                    combined_text = " \n".join(
+                        part for part in combined_text_parts if part
+                    )
+                    classification = _classify(target_items, combined_text)
+
     if not target_items:
-        html_text, is_plain = _fetch_html(base_url, html)
+        _ensure_base_html()
+        html_text, is_plain = base_html_text_cached, base_html_is_plain
         if not html_text:
             log_parse_event(logging.DEBUG, "8k missing html", url=url)
             return {
@@ -613,7 +666,10 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
             text = unescape_html_entities(html_text.replace("\u00A0", " "), context=base_url)
             unescaped = None
         else:
-            unescaped = unescape_html_entities(html_text, context=base_url)
+            unescaped = base_html_unescaped or unescape_html_entities(
+                html_text, context=base_url
+            )
+            base_html_unescaped = unescaped
             text = _html_to_text(unescaped)
         (
             target_items,
@@ -629,7 +685,6 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
         )
         used_url = base_url
 
-        filename = Path(parsed_base.path or "").name
         fallback_needed = not target_items
         if fallback_needed and (parsed_base.netloc or "").lower().endswith("sec.gov"):
             parts = base_parts
@@ -689,7 +744,9 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
 
 def _print_change_summary() -> None:
-    print("k8: viewer-first master .txt fallback enabled; FilingURL set to master_txt when available.")
+    print(
+        "k8: unconditional master .txt-first for SEC Archives HTML; FilingURL prefers accession .txt when items found."
+    )
 
 
 if __name__ == "__main__":
