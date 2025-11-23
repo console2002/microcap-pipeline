@@ -1126,7 +1126,7 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise CancelledRun("cancel during parse_8k")
 
     _log_step(runlog, "parse_8k", row_count, t0, f"write {csv_filename('eight_k_events')}")
-    _emit(progress_fn, f"eight_k: wrote {row_count} rows")
+    _emit(progress_fn, f"eight_k: complete – wrote {row_count} rows")
 
 
 def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):

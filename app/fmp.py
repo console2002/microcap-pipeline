@@ -1,12 +1,17 @@
 from datetime import date, timedelta, datetime
 from typing import Callable, Optional
+import logging
 import re
+from urllib.parse import parse_qs, urlsplit
 from app.http import HttpClient
 from app.cancel import CancelledRun
 from app.config import filings_form_lookbacks, filings_max_lookback
 from app.universe_filters import load_drop_filters, should_drop_record
 
 FMP_HOST = "https://financialmodelingprep.com"
+
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_exchange(raw: str) -> str:
@@ -58,6 +63,27 @@ def _normalize_sec_url(url: str) -> str:
     if lower.startswith("https://sec.gov") and not lower.startswith("https://www.sec.gov"):
         cleaned = "https://www.sec.gov" + cleaned[len("https://sec.gov"):]
         lower = cleaned.lower()
+
+    parsed = urlsplit(cleaned)
+    host_lower = parsed.netloc.lower()
+    path_lower = (parsed.path or "").lower()
+
+    if host_lower.endswith("sec.gov") and path_lower in {"/ix", "/ixviewer", "/cgi-bin/viewer", "/viewer"}:
+        query_params = parse_qs(parsed.query or "")
+        for key in ("doc", "filename", "file", "source", "href"):
+            for value in query_params.get(key, []):
+                if "/archives/edgar/data/" in value.lower():
+                    try:
+                        doc_parsed = urlsplit(value)
+                        doc_path = doc_parsed.path or value
+                    except Exception:
+                        doc_path = value
+                    if not doc_path.startswith("/"):
+                        doc_path = "/" + doc_path
+                    return f"https://www.sec.gov{doc_path}"
+
+        logger.warning("viewer_no_doc_param url=%s", cleaned)
+        return cleaned
 
     if lower.startswith("https://www.sec.gov/ix?doc="):
         return cleaned
