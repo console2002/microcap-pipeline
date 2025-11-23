@@ -320,6 +320,17 @@ def _normalize_url(url: str) -> str:
     return url.strip().rstrip(";.,")
 
 
+def _extract_accession_token(url: str) -> str:
+    if not url:
+        return ""
+
+    match = re.search(r"(?i)/edgar/data/\d+/([^/?#]+)/", url)
+    if not match:
+        return ""
+
+    return match.group(1).lower()
+
+
 @dataclass
 class EightKEvent:
     cik: str
@@ -345,6 +356,7 @@ class EightKLookup:
         self.by_url: dict[str, EightKEvent] = {}
         self.by_cik: dict[str, list[EightKEvent]] = defaultdict(list)
         self.by_ticker: dict[str, list[EightKEvent]] = defaultdict(list)
+        self.by_accession: dict[str, EightKEvent] = {}
 
         for event in events:
             normalized_url = _normalize_url(event.filing_url)
@@ -354,6 +366,11 @@ class EightKLookup:
                 self.by_cik[event.cik].append(event)
             if event.ticker:
                 self.by_ticker[event.ticker].append(event)
+            accession_token = _extract_accession_token(event.filing_url)
+            if accession_token:
+                existing = self.by_accession.get(accession_token)
+                if not existing or (event.filing_date or "") > (existing.filing_date or ""):
+                    self.by_accession[accession_token] = event
 
         def _sort_events(mapping: dict[str, list[EightKEvent]]) -> None:
             for key, seq in mapping.items():
@@ -369,7 +386,9 @@ class EightKLookup:
         _sort_events(self.by_ticker)
 
     def match(self, ticker: str, cik: str, candidate_urls: Iterable[str]) -> Optional[EightKEvent]:
-        for raw_url in candidate_urls:
+        urls = [url for url in (candidate_urls or [])]
+
+        for raw_url in urls:
             normalized = _normalize_url(raw_url)
             if not normalized:
                 continue
@@ -384,6 +403,11 @@ class EightKLookup:
         normalized_ticker = _normalize_ticker(ticker)
         if normalized_ticker and self.by_ticker.get(normalized_ticker):
             return self.by_ticker[normalized_ticker][0]
+
+        for raw_url in urls:
+            accession_token = _extract_accession_token(raw_url)
+            if accession_token and accession_token in self.by_accession:
+                return self.by_accession[accession_token]
 
         return None
 
