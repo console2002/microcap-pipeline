@@ -5,7 +5,7 @@
   "RateLimitsPerMin": {
     "FMP": 300,
     "OpenFDA": 240,
-    "SEC": 10
+    "SEC": 60
   },
   "MaxWorkers": 4,
   "TimeoutSeconds": 30,
