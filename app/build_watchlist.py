@@ -468,6 +468,10 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
 
     log_messages: list[str] = []
 
+    ticker = _normalize_ticker(getattr(row, "Ticker", ""))
+    cik = _normalize_cik(getattr(row, "CIK", ""))
+    identifier = ticker or cik or "unknown"
+
     fetch_started = time.time()
     html_text, fetch_error = _read_eight_k_html(url)
     fetch_elapsed = time.time() - fetch_started
@@ -475,10 +479,14 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
         log_messages.append(f"eight_k: slow fetch {fetch_elapsed:.1f}s for {url}")
 
     if html_text is None:
+        reason = f"fetch_failed:{fetch_error}"
+        log_messages.append(
+            f"eight_k: {identifier} fetch failed url {url} reason {reason}"
+        )
         debug_entry = [
             utc_now_iso(),
             url,
-            f"fetch_failed:{fetch_error}",
+            reason,
             "",
             0,
             0,
@@ -491,10 +499,14 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     try:
         result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
     except Exception as exc:  # pragma: no cover - unexpected parser failures
+        reason = f"parse_error:{exc}"
+        log_messages.append(
+            f"eight_k: {identifier} parse failed url {url} reason {reason}"
+        )
         debug_entry = [
             utc_now_iso(),
             url,
-            f"parse_error:{exc}",
+            reason,
             "",
             len(html_text.encode("utf-8", errors="ignore")),
             0,
@@ -513,6 +525,9 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     if event is None:
         items = result.get("items") or []
         items_present = ";".join(item.get("item", "") for item in items if item.get("item"))
+        log_messages.append(
+            f"eight_k: {identifier} no actionable items url {url} items {items_present or 'none'}"
+        )
         debug_entry = [
             utc_now_iso(),
             url,
