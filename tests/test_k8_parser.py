@@ -168,3 +168,79 @@ def test_k8_watchlist_integration(tmp_path):
     assert "25" in str(validated_row["Tier1Trigger"])
     assert bool(validated_row["DilutionFlag"]) is True
     assert validated_row["DilutionStatus"] == "Pass (Offering)"
+
+
+def test_generate_eight_k_events_logs_progress(monkeypatch, tmp_path):
+    progress_messages: list[str] = []
+
+    def record_progress(message: str) -> None:
+        progress_messages.append(message)
+
+    def fake_process(row):
+        url = getattr(row, "URL", "")
+        event = build_watchlist.EightKEvent(
+            cik=str(getattr(row, "CIK", "")),
+            ticker=str(getattr(row, "Ticker", "")),
+            filing_date=str(getattr(row, "FiledAt", "")),
+            filing_url=url,
+            items_present="1.01",
+            is_catalyst=True,
+            catalyst_type="Tier-1",
+            catalyst_label="Tier-1 FUNDED_AWARD",
+            tier1_type="FUNDED_AWARD",
+            tier1_trigger="Award signed",
+            is_dilution=False,
+            dilution_tags=[],
+            ignore_reason="",
+        )
+        csv_row = {
+            "CIK": event.cik,
+            "Ticker": event.ticker,
+            "FilingDate": event.filing_date,
+            "FilingURL": event.filing_url,
+            "ItemsPresent": event.items_present,
+            "IsCatalyst": event.is_catalyst,
+            "CatalystType": event.catalyst_type,
+            "Tier1Type": event.tier1_type,
+            "Tier1Trigger": event.tier1_trigger,
+            "IsDilution": event.is_dilution,
+            "DilutionTags": event.dilution_tags_joined(),
+            "IgnoreReason": event.ignore_reason,
+        }
+        return build_watchlist._EightKProcessResult(
+            url=url,
+            event=event,
+            csv_row=csv_row,
+            debug_entry=None,
+            log_messages=[],
+        )
+
+    monkeypatch.setattr(build_watchlist, "_process_eight_k_row", fake_process)
+
+    filings_df = pd.DataFrame(
+        [
+            {
+                "CIK": "0000001",
+                "Ticker": "ABC",
+                "Form": "8-K",
+                "FiledAt": "2025-01-01",
+                "URL": "https://example.com/8k1",
+            },
+            {
+                "CIK": "0000002",
+                "Ticker": "XYZ",
+                "Form": "8-K",
+                "FiledAt": "2025-01-02",
+                "URL": "https://example.com/8k2",
+            },
+        ]
+    )
+    filings_df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
+    events_df, _ = build_watchlist._generate_eight_k_events(
+        data_dir=str(tmp_path), progress_fn=record_progress
+    )
+
+    assert len(events_df) == 2
+    assert any("eight_k:" in msg and "processing" in msg for msg in progress_messages)
+    assert any("eight_k:" in msg and "complete" in msg for msg in progress_messages)

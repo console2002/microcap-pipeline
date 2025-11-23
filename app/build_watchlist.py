@@ -633,8 +633,26 @@ def _generate_eight_k_events(
 
     total_filings = len(df.index)
     _emit("INFO", f"eight_k: {total_filings} unique 8-K filings queued", progress_fn)
-    _emit("INFO", f"eight_k: (0%) processing {total_filings} filings", progress_fn)
+    _emit("INFO", f"eight_k: (0.0%) processing {total_filings} filings", progress_fn)
     report_every = max(1, total_filings // 20)
+
+    last_reported_pct_tenths = 0
+
+    def _emit_progress(processed_count: int) -> None:
+        nonlocal last_reported_pct_tenths
+        if total_filings <= 0:
+            return
+        pct_tenths = int(round((processed_count / total_filings) * 1000))
+        pct_tenths = min(max(pct_tenths, 0), 1000)
+        if pct_tenths == last_reported_pct_tenths and processed_count != total_filings:
+            return
+        last_reported_pct_tenths = pct_tenths
+        pct_display = pct_tenths / 10
+        _emit(
+            "INFO",
+            f"eight_k: ({pct_display:.1f}%) processed {processed_count}/{total_filings} filings",
+            progress_fn,
+        )
 
     csv_rows: list[dict[str, object]] = []
     events: list[EightKEvent] = []
@@ -647,6 +665,7 @@ def _generate_eight_k_events(
     last_heartbeat = time.time()
 
     _emit("INFO", "eight_k: start", progress_fn)
+    _emit_progress(0)
 
     max_workers = min(8, max(1, os.cpu_count() or 1))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -655,6 +674,8 @@ def _generate_eight_k_events(
         for future in as_completed(futures):
             result = future.result()
             processed += 1
+
+            _emit_progress(processed)
 
             if result.url and (processed <= 3 or processed % max(1, report_every * 2) == 0):
                 _emit("INFO", f"eight_k: fetching {processed}/{total_filings} {result.url}", progress_fn)
@@ -683,14 +704,6 @@ def _generate_eight_k_events(
                         progress_fn,
                     )
 
-            if processed == total_filings or processed % report_every == 0:
-                pct = int((processed / total_filings) * 100)
-                _emit(
-                    "INFO",
-                    f"eight_k: ({pct}%) processed {processed}/{total_filings} (parsed {len(events)} failed {len(debug_entries)})",
-                    progress_fn,
-                )
-
             now = time.time()
             if now - last_heartbeat > 30:
                 _emit(
@@ -708,6 +721,7 @@ def _generate_eight_k_events(
 
     _emit("INFO", f"eight_k: parsed {len(events_df)}", progress_fn)
     _emit("INFO", f"eight_k: failed {len(debug_entries)}", progress_fn)
+    _emit("INFO", f"eight_k: complete – wrote {len(events_df)} rows", progress_fn)
 
     return events_df, EightKLookup(events)
 
