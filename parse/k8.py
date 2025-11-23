@@ -634,9 +634,15 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
 
         if not exhibits_info:
             _ensure_base_html()
-            if base_html_text_cached and not base_html_is_plain and base_html_unescaped:
+            html_for_exhibits = base_html_unescaped
+            if base_html_text_cached and not html_for_exhibits:
+                html_for_exhibits = unescape_html_entities(
+                    base_html_text_cached, context=base_url
+                )
+
+            if base_html_text_cached and html_for_exhibits:
                 exhibits_info, appended_segments = _gather_exhibits(
-                    base_html_unescaped, base_url
+                    html_for_exhibits, base_url
                 )
                 if appended_segments:
                     combined_text_parts = [
