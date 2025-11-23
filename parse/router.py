@@ -5,12 +5,15 @@ import json
 import logging
 import re
 from pathlib import Path
+from threading import Lock
 from typing import Callable, Optional
 from urllib import request
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 
 from importlib import import_module
+
+from app.rate_limit import RateLimiter
 
 from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event, log_runway_outcome
@@ -72,6 +75,55 @@ _FORM_ADAPTERS = {
     "40-F": "Foreign_Annual",
     "6-K": "SixK",
 }
+
+_HOST_LIMITERS: dict[str, RateLimiter] = {}
+_RATE_LIMIT_LOCK = Lock()
+_SEC_LIMIT_PER_MINUTE: Optional[int] = None
+
+
+def _sec_rate_limit() -> int:
+    """Load the SEC per-minute limit from config (cached)."""
+    global _SEC_LIMIT_PER_MINUTE
+    if _SEC_LIMIT_PER_MINUTE is None:
+        try:
+            from app.config import load_config
+
+            cfg = load_config()
+            per_minute = cfg.get("RateLimitsPerMin", {}).get("SEC")
+            _SEC_LIMIT_PER_MINUTE = int(per_minute or 0)
+        except Exception:
+            _SEC_LIMIT_PER_MINUTE = 0
+    return _SEC_LIMIT_PER_MINUTE or 0
+
+
+def _limiter_for_host(host: str) -> Optional[RateLimiter]:
+    per_minute = 0
+    if host.endswith("sec.gov"):
+        per_minute = _sec_rate_limit()
+
+    if per_minute <= 0:
+        return None
+
+    with _RATE_LIMIT_LOCK:
+        limiter = _HOST_LIMITERS.get(host)
+        if limiter is None:
+            limiter = RateLimiter(per_minute)
+            _HOST_LIMITERS[host] = limiter
+        else:
+            limiter.per_minute = per_minute
+        return limiter
+
+
+def _apply_rate_limit(url: str) -> None:
+    try:
+        host = (urlparse(url).netloc or "").lower()
+    except Exception:
+        return
+
+    limiter = _limiter_for_host(host)
+    if limiter:
+        limiter.acquire()
+
 
 _BALANCE_HEADERS = [
     "CONSOLIDATED BALANCE SHEETS",
@@ -437,6 +489,7 @@ def _user_agent() -> str:
 
 
 def _fetch_url(url: str) -> bytes:
+    _apply_rate_limit(url)
     req = request.Request(url, headers={"User-Agent": _user_agent()})
     with request.urlopen(req) as response:
         return response.read()
