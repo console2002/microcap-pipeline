@@ -2,6 +2,8 @@ from pathlib import Path
 import sys
 from unittest.mock import patch
 
+from types import SimpleNamespace
+
 import pandas as pd
 
 from app.csv_names import csv_filename
@@ -244,3 +246,40 @@ def test_generate_eight_k_events_logs_progress(monkeypatch, tmp_path):
     assert len(events_df) == 2
     assert any("eight_k:" in msg and "processing" in msg for msg in progress_messages)
     assert any("eight_k:" in msg and "complete" in msg for msg in progress_messages)
+
+
+def test_process_eight_k_row_fetch_failure(tmp_path):
+    row = SimpleNamespace(
+        URL="file:///nonexistent_8k.htm",
+        Ticker="MISS",
+        CIK="0000003",
+        FiledAt="2025-02-01",
+    )
+
+    result = build_watchlist._process_eight_k_row(row)
+
+    assert result.debug_entry is not None
+    assert any("fetch_failed" in msg and "nonexistent_8k.htm" in msg for msg in result.log_messages)
+
+
+def test_process_eight_k_row_no_actionable_items(monkeypatch):
+    row = SimpleNamespace(
+        URL="https://example.com/8k_missing.htm",
+        Ticker="MISS",
+        CIK="0000004",
+        FiledAt="2025-02-02",
+        Form="8-K",
+    )
+
+    monkeypatch.setattr(build_watchlist, "_read_eight_k_html", lambda url: ("<html></html>", None))
+    monkeypatch.setattr(
+        build_watchlist.parse_k8,
+        "parse",
+        lambda url, html, form_hint=None: {"items": [], "classification": {}, "exhibits": []},
+    )
+
+    result = build_watchlist._process_eight_k_row(row)
+
+    assert result.event is None
+    assert result.debug_entry is not None
+    assert any("no actionable items" in msg and "8k_missing" in msg for msg in result.log_messages)
