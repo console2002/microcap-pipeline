@@ -491,6 +491,24 @@ def _best_effort_filing_date(text: str) -> Optional[str]:
     return None
 
 
+def _gather_exhibits(
+    unescaped_html: str, base_url: str
+) -> tuple[list[dict[str, str]], list[str]]:
+    exhibits_info: list[dict[str, str]] = []
+    appended_text_segments: list[str] = []
+    for exhibit in _extract_exhibits(unescaped_html, base_url):
+        exhibit_text = _fetch_exhibit_text(exhibit["url"])
+        if not exhibit_text:
+            continue
+        exhibit_entry = {
+            "name": exhibit["name"],
+            "text": exhibit_text,
+        }
+        exhibits_info.append(exhibit_entry)
+        appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
+    return exhibits_info, appended_text_segments
+
+
 def _prepare_items_and_classification(
     text: str,
     is_plain: bool,
@@ -503,16 +521,9 @@ def _prepare_items_and_classification(
     exhibits_info: list[dict[str, str]] = []
     appended_text_segments: list[str] = []
     if not is_plain and unescaped_html:
-        for exhibit in _extract_exhibits(unescaped_html, base_url):
-            exhibit_text = _fetch_exhibit_text(exhibit["url"])
-            if not exhibit_text:
-                continue
-            exhibit_entry = {
-                "name": exhibit["name"],
-                "text": exhibit_text,
-            }
-            exhibits_info.append(exhibit_entry)
-            appended_text_segments.append(f"[Exhibit {exhibit_entry['name']}] {exhibit_text}")
+        exhibits_info, appended_text_segments = _gather_exhibits(
+            unescaped_html, base_url
+        )
 
     combined_text_parts = [section.text for section in target_items] + appended_text_segments
     combined_text = " \n".join(part for part in combined_text_parts if part)
@@ -567,6 +578,22 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
     master_txt_cached: Optional[str] = None
     master_txt_url: Optional[str] = None
 
+    base_html_text_cached: Optional[str] = None
+    base_html_is_plain: bool = False
+    base_html_unescaped: Optional[str] = None
+    base_html_fetched = False
+
+    def _ensure_base_html() -> None:
+        nonlocal base_html_text_cached, base_html_is_plain, base_html_unescaped, base_html_fetched
+        if base_html_fetched:
+            return
+        base_html_text_cached, base_html_is_plain = _fetch_html(base_url, html)
+        base_html_fetched = True
+        if base_html_text_cached and not base_html_is_plain:
+            base_html_unescaped = unescape_html_entities(
+                base_html_text_cached, context=base_url
+            )
+
     master_items: list[_ItemSection] = []
     master_exhibits: list[dict[str, str]] = []
     master_classification: dict = classification
@@ -605,8 +632,24 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
         items_payload = master_items_payload
         used_url = master_txt_url or used_url
 
+        if not exhibits_info:
+            _ensure_base_html()
+            if base_html_text_cached and not base_html_is_plain and base_html_unescaped:
+                exhibits_info, appended_segments = _gather_exhibits(
+                    base_html_unescaped, base_url
+                )
+                if appended_segments:
+                    combined_text_parts = [
+                        section.text for section in target_items if section.text
+                    ] + appended_segments
+                    combined_text = " \n".join(
+                        part for part in combined_text_parts if part
+                    )
+                    classification = _classify(target_items, combined_text)
+
     if not target_items:
-        html_text, is_plain = _fetch_html(base_url, html)
+        _ensure_base_html()
+        html_text, is_plain = base_html_text_cached, base_html_is_plain
         if not html_text:
             log_parse_event(logging.DEBUG, "8k missing html", url=url)
             return {
@@ -623,7 +666,10 @@ def parse(url: str, html: str | None = None, form_hint: str | None = None) -> di
             text = unescape_html_entities(html_text.replace("\u00A0", " "), context=base_url)
             unescaped = None
         else:
-            unescaped = unescape_html_entities(html_text, context=base_url)
+            unescaped = base_html_unescaped or unescape_html_entities(
+                html_text, context=base_url
+            )
+            base_html_unescaped = unescaped
             text = _html_to_text(unescaped)
         (
             target_items,
