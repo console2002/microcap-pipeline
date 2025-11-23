@@ -323,9 +323,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if target_stage:
                 self._set_stage_progress(target_stage, pct)
 
-        match = re.search(r"\((\d{1,3})%\)", msg)
+        match = re.search(r"\((\d{1,3}(?:\.\d+)?)%\)", msg)
         if match:
-            pct = max(0, min(100, int(match.group(1))))
+            pct_float = float(match.group(1))
+            pct = max(0, min(100, int(round(pct_float))))
             target_stage = stage or self.current_stage
             if target_stage:
                 self._set_stage_progress(target_stage, pct)
