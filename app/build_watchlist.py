@@ -554,6 +554,23 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
         "IgnoreReason": event.ignore_reason,
     }
 
+    catalyst_display = event.catalyst_type if event.is_catalyst else "NONE"
+    dilution_display = "yes" if event.is_dilution else "no"
+    log_messages.append(
+        " ".join(
+            [
+                f"eight_k: {identifier} parsed url {url}",
+                f"items {event.items_present or 'none'}",
+                f"catalyst {catalyst_display}",
+                f"tier1_type {event.tier1_type or 'none'}",
+                f"tier1_trigger {event.tier1_trigger or 'none'}",
+                f"dilution {dilution_display}",
+                f"dilution_tags {event.dilution_tags_joined() or 'none'}",
+                f"ignore_reason {event.ignore_reason or 'none'}",
+            ]
+        )
+    )
+
     return _EightKProcessResult(
         url=url,
         event=event,
