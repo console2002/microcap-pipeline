@@ -283,3 +283,39 @@ def test_process_eight_k_row_no_actionable_items(monkeypatch):
     assert result.event is None
     assert result.debug_entry is not None
     assert any("no actionable items" in msg and "8k_missing" in msg for msg in result.log_messages)
+
+
+def test_process_eight_k_row_logs_pass_details(monkeypatch):
+    row = SimpleNamespace(
+        URL="https://example.com/8k_success.htm",
+        Ticker="WINN",
+        CIK="0000005",
+        FiledAt="2025-02-03",
+        Form="8-K",
+    )
+
+    monkeypatch.setattr(build_watchlist, "_read_eight_k_html", lambda url: ("<html></html>", None))
+    monkeypatch.setattr(
+        build_watchlist.parse_k8,
+        "parse",
+        lambda url, html, form_hint=None: {
+            "items": [{"item": "8.01"}],
+            "classification": {
+                "is_catalyst": True,
+                "tier": "Tier-1",
+                "tier1_type": "Regulatory",
+                "tier1_trigger": "PDUFA",
+                "is_dilution": False,
+                "dilution_tags": [],
+                "ignore_reason": "",
+            },
+            "exhibits": [],
+        },
+    )
+
+    result = build_watchlist._process_eight_k_row(row)
+
+    assert result.event is not None
+    assert any("parsed url https://example.com/8k_success.htm" in msg for msg in result.log_messages)
+    assert any("catalyst Tier-1" in msg for msg in result.log_messages)
+    assert any("dilution no" in msg for msg in result.log_messages)
