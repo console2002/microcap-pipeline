@@ -302,15 +302,33 @@ class MainWindow(QtWidgets.QMainWindow):
 
         stage = self._extract_stage_name(body)
         if stage:
+            # Update the label even if we only have fractional progress so the
+            # bar uses the right stage name.
+            if self.current_stage != stage and not self.progress_bar.isVisible():
+                self.progress_bar.setVisible(True)
+            if self.current_stage != stage and "start" not in body:
+                self._set_stage_progress(stage, self.progress_bar.value())
             if "start" in body:
                 self._set_stage_progress(stage, 0)
             elif re.search(r"\b(done|skipped)\b", body):
                 self._set_stage_progress(stage, 100)
 
+        fraction = re.search(r"\[(?P<stage>[a-z_]+)\]\s+(?P<done>\d+)\/(?P<total>\d+)", body)
+        if fraction:
+            stage_name = fraction.group("stage")
+            done = int(fraction.group("done"))
+            total = max(int(fraction.group("total")), 1)
+            pct = max(0, min(100, int((done / total) * 100)))
+            target_stage = stage_name if stage_name in {"profiles", "filings", "prices"} else self.current_stage
+            if target_stage:
+                self._set_stage_progress(target_stage, pct)
+
         match = re.search(r"\((\d{1,3})%\)", msg)
         if match:
             pct = max(0, min(100, int(match.group(1))))
-            self._set_stage_progress(self.current_stage, pct)
+            target_stage = stage or self.current_stage
+            if target_stage:
+                self._set_stage_progress(target_stage, pct)
 
     def _strip_timestamp(self, message: str) -> str:
         text = message.strip()
