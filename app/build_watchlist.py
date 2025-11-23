@@ -610,9 +610,10 @@ def _build_eight_k_event(
 
     is_catalyst = bool(classification.get("is_catalyst"))
     is_dilution = bool(classification.get("is_dilution"))
-    ignore_reason = _clean_text(classification.get("ignore_reason"))
-    if not (is_catalyst or is_dilution or ignore_reason):
+    if not (is_catalyst or is_dilution):
         return None
+
+    ignore_reason = _clean_text(classification.get("ignore_reason"))
 
     tier_raw = _clean_text(classification.get("tier"))
     catalyst_type = tier_raw if tier_raw in {"Tier-1", "Tier-2"} else "NONE"

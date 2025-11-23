@@ -16,14 +16,10 @@ def test_items_single_502_ignore_reason_populates_items():
 
     event = build_watchlist._build_eight_k_event(_make_row(url), html, result)
 
-    assert event is not None
-    assert event.items_present == "5.02"
-    assert event.is_catalyst is False
-    assert event.is_dilution is False
-    assert (
-        event.ignore_reason
-        == "Director/officer change only (Item 5.02)"
-    )
+    assert event is None
+    items_present = build_watchlist._join_items(item.get("item", "") for item in result.get("items", []))
+    assert items_present == "5.02"
+    assert result["classification"]["ignore_reason"] == "Director/officer change only (Item 5.02)"
 
 
 def test_items_508_801_combination_preserved():
@@ -33,14 +29,10 @@ def test_items_508_801_combination_preserved():
 
     event = build_watchlist._build_eight_k_event(_make_row(url), html, result)
 
-    assert event is not None
-    assert event.items_present == "5.08; 8.01"
-    assert event.is_catalyst is False
-    assert event.is_dilution is False
-    assert (
-        event.ignore_reason
-        == "Annual meeting / procedural disclosure only (Item 5.08/8.01)"
-    )
+    assert event is None
+    items_present = build_watchlist._join_items(item.get("item", "") for item in result.get("items", []))
+    assert items_present == "5.08; 8.01"
+    assert result["classification"]["ignore_reason"] == "Annual meeting / procedural disclosure only (Item 5.08/8.01)"
 
 
 def test_items_202_901_earnings_ignore_reason():
@@ -50,8 +42,7 @@ def test_items_202_901_earnings_ignore_reason():
 
     event = build_watchlist._build_eight_k_event(_make_row(url), html, result)
 
-    assert event is not None
-    assert event.items_present == "2.02; 9.01"
-    assert event.is_catalyst is False
-    assert event.is_dilution is False
-    assert event.ignore_reason == "Earnings release only (Item 2.02/9.01)"
+    assert event is None
+    items_present = build_watchlist._join_items(item.get("item", "") for item in result.get("items", []))
+    assert items_present == "2.02; 9.01"
+    assert result["classification"]["ignore_reason"] == "Earnings release only (Item 2.02/9.01)"
