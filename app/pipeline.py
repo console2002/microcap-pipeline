@@ -6,7 +6,7 @@ from typing import Any
 import runway_extract
 from app import dr_populate
 from app.build_watchlist import run as build_watchlist_run, generate_eight_k_events
-from app.config import load_config, filings_max_lookback
+from app.config import load_config, filings_form_lookbacks, filings_max_lookback
 from app.http import HttpClient
 from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
 from app.sec import load_sec_universe
@@ -273,6 +273,47 @@ def _normalize_filings_tickers(df_filings: pd.DataFrame, cik_to_ticker: dict[str
                 )
                 df["Ticker"] = df["Ticker"].fillna("").astype(str).str.upper().str.strip()
 
+    return df
+
+
+def _purge_filings_by_lookback(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """
+    Drop filings that fall outside the configured lookback window for their form.
+
+    Uses per-form lookbacks from ``FilingsGroups`` with a fallback to the global
+    maximum lookback. Rows with unparseable dates are left intact so they can be
+    inspected and fixed upstream.
+    """
+
+    if df is None or df.empty or "FiledAt" not in df.columns or "Form" not in df.columns:
+        return df
+
+    df = df.copy()
+    form_lookbacks = filings_form_lookbacks(cfg)
+    prefix_order = sorted(form_lookbacks.keys(), key=len, reverse=True)
+    max_lookback = filings_max_lookback(cfg)
+
+    df["Form_norm"] = df["Form"].fillna("").astype(str).str.upper().str.strip()
+    df["FiledAt_dt"] = pd.to_datetime(df["FiledAt"], errors="coerce", utc=True)
+
+    today = pd.Timestamp.utcnow().normalize()
+    cutoff_cache: dict[int, pd.Timestamp] = {}
+
+    def _within_lookback(row: pd.Series) -> bool:
+        form_val = row["Form_norm"]
+        matched_prefix = next((p for p in prefix_order if form_val.startswith(p)), None)
+        lookback_days = form_lookbacks.get(matched_prefix, max_lookback)
+        if not lookback_days or lookback_days <= 0:
+            return True
+        filed_dt = row["FiledAt_dt"]
+        if pd.isna(filed_dt):
+            return True
+        cutoff = cutoff_cache.setdefault(
+            lookback_days, today - pd.Timedelta(days=lookback_days)
+        )
+        return filed_dt >= cutoff
+
+    df = df[df.apply(_within_lookback, axis=1)].drop(columns=["Form_norm", "FiledAt_dt"])
     return df
 
 
@@ -841,6 +882,8 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         except (TypeError, ValueError):
             df_fil["Age"] = age_series
 
+    df_fil = _purge_filings_by_lookback(df_fil, cfg)
+
     expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Age","URL"]
     for col in expected_cols:
         if col not in df_fil.columns:
@@ -872,6 +915,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     filings_path = csv_path(cfg["Paths"]["data"], "filings")
     df_cached = pd.read_csv(filings_path, encoding="utf-8") if os.path.exists(filings_path) else pd.DataFrame()
+    df_cached = _purge_filings_by_lookback(df_cached, cfg)
     df_cached, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
         df_cached, df_prof, progress_fn, log=False
     )
