@@ -323,6 +323,25 @@ class MainWindow(QtWidgets.QMainWindow):
             if target_stage:
                 self._set_stage_progress(target_stage, pct)
 
+        # Surface per-host rate limit activity so the bar shows motion while we
+        # are throttled (e.g. "financialmodelingprep.com 1/300 this_min").
+        host_stats = re.search(r"(?P<used>\d+)/(?P<limit>\d+)\s+this_min", body)
+        if host_stats:
+            used = int(host_stats.group("used"))
+            limit = max(int(host_stats.group("limit")), 1)
+            pct = max(0, min(99, int((used / limit) * 100)))
+            target_stage = stage or self.current_stage
+            if target_stage:
+                self._set_stage_progress(target_stage, max(self.progress_bar.value(), pct))
+
+        # Runway drop messages have no explicit percentage, so nudge the bar to
+        # reflect forward progress within the filings stage instead of staying
+        # stuck at 0% until completion.
+        if "runway drop" in body.lower():
+            target_stage = stage or self.current_stage
+            if target_stage:
+                self._set_stage_progress(target_stage, min(99, max(5, self.progress_bar.value() + 1)))
+
         match = re.search(r"\((\d{1,3}(?:\.\d+)?)%\)", msg)
         if match:
             pct_float = float(match.group(1))
