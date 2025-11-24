@@ -1,28 +1,31 @@
-import os, time, pandas as pd
-import numpy as np
+import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+import pandas as pd
+
 import runway_extract
 from app import dr_populate
-from app.build_watchlist import run as build_watchlist_run, generate_eight_k_events
-from app.config import load_config, filings_form_lookbacks, filings_max_lookback
-from app.http import HttpClient
-from app.utils import utc_now_iso, ensure_csv, log_line, duration_ms
-from app.sec import load_sec_universe
-from app.fmp import (
-    fetch_profiles,
-    fetch_prices,
-    fetch_filings,
-    fetch_aftermarket_quotes,
-)
-from app.fda import fetch_fda_events
+from app.build_watchlist import generate_eight_k_events, run as build_watchlist_run
 from app.cache import append_antijoin_purge
-from app.csv_names import csv_filename, csv_path
-from app.hydrate import hydrate_candidates
-from app.shortlist import build_shortlist
-from app.lockfile import is_locked, create_lock, clear_lock
 from app.cancel import CancelledRun
+from app.config import filings_form_lookbacks, filings_max_lookback, load_config
+from app.csv_names import csv_filename, csv_path
+from app.fda import fetch_fda_events
+from app.fmp import (
+    fetch_aftermarket_quotes,
+    fetch_filings,
+    fetch_prices,
+    fetch_profiles,
+)
+from app.hydrate import hydrate_candidates
+from app.http import HttpClient
+from app.lockfile import clear_lock, create_lock, is_locked
+from app.sec import load_sec_universe
+from app.shortlist import build_shortlist
+from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
 
 
@@ -124,8 +127,8 @@ def _runway_drop_message(detail: RunwayDropDetail) -> str:
 def init_logs(cfg: dict):
     runlog = os.path.join(cfg["Paths"]["logs"], "runlog.csv")
     errlog = os.path.join(cfg["Paths"]["logs"], "errorlog.csv")
-    ensure_csv(runlog, ["timestamp","module","rows_added","duration_ms","note"])
-    ensure_csv(errlog, ["timestamp","module","message"])
+    ensure_csv(runlog, ["timestamp", "module", "rows_added", "duration_ms", "note"])
+    ensure_csv(errlog, ["timestamp", "module", "message"])
     return runlog, errlog
 
 
@@ -134,7 +137,7 @@ def make_client(cfg: dict) -> HttpClient:
         user_agent=cfg["UserAgent"],
         timeout=cfg["TimeoutSeconds"],
         retries=cfg["Retries"],
-        backoff_secs=tuple(cfg["BackoffSeconds"])
+        backoff_secs=tuple(cfg["BackoffSeconds"]),
     )
 
 
@@ -182,7 +185,9 @@ FPI_INTERIM_FORM_PREFIXES = (
 )
 
 
-def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None = None) -> pd.DataFrame:
+def _load_cached_dataframe(
+    cfg: dict, name: str, required_cols: list[str] | None = None
+) -> pd.DataFrame:
     path = csv_path(cfg["Paths"]["data"], name)
     if not os.path.exists(path):
         raise RuntimeError(f"{csv_filename(name)} missing; cannot resume at this stage")
@@ -191,7 +196,9 @@ def _load_cached_dataframe(cfg: dict, name: str, required_cols: list[str] | None
     if required_cols:
         missing = [col for col in required_cols if col not in df.columns]
         if missing:
-            raise RuntimeError(f"{csv_filename(name)} missing required columns: {', '.join(missing)}")
+            raise RuntimeError(
+                f"{csv_filename(name)} missing required columns: {', '.join(missing)}"
+            )
     return df
 
 
@@ -207,7 +214,9 @@ def _is_us_country(value: str) -> bool:
     return value in US_COUNTRY_CODES
 
 
-def _profile_lookup(df_prof: pd.DataFrame) -> tuple[dict[str, str], dict[str, str], set[str]]:
+def _profile_lookup(
+    df_prof: pd.DataFrame,
+) -> tuple[dict[str, str], dict[str, str], set[str]]:
     ticker_to_country: dict[str, str] = {}
     cik_to_ticker: dict[str, str] = {}
     tickers: set[str] = set()
@@ -251,7 +260,9 @@ def _profile_lookup(df_prof: pd.DataFrame) -> tuple[dict[str, str], dict[str, st
     return ticker_to_country, cik_to_ticker, tickers
 
 
-def _normalize_filings_tickers(df_filings: pd.DataFrame, cik_to_ticker: dict[str, str]) -> pd.DataFrame:
+def _normalize_filings_tickers(
+    df_filings: pd.DataFrame, cik_to_ticker: dict[str, str]
+) -> pd.DataFrame:
     if df_filings is None or df_filings.empty:
         return df_filings
 
@@ -271,7 +282,9 @@ def _normalize_filings_tickers(df_filings: pd.DataFrame, cik_to_ticker: dict[str
                 df.loc[missing_mask, "Ticker"] = (
                     cik_series.loc[missing_mask].map(cik_to_ticker).fillna("")
                 )
-                df["Ticker"] = df["Ticker"].fillna("").astype(str).str.upper().str.strip()
+                df["Ticker"] = (
+                    df["Ticker"].fillna("").astype(str).str.upper().str.strip()
+                )
 
     return df
 
@@ -285,7 +298,12 @@ def _purge_filings_by_lookback(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     inspected and fixed upstream.
     """
 
-    if df is None or df.empty or "FiledAt" not in df.columns or "Form" not in df.columns:
+    if (
+        df is None
+        or df.empty
+        or "FiledAt" not in df.columns
+        or "Form" not in df.columns
+    ):
         return df
 
     df = df.copy()
@@ -313,7 +331,9 @@ def _purge_filings_by_lookback(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         )
         return filed_dt >= cutoff
 
-    df = df[df.apply(_within_lookback, axis=1)].drop(columns=["Form_norm", "FiledAt_dt"])
+    df = df[df.apply(_within_lookback, axis=1)].drop(
+        columns=["Form_norm", "FiledAt_dt"]
+    )
     return df
 
 
@@ -326,16 +346,22 @@ def _forms_support_runway(forms: set[str], country: str) -> tuple[bool, str]:
         return False, "filings missing form codes"
 
     has_us_form = any(
-        form.startswith(prefix) for prefix in US_RUNWAY_FORM_PREFIXES for form in normalized_forms
+        form.startswith(prefix)
+        for prefix in US_RUNWAY_FORM_PREFIXES
+        for form in normalized_forms
     )
     if has_us_form:
         return True, ""
 
     has_fpi_annual = any(
-        form.startswith(prefix) for prefix in FPI_ANNUAL_FORM_PREFIXES for form in normalized_forms
+        form.startswith(prefix)
+        for prefix in FPI_ANNUAL_FORM_PREFIXES
+        for form in normalized_forms
     )
     has_fpi_interim = any(
-        form.startswith(prefix) for prefix in FPI_INTERIM_FORM_PREFIXES for form in normalized_forms
+        form.startswith(prefix)
+        for prefix in FPI_INTERIM_FORM_PREFIXES
+        for form in normalized_forms
     )
 
     if has_fpi_annual and has_fpi_interim:
@@ -365,7 +391,10 @@ def _apply_runway_gate_to_filings(
 
     if df_normalized.empty or "Form" not in df_normalized.columns:
         if log and prof_tickers:
-            _emit(progress_fn, "filings: runway gate removed all tickers (no filings available)")
+            _emit(
+                progress_fn,
+                "filings: runway gate removed all tickers (no filings available)",
+            )
         return df_normalized.iloc[0:0], set(), {}
 
     detail_columns = [
@@ -399,7 +428,9 @@ def _apply_runway_gate_to_filings(
             form_map.setdefault(ticker_upper, set()).add(form_upper)
         else:
             # retain awareness that a filing existed but lacked a recognizable form
-            info.setdefault("notes", {}).setdefault("FormStatus", set()).add("missing form code")
+            info.setdefault("notes", {}).setdefault("FormStatus", set()).add(
+                "missing form code"
+            )
 
         url_value = getattr(row, "URL", "")
         url_text = str(url_value).strip()
@@ -466,7 +497,9 @@ def _apply_runway_gate_to_filings(
         elif drop_details:
             _emit(
                 progress_fn,
-                "filings: runway gate dropped {} tickers lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(len(drop_details)),
+                "filings: runway gate dropped {} tickers lacking 10-Q/10-K or 20-F/40-F + 6-K coverage".format(
+                    len(drop_details)
+                ),
             )
 
     return filtered, eligible, drop_details
@@ -497,7 +530,10 @@ def _restrict_profiles_to_core_filings(
     drop_details = drop_details or {}
 
     if not eligible_tickers:
-        _emit(progress_fn, "filings: no tickers have recent core filings; downstream stages will have 0 tickers")
+        _emit(
+            progress_fn,
+            "filings: no tickers have recent core filings; downstream stages will have 0 tickers",
+        )
         return df_prof.iloc[0:0]
 
     original_count = len(df_prof)
@@ -505,9 +541,7 @@ def _restrict_profiles_to_core_filings(
     df_filtered = df_prof.copy()
     ticker_series = df_filtered.get("Ticker", pd.Series(dtype="object"))
     normalized_tickers = ticker_series.fillna("").astype(str).str.upper().str.strip()
-    df_filtered["Ticker"] = (
-        normalized_tickers
-    )
+    df_filtered["Ticker"] = normalized_tickers
     df_filtered = df_filtered[df_filtered["Ticker"].isin(eligible_tickers)]
 
     dropped = original_count - len(df_filtered)
@@ -518,7 +552,11 @@ def _restrict_profiles_to_core_filings(
         )
 
         dropped_tickers = sorted(
-            {ticker for ticker in normalized_tickers if ticker and ticker not in eligible_tickers}
+            {
+                ticker
+                for ticker in normalized_tickers
+                if ticker and ticker not in eligible_tickers
+            }
         )
         for ticker in dropped_tickers:
             detail = drop_details.get(ticker)
@@ -540,7 +578,9 @@ def _load_cached_universe(cfg: dict) -> pd.DataFrame:
     df_prof = _load_cached_dataframe(cfg, "profiles", ["Ticker"])
     ticks = df_prof["Ticker"].dropna().unique()
     if len(ticks) == 0:
-        raise RuntimeError(f"{csv_filename('profiles')} contains no tickers; cannot resume at profiles stage")
+        raise RuntimeError(
+            f"{csv_filename('profiles')} contains no tickers; cannot resume at profiles stage"
+        )
     return pd.DataFrame({"Ticker": ticks})
 
 
@@ -561,7 +601,12 @@ def _tickers_passing_adv(cfg: dict, tickers: list[str]) -> set[str]:
         return set()
 
     prices = pd.read_csv(prices_path, encoding="utf-8")
-    if prices.empty or "Ticker" not in prices.columns or "Volume" not in prices.columns or "Date" not in prices.columns:
+    if (
+        prices.empty
+        or "Ticker" not in prices.columns
+        or "Volume" not in prices.columns
+        or "Date" not in prices.columns
+    ):
         return set()
 
     prices = prices[prices["Ticker"].astype(str).isin(tickers)]
@@ -574,12 +619,11 @@ def _tickers_passing_adv(cfg: dict, tickers: list[str]) -> set[str]:
         return set()
 
     prices = prices.sort_values(["Ticker", "Date"])
-    prices["ADV20"] = prices.groupby("Ticker")["Volume"].transform(lambda s: s.rolling(20, min_periods=20).mean())
-
-    latest_adv = (
-        prices.groupby("Ticker")
-              .tail(1)[["Ticker", "ADV20"]]
+    prices["ADV20"] = prices.groupby("Ticker")["Volume"].transform(
+        lambda s: s.rolling(20, min_periods=20).mean()
     )
+
+    latest_adv = prices.groupby("Ticker").tail(1)[["Ticker", "ADV20"]]
 
     latest_adv["ADV20"] = pd.to_numeric(latest_adv["ADV20"], errors="coerce").fillna(0)
 
@@ -603,9 +647,11 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "profiles: start")
     prof_rows = fetch_profiles(
-        client, cfg, df_uni["Ticker"].tolist(),
+        client,
+        cfg,
+        df_uni["Ticker"].tolist(),
         progress_fn=progress_fn,
-        stop_flag=stop_flag
+        stop_flag=stop_flag,
     )
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during profiles")
@@ -654,7 +700,13 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
         ]
 
         if not df_quotes.empty:
-            for col in ["BidPrice", "AskPrice", "BidSize", "AskSize", "AfterHoursVolume"]:
+            for col in [
+                "BidPrice",
+                "AskPrice",
+                "BidSize",
+                "AskSize",
+                "AfterHoursVolume",
+            ]:
                 if col in df_quotes.columns:
                     df_quotes[col] = pd.to_numeric(df_quotes[col], errors="coerce")
 
@@ -670,7 +722,9 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                         (df_quotes["Spread"] / mid_price) * 100.0,
                         np.nan,
                     )
-                df_quotes.loc[~np.isfinite(df_quotes["SpreadPct"]), "SpreadPct"] = np.nan
+                df_quotes.loc[~np.isfinite(df_quotes["SpreadPct"]), "SpreadPct"] = (
+                    np.nan
+                )
             else:
                 df_quotes["Spread"] = pd.NA
                 df_quotes["SpreadPct"] = np.nan
@@ -736,7 +790,11 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                 max_price_raw = rule.get("MaxPrice")
 
                 try:
-                    min_price_val = float(min_price_raw) if min_price_raw is not None else float("-inf")
+                    min_price_val = (
+                        float(min_price_raw)
+                        if min_price_raw is not None
+                        else float("-inf")
+                    )
                 except (TypeError, ValueError):
                     min_price_val = float("-inf")
 
@@ -748,7 +806,9 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                     except (TypeError, ValueError):
                         max_price_val = float("inf")
 
-                price_mask = (mid_price_series >= min_price_val) & (mid_price_series < max_price_val)
+                price_mask = (mid_price_series >= min_price_val) & (
+                    mid_price_series < max_price_val
+                )
                 rule_drop_mask = price_mask & (
                     spread_series.isna() | (spread_series >= max_pct_val)
                 )
@@ -768,9 +828,7 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                 df_prof[col] = pd.NA
 
     rows_added = append_antijoin_purge(
-        cfg, "profiles", df_prof,
-        key_cols=["Ticker"],
-        keep_days=None
+        cfg, "profiles", df_prof, key_cols=["Ticker"], keep_days=None
     )
     _log_step(runlog, "profiles", rows_added, t0, "append+purge")
     _emit(progress_fn, f"profiles: done {rows_added} new rows {client.stats_string()}")
@@ -783,9 +841,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
     _emit(progress_fn, "filings: start")
     ticks = df_prof["Ticker"].tolist()
     f_rows = fetch_filings(
-        client, cfg, ticks,
-        progress_fn=progress_fn,
-        stop_flag=stop_flag
+        client, cfg, ticks, progress_fn=progress_fn, stop_flag=stop_flag
     )
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during filings")
@@ -814,7 +870,8 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
             if not prof_ticker.empty:
                 ticker_map = (
                     prof_ticker.drop_duplicates(subset=["Ticker"], keep="last")
-                    .set_index("Ticker")["Company"].to_dict()
+                    .set_index("Ticker")["Company"]
+                    .to_dict()
                 )
 
         cik_map = {}
@@ -823,16 +880,13 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
             prof_cik["CIK"] = (
                 prof_cik["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
             )
-            prof_cik["Company"] = (
-                prof_cik["Company"].fillna("").astype(str).str.strip()
-            )
-            prof_cik = prof_cik[
-                (prof_cik["CIK"] != "") & (prof_cik["Company"] != "")
-            ]
+            prof_cik["Company"] = prof_cik["Company"].fillna("").astype(str).str.strip()
+            prof_cik = prof_cik[(prof_cik["CIK"] != "") & (prof_cik["Company"] != "")]
             if not prof_cik.empty:
                 cik_map = (
                     prof_cik.drop_duplicates(subset=["CIK"], keep="last")
-                    .set_index("CIK")["Company"].to_dict()
+                    .set_index("CIK")["Company"]
+                    .to_dict()
                 )
 
         if "Company" not in df_fil.columns:
@@ -856,14 +910,18 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
                 df_fil.loc[missing, "Ticker"].map(ticker_map).fillna("")
             )
             company_series = df_fil["Company"]
-            missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+            missing = company_series.isna() | company_series.astype(str).str.strip().eq(
+                ""
+            )
 
         if cik_map:
             df_fil.loc[missing, "Company"] = (
                 df_fil.loc[missing, "CIK"].map(cik_map).fillna("")
             )
             company_series = df_fil["Company"]
-            missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+            missing = company_series.isna() | company_series.astype(str).str.strip().eq(
+                ""
+            )
 
         if "Company" in df_fil.columns:
             df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
@@ -884,7 +942,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
 
     df_fil = _purge_filings_by_lookback(df_fil, cfg)
 
-    expected_cols = ["CIK","Ticker","Company","Form","FiledAt","Age","URL"]
+    expected_cols = ["CIK", "Ticker", "Company", "Form", "FiledAt", "Age", "URL"]
     for col in expected_cols:
         if col not in df_fil.columns:
             df_fil[col] = pd.Series(dtype="object")
@@ -902,19 +960,25 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
     if url_present:
         key_cols.append("URL")
     else:
-        key_cols.extend(["Form","FiledAt","Ticker"])
+        key_cols.extend(["Form", "FiledAt", "Ticker"])
 
     rows_added = append_antijoin_purge(
-        cfg, "filings", df_fil,
+        cfg,
+        "filings",
+        df_fil,
         key_cols=key_cols,
         keep_days=filings_max_lookback(cfg),
-        date_col="FiledAt"
+        date_col="FiledAt",
     )
     _log_step(runlog, "filings", rows_added, t0, "append+purge")
     _emit(progress_fn, f"filings: done {rows_added} new rows {client.stats_string()}")
 
     filings_path = csv_path(cfg["Paths"]["data"], "filings")
-    df_cached = pd.read_csv(filings_path, encoding="utf-8") if os.path.exists(filings_path) else pd.DataFrame()
+    df_cached = (
+        pd.read_csv(filings_path, encoding="utf-8")
+        if os.path.exists(filings_path)
+        else pd.DataFrame()
+    )
     df_cached = _purge_filings_by_lookback(df_cached, cfg)
     df_cached, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
         df_cached, df_prof, progress_fn, log=False
@@ -960,7 +1024,9 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
     )
 
     if eligible_tickers and "Ticker" in df_filings.columns:
-        df_filings_for_fda = df_filings[df_filings["Ticker"].astype(str).isin(eligible_tickers)]
+        df_filings_for_fda = df_filings[
+            df_filings["Ticker"].astype(str).isin(eligible_tickers)
+        ]
     else:
         df_filings_for_fda = df_filings.iloc[0:0]
 
@@ -974,7 +1040,7 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
             cfg,
             df_filings_for_fda,
             progress_fn=progress_fn,
-            stop_flag=stop_flag
+            stop_flag=stop_flag,
         )
 
     if stop_flag.get("stop"):
@@ -991,7 +1057,7 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
         "Product",
         "URL",
         "CIK",
-        "Ticker"
+        "Ticker",
     ]
     for col in expected_cols:
         if col not in df_fda.columns:
@@ -1003,7 +1069,7 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
         df_fda,
         key_cols=["EventID"],
         keep_days=cfg["Windows"]["DaysBack_FDA"],
-        date_col="DecisionDate"
+        date_col="DecisionDate",
     )
 
     _log_step(runlog, "fda", rows_added, t0, "append+purge")
@@ -1014,31 +1080,30 @@ def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
     return pd.read_csv(csv_path(cfg["Paths"]["data"], "fda"), encoding="utf-8")
 
 
-
 def prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "prices: start")
     ticks = df_prof["Ticker"].tolist()
     p_rows = fetch_prices(
-        client, cfg, ticks,
-        progress_fn=progress_fn,
-        stop_flag=stop_flag
+        client, cfg, ticks, progress_fn=progress_fn, stop_flag=stop_flag
     )
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during prices")
 
     df_p = pd.DataFrame(p_rows)
 
-    expected_cols = ["Date","Ticker","Open","High","Low","Close","Volume"]
+    expected_cols = ["Date", "Ticker", "Open", "High", "Low", "Close", "Volume"]
     for col in expected_cols:
         if col not in df_p.columns:
             df_p[col] = pd.Series(dtype="object")
 
     rows_added = append_antijoin_purge(
-        cfg, "prices", df_p,
-        key_cols=["Ticker","Date"],
+        cfg,
+        "prices",
+        df_p,
+        key_cols=["Ticker", "Date"],
         keep_days=cfg["Windows"]["DaysBack_Prices"],
-        date_col="Date"
+        date_col="Date",
     )
     _log_step(runlog, "prices", rows_added, t0, "append+purge")
     _emit(progress_fn, f"prices: done {rows_added} new rows {client.stats_string()}")
@@ -1055,7 +1120,13 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     cands = hydrate_candidates(cfg)
     cands_path = csv_path(cfg["Paths"]["data"], "hydrated_candidates")
     cands.to_csv(cands_path, index=False, encoding="utf-8")
-    _log_step(runlog, "hydrate", len(cands), t0, f"write {csv_filename('hydrated_candidates')}")
+    _log_step(
+        runlog,
+        "hydrate",
+        len(cands),
+        t0,
+        f"write {csv_filename('hydrated_candidates')}",
+    )
     _emit(progress_fn, f"hydrate: wrote {len(cands)} candidates")
 
     if stop_flag.get("stop"):
@@ -1066,7 +1137,13 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     short = build_shortlist(cfg, cands)
     short_path = csv_path(cfg["Paths"]["data"], "shortlist_candidates")
     short.to_csv(short_path, index=False, encoding="utf-8")
-    _log_step(runlog, "shortlist", len(short), t1, f"write {csv_filename('shortlist_candidates')}")
+    _log_step(
+        runlog,
+        "shortlist",
+        len(short),
+        t1,
+        f"write {csv_filename('shortlist_candidates')}",
+    )
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
 
@@ -1077,7 +1154,9 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
     data_dir = cfg["Paths"]["data"]
     short_path = csv_path(data_dir, "shortlist_candidates")
     if not os.path.exists(short_path):
-        raise RuntimeError(f"{csv_filename('shortlist_candidates')} missing; run hydrate stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('shortlist_candidates')} missing; run hydrate stage first or stage requires it"
+        )
 
     t0 = time.time()
     _emit(progress_fn, "deep_research: start")
@@ -1086,12 +1165,20 @@ def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
 
     results_path = csv_path(data_dir, "deep_research_results")
     if not os.path.exists(results_path):
-        raise RuntimeError(f"deep research did not create {csv_filename('deep_research_results')}")
+        raise RuntimeError(
+            f"deep research did not create {csv_filename('deep_research_results')}"
+        )
 
     df_results = pd.read_csv(results_path, encoding="utf-8")
     row_count = len(df_results)
 
-    _log_step(runlog, "deep_research", row_count, t0, f"write {csv_filename('deep_research_results')}")
+    _log_step(
+        runlog,
+        "deep_research",
+        row_count,
+        t0,
+        f"write {csv_filename('deep_research_results')}",
+    )
     _emit(progress_fn, f"deep_research: wrote {row_count} rows")
 
     return results_path
@@ -1106,10 +1193,14 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     filings_path = csv_path(data_dir, "filings")
 
     if not os.path.exists(research_path):
-        raise RuntimeError(f"{csv_filename('deep_research_results')} missing; run deep_research stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('deep_research_results')} missing; run deep_research stage first or stage requires it"
+        )
 
     if not os.path.exists(filings_path):
-        raise RuntimeError(f"{csv_filename('filings')} missing; run filings stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('filings')} missing; run filings stage first or stage requires it"
+        )
 
     t0 = time.time()
     _emit(progress_fn, "parse_q10: start")
@@ -1138,7 +1229,13 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
         except Exception as exc:
             _log_err(errlog, "parse_q10", f"failed to read output CSV: {exc}")
 
-    _log_step(runlog, "parse_q10", row_count, t0, f"write {csv_filename('runway_extract_results')}")
+    _log_step(
+        runlog,
+        "parse_q10",
+        row_count,
+        t0,
+        f"write {csv_filename('runway_extract_results')}",
+    )
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
@@ -1150,13 +1247,16 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
     filings_path = csv_path(data_dir, "filings")
 
     if not os.path.exists(filings_path):
-        raise RuntimeError(f"{csv_filename('filings')} missing; run filings stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('filings')} missing; run filings stage first or stage requires it"
+        )
 
     t0 = time.time()
     _emit(progress_fn, "eight_k: start")
 
     callback = None
     if progress_fn is not None:
+
         def adapter(message: str) -> None:
             detail = message.split(" ", 1)[1] if " " in message else message
             _emit(progress_fn, detail)
@@ -1169,7 +1269,9 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during parse_8k")
 
-    _log_step(runlog, "parse_8k", row_count, t0, f"write {csv_filename('eight_k_events')}")
+    _log_step(
+        runlog, "parse_8k", row_count, t0, f"write {csv_filename('eight_k_events')}"
+    )
     _emit(progress_fn, f"eight_k: complete – wrote {row_count} rows")
 
 
@@ -1182,10 +1284,14 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
     filings_path = csv_path(data_dir, "filings")
 
     if not os.path.exists(runway_path):
-        raise RuntimeError(f"{csv_filename('runway_extract_results')} missing; run parse_q10 stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('runway_extract_results')} missing; run parse_q10 stage first or stage requires it"
+        )
 
     if not os.path.exists(filings_path):
-        raise RuntimeError(f"{csv_filename('filings')} missing; run filings stage first or stage requires it")
+        raise RuntimeError(
+            f"{csv_filename('filings')} missing; run filings stage first or stage requires it"
+        )
 
     t0 = time.time()
     _emit(progress_fn, "dr_populate: start")
@@ -1207,7 +1313,13 @@ def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
         except Exception as exc:
             _log_err(errlog, "dr_populate", f"failed to read output CSV: {exc}")
 
-    _log_step(runlog, "dr_populate", row_count, t0, f"write {csv_filename('dr_populate_results')}")
+    _log_step(
+        runlog,
+        "dr_populate",
+        row_count,
+        t0,
+        f"write {csv_filename('dr_populate_results')}",
+    )
     _emit(progress_fn, f"dr_populate: wrote {row_count} rows")
 
 
@@ -1226,8 +1338,15 @@ def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     )
 
     if status == "missing_source":
-        _emit(progress_fn, f"build_watchlist: {csv_filename('dr_populate_results')} missing")
-        _log_err(errlog, "build_watchlist", f"{csv_filename('dr_populate_results')} not found")
+        _emit(
+            progress_fn,
+            f"build_watchlist: {csv_filename('dr_populate_results')} missing",
+        )
+        _log_err(
+            errlog,
+            "build_watchlist",
+            f"{csv_filename('dr_populate_results')} not found",
+        )
         return 0
 
     if status == "stopped":
@@ -1291,11 +1410,19 @@ def run_weekly_pipeline(
         if start_idx <= stages.index("profiles"):
             if df_uni is None:
                 df_uni = _load_cached_universe(cfg)
-                _emit(progress_fn, f"profiles: using cached tickers from {csv_filename('profiles')}")
-            df_prof = profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn)
+                _emit(
+                    progress_fn,
+                    f"profiles: using cached tickers from {csv_filename('profiles')}",
+                )
+            df_prof = profiles_step(
+                cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn
+            )
         else:
             df_prof = _load_cached_dataframe(cfg, "profiles")
-            _emit(progress_fn, f"profiles: skipped (loaded cached {csv_filename('profiles')})")
+            _emit(
+                progress_fn,
+                f"profiles: skipped (loaded cached {csv_filename('profiles')})",
+            )
 
         eligible_tickers: set[str] | None = None
         drop_details: dict[str, RunwayDropDetail] | None = None
@@ -1312,7 +1439,10 @@ def run_weekly_pipeline(
             df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
                 df_fil, df_prof, progress_fn
             )
-            _emit(progress_fn, f"filings: skipped (loaded cached {csv_filename('filings')})")
+            _emit(
+                progress_fn,
+                f"filings: skipped (loaded cached {csv_filename('filings')})",
+            )
 
         if df_fil is not None and df_prof is not None:
             df_prof = _restrict_profiles_to_core_filings(
@@ -1323,7 +1453,9 @@ def run_weekly_pipeline(
             if df_prof is None:
                 df_prof = _load_cached_dataframe(cfg, "profiles")
                 _emit(progress_fn, f"prices: using cached {csv_filename('profiles')}")
-            _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+            _ = prices_step(
+                cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
+            )
         else:
             _emit(progress_fn, "prices: skipped (starting later stage)")
 
@@ -1334,7 +1466,9 @@ def run_weekly_pipeline(
                 if df_fil is None:
                     df_fil = _load_cached_dataframe(cfg, "filings")
                     _emit(progress_fn, f"fda: using cached {csv_filename('filings')}")
-                _ = fda_step(cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn)
+                _ = fda_step(
+                    cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn
+                )
         else:
             _emit(progress_fn, "fda: skipped (starting later stage)")
 
@@ -1343,7 +1477,9 @@ def run_weekly_pipeline(
         else:
             short_path = csv_path(cfg["Paths"]["data"], "shortlist_candidates")
             if not os.path.exists(short_path):
-                raise RuntimeError(f"{csv_filename('shortlist_candidates')} missing; run hydrate stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('shortlist_candidates')} missing; run hydrate stage first or stage requires it"
+                )
             _emit(progress_fn, "hydrate: skipped (starting later stage)")
             _emit(progress_fn, "shortlist: skipped (starting later stage)")
 
@@ -1352,35 +1488,45 @@ def run_weekly_pipeline(
         else:
             results_path = csv_path(cfg["Paths"]["data"], "deep_research_results")
             if not os.path.exists(results_path):
-                raise RuntimeError(f"{csv_filename('deep_research_results')} missing; run deep_research stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('deep_research_results')} missing; run deep_research stage first or stage requires it"
+                )
 
         if start_idx <= stages.index("parse_q10"):
             parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             runway_path = csv_path(cfg["Paths"]["data"], "runway_extract_results")
             if not os.path.exists(runway_path):
-                raise RuntimeError(f"{csv_filename('runway_extract_results')} missing; run parse_q10 stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('runway_extract_results')} missing; run parse_q10 stage first or stage requires it"
+                )
 
         if start_idx <= stages.index("parse_8k"):
             parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             events_path = csv_path(cfg["Paths"]["data"], "eight_k_events")
             if not os.path.exists(events_path):
-                raise RuntimeError(f"{csv_filename('eight_k_events')} missing; run parse_8k stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('eight_k_events')} missing; run parse_8k stage first or stage requires it"
+                )
 
         if start_idx <= stages.index("dr_populate"):
             dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             full_path = csv_path(cfg["Paths"]["data"], "dr_populate_results")
             if not os.path.exists(full_path):
-                raise RuntimeError(f"{csv_filename('dr_populate_results')} missing; run dr_populate stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('dr_populate_results')} missing; run dr_populate stage first or stage requires it"
+                )
 
         if start_idx <= stages.index("build_watchlist"):
             build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             validated_path = csv_path(cfg["Paths"]["data"], "validated_watchlist")
             if not os.path.exists(validated_path):
-                raise RuntimeError(f"{csv_filename('validated_watchlist')} missing; run build_watchlist stage first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('validated_watchlist')} missing; run build_watchlist stage first or stage requires it"
+                )
 
         _emit(progress_fn, "run_weekly: complete")
 
@@ -1394,7 +1540,6 @@ def run_weekly_pipeline(
 
     finally:
         clear_lock(cfg)
-
 
 
 def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "prices"):
@@ -1424,7 +1569,9 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
         if start_idx <= stages.index("prices"):
             prof_path = csv_path(cfg["Paths"]["data"], "profiles")
             if not os.path.exists(prof_path):
-                raise RuntimeError(f"{csv_filename('profiles')} missing; run weekly first or stage requires it")
+                raise RuntimeError(
+                    f"{csv_filename('profiles')} missing; run weekly first or stage requires it"
+                )
 
             df_prof = pd.read_csv(prof_path, encoding="utf-8")
             df_fil = _load_cached_dataframe(cfg, "filings")
@@ -1434,7 +1581,9 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
             df_prof = _restrict_profiles_to_core_filings(
                 df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
-            _ = prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn)
+            _ = prices_step(
+                cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
+            )
         else:
             _emit(progress_fn, "prices: skipped (starting at hydrate stage)")
 
