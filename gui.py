@@ -1,13 +1,18 @@
-import sys, os, json, re
-from PySide6 import QtCore, QtWidgets, QtGui
-from app.pipeline import run_weekly_pipeline, run_daily_pipeline
+import json
+import os
+import re
+import sys
+
+from PySide6 import QtCore, QtGui, QtWidgets
+
 from app.config import load_config, save_config
 from app.parse_progress import FormCount, ParseProgressTracker
+from app.pipeline import run_daily_pipeline, run_weekly_pipeline
 
 
 class RunnerThread(QtCore.QThread):
-    progress = QtCore.Signal(str)   # status updates
-    finished = QtCore.Signal(str)   # done/cancelled/error
+    progress = QtCore.Signal(str)  # status updates
+    finished = QtCore.Signal(str)  # done/cancelled/error
 
     def __init__(self, mode: str, start_stage: str, skip_fda: bool = False):
         super().__init__()
@@ -29,7 +34,7 @@ class RunnerThread(QtCore.QThread):
                 run_daily_pipeline(
                     stop_flag=self.stop_flag,
                     progress_fn=self.progress.emit,
-                    start_stage=self.start_stage
+                    start_stage=self.start_stage,
                 )
 
             if self.stop_flag["stop"]:
@@ -64,18 +69,22 @@ class ParseStatsWidget(QtWidgets.QTreeWidget):
         self.clear()
         for form in sorted(form_stats.keys()):
             stats = form_stats[form]
-            item = QtWidgets.QTreeWidgetItem([
-                form,
-                str(stats.parsed),
-                str(stats.valid),
-                str(stats.missing),
-                "",
-            ])
+            item = QtWidgets.QTreeWidgetItem(
+                [
+                    form,
+                    str(stats.parsed),
+                    str(stats.valid),
+                    str(stats.missing),
+                    "",
+                ]
+            )
             self._apply_balance_indicator(item, 4, stats)
             self.addTopLevelItem(item)
         self.setUpdatesEnabled(True)
 
-    def _apply_balance_indicator(self, item: QtWidgets.QTreeWidgetItem, column: int, stats: FormCount) -> None:
+    def _apply_balance_indicator(
+        self, item: QtWidgets.QTreeWidgetItem, column: int, stats: FormCount
+    ) -> None:
         balanced = stats.totals_match()
         item.setText(column, "✓" if balanced else "✗")
         delta = stats.parsed - (stats.valid + stats.missing)
@@ -115,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         tabs.addTab(self.run_tab, "Run")
 
         self.btn_weekly = QtWidgets.QPushButton("Run Weekly (Full)")
-        self.btn_daily  = QtWidgets.QPushButton("Run Daily (Prices Only)")
+        self.btn_daily = QtWidgets.QPushButton("Run Daily (Prices Only)")
         self.btn_cancel = QtWidgets.QPushButton("Cancel Run")
         self.btn_cancel.setEnabled(False)
 
@@ -148,7 +157,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # the same behavior by setting a minimum width based on character width.
         min_width = self.status_label.fontMetrics().horizontalAdvance("M") * 60
         self.status_label.setMinimumWidth(min_width)
-        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.status_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed
+        )
 
         self.log_tail = QtWidgets.QPlainTextEdit()
         self.log_tail.setReadOnly(True)
@@ -198,7 +209,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_save_cfg = QtWidgets.QPushButton("Save Config")
 
         cfg_layout = QtWidgets.QVBoxLayout()
-        cfg_layout.addWidget(QtWidgets.QLabel("Edit config.json below. All fields are live."))
+        cfg_layout.addWidget(
+            QtWidgets.QLabel("Edit config.json below. All fields are live.")
+        )
         cfg_layout.addWidget(self.config_edit)
         cfg_layout.addWidget(self.btn_load_cfg)
         cfg_layout.addWidget(self.btn_save_cfg)
@@ -313,13 +326,19 @@ class MainWindow(QtWidgets.QMainWindow):
             elif re.search(r"\b(done|skipped)\b", body):
                 self._set_stage_progress(stage, 100)
 
-        fraction = re.search(r"\[(?P<stage>[a-z_]+)\]\s+(?P<done>\d+)\/(?P<total>\d+)", body)
+        fraction = re.search(
+            r"\[(?P<stage>[a-z_]+)\]\s+(?P<done>\d+)\/(?P<total>\d+)", body
+        )
         if fraction:
             stage_name = fraction.group("stage")
             done = int(fraction.group("done"))
             total = max(int(fraction.group("total")), 1)
             pct = max(0, min(100, int((done / total) * 100)))
-            target_stage = stage_name if stage_name in {"profiles", "filings", "prices"} else self.current_stage
+            target_stage = (
+                stage_name
+                if stage_name in {"profiles", "filings", "prices"}
+                else self.current_stage
+            )
             if target_stage:
                 self._set_stage_progress(target_stage, pct)
 
@@ -332,7 +351,9 @@ class MainWindow(QtWidgets.QMainWindow):
             pct = max(0, min(99, int((used / limit) * 100)))
             target_stage = stage or self.current_stage
             if target_stage:
-                self._set_stage_progress(target_stage, max(self.progress_bar.value(), pct))
+                self._set_stage_progress(
+                    target_stage, max(self.progress_bar.value(), pct)
+                )
 
         # Runway drop messages have no explicit percentage, so nudge the bar to
         # reflect forward progress within the filings stage instead of staying
@@ -340,7 +361,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if "runway drop" in body.lower():
             target_stage = stage or self.current_stage
             if target_stage:
-                self._set_stage_progress(target_stage, min(99, max(5, self.progress_bar.value() + 1)))
+                self._set_stage_progress(
+                    target_stage, min(99, max(5, self.progress_bar.value() + 1))
+                )
 
         match = re.search(r"\((\d{1,3}(?:\.\d+)?)%\)", msg)
         if match:
