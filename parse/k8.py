@@ -16,7 +16,7 @@ from .router import _fetch_url, _user_agent
 
 
 _ITEM_PATTERN = re.compile(r"item[\s\u00A0]*([0-9]{1,2}\.[0-9]{2})", re.IGNORECASE)
-_TARGET_ITEMS = {"1.01", "2.02", "3.02", "5.02", "7.01", "8.01", "9.01"}
+_TARGET_ITEMS = {"1.01", "2.02", "3.02", "5.02", "5.08", "7.01", "8.01", "9.01"}
 
 _CONTRACT_KEYWORDS = [
     "obligated",
@@ -447,10 +447,6 @@ def _classify(items: list[_ItemSection], combined_text: str) -> dict:
             _promote("Tier-1", "GUIDANCE_UP")
         elif item_801 and _contains_any(item_801, _REGULATORY_KEYWORDS):
             _promote("Tier-1", "REGULATORY")
-        elif any(section.code == "2.02" for section in items):
-            _promote("Tier-2", None)
-        elif any(section.code in {"1.01", "8.01", "5.02"} for section in items):
-            _promote("Tier-2", None)
 
     if classification["is_dilution"]:
         classification["is_catalyst"] = False
@@ -467,6 +463,24 @@ def _classify(items: list[_ItemSection], combined_text: str) -> dict:
         classification["tier"] = None
         classification["tier1_type"] = None
         classification["tier1_trigger"] = None
+
+    if not classification["ignore_reason"] and not (
+        classification["is_catalyst"] or classification["is_dilution"]
+    ):
+        item_codes = {section.code for section in items}
+        if item_codes:
+            if item_codes.issubset({"5.02"}):
+                classification["ignore_reason"] = "Director/officer change only (Item 5.02)"
+            elif item_codes.issubset({"5.08", "8.01"}) and item_codes:
+                classification["ignore_reason"] = (
+                    "Annual meeting / procedural disclosure only (Item 5.08/8.01)"
+                )
+            elif item_codes.issubset({"2.02", "9.01"}) and item_codes:
+                classification["ignore_reason"] = "Earnings release only (Item 2.02/9.01)"
+            else:
+                classification["ignore_reason"] = (
+                    "8-K with no BD/financing/regulatory catalyst"
+                )
 
     return classification
 
