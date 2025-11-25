@@ -16,14 +16,13 @@ from app.csv_names import csv_filename, csv_path
 from app.fda import fetch_fda_events
 from app.fmp import (
     fetch_aftermarket_quotes,
-    fetch_filings,
     fetch_prices,
     fetch_profiles,
 )
+from app.edgar_adapter import EdgarAdapter, set_adapter
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
-from app.sec import load_sec_universe
 from app.shortlist import build_shortlist
 from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
@@ -631,15 +630,15 @@ def _tickers_passing_adv(cfg: dict, tickers: list[str]) -> set[str]:
     return set(eligible.tolist())
 
 
-def universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn):
+def universe_step(cfg, adapter: EdgarAdapter, runlog, errlog, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "universe: start SEC pull")
-    uni = load_sec_universe(client, cfg)
+    uni = adapter.load_company_universe()
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during universe")
     df_uni = pd.DataFrame(uni)
     _log_step(runlog, "SEC_universe", len(df_uni), t0, "loaded")
-    _emit(progress_fn, f"universe: done {len(df_uni)} rows {client.stats_string()}")
+    _emit(progress_fn, f"universe: done {len(df_uni)} rows {adapter.stats_string()}")
     return df_uni
 
 
@@ -836,12 +835,12 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     return pd.read_csv(csv_path(cfg["Paths"]["data"], "profiles"), encoding="utf-8")
 
 
-def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
+def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "filings: start")
     ticks = df_prof["Ticker"].tolist()
-    f_rows = fetch_filings(
-        client, cfg, ticks, progress_fn=progress_fn, stop_flag=stop_flag
+    f_rows = adapter.fetch_recent_filings(
+        ticks, progress_fn=progress_fn, stop_flag=stop_flag
     )
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during filings")
@@ -971,7 +970,7 @@ def filings_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         date_col="FiledAt",
     )
     _log_step(runlog, "filings", rows_added, t0, "append+purge")
-    _emit(progress_fn, f"filings: done {rows_added} new rows {client.stats_string()}")
+    _emit(progress_fn, f"filings: done {rows_added} new rows {adapter.stats_string()}")
 
     filings_path = csv_path(cfg["Paths"]["data"], "filings")
     df_cached = (
@@ -1376,6 +1375,8 @@ def run_weekly_pipeline(
 
     create_lock(cfg, "weekly")
     client = make_client(cfg)
+    adapter = EdgarAdapter(cfg)
+    set_adapter(adapter)
 
     stages = [
         "universe",
@@ -1403,7 +1404,7 @@ def run_weekly_pipeline(
         start_idx = stages.index(start_stage)
 
         if start_idx <= stages.index("universe"):
-            df_uni = universe_step(cfg, client, runlog, errlog, stop_flag, progress_fn)
+            df_uni = universe_step(cfg, adapter, runlog, errlog, stop_flag, progress_fn)
         else:
             _emit(progress_fn, f"universe: skipped (starting at {start_stage})")
 
@@ -1432,7 +1433,7 @@ def run_weekly_pipeline(
                 df_prof = _load_cached_dataframe(cfg, "profiles")
                 _emit(progress_fn, f"filings: using cached {csv_filename('profiles')}")
             df_fil, eligible_tickers, drop_details = filings_step(
-                cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
+                cfg, adapter, runlog, errlog, df_prof, stop_flag, progress_fn
             )
         else:
             df_fil = _load_cached_dataframe(cfg, "filings")
