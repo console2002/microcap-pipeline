@@ -836,141 +836,141 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
 
 def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag, progress_fn):
+    def _prepare_filings_for_cache(
+        df_fil: pd.DataFrame,
+        df_prof: pd.DataFrame,
+        *,
+        log_gate: bool = False,
+    ) -> tuple[pd.DataFrame, list[str], set[str], dict[str, RunwayDropDetail]]:
+        df_fil, eligible, drop_map = _apply_runway_gate_to_filings(
+            df_fil, df_prof, progress_fn, log=log_gate
+        )
+
+        if not df_fil.empty and df_prof is not None and not df_prof.empty:
+            prof = df_prof.copy()
+
+            ticker_map = {}
+            if {"Ticker", "Company"}.issubset(prof.columns):
+                prof_ticker = prof[["Ticker", "Company"]].copy()
+                prof_ticker["Ticker"] = (
+                    prof_ticker["Ticker"].fillna("").astype(str).str.upper().str.strip()
+                )
+                prof_ticker["Company"] = (
+                    prof_ticker["Company"].fillna("").astype(str).str.strip()
+                )
+                prof_ticker = prof_ticker[
+                    (prof_ticker["Ticker"] != "") & (prof_ticker["Company"] != "")
+                ]
+                if not prof_ticker.empty:
+                    ticker_map = (
+                        prof_ticker.drop_duplicates(subset=["Ticker"], keep="last")
+                        .set_index("Ticker")["Company"]
+                        .to_dict()
+                    )
+
+            cik_map = {}
+            if {"CIK", "Company"}.issubset(prof.columns):
+                prof_cik = prof[["CIK", "Company"]].copy()
+                prof_cik["CIK"] = (
+                    prof_cik["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+                )
+                prof_cik["Company"] = prof_cik["Company"].fillna("").astype(str).str.strip()
+                prof_cik = prof_cik[
+                    (prof_cik["CIK"] != "") & (prof_cik["Company"] != "")
+                ]
+                if not prof_cik.empty:
+                    cik_map = (
+                        prof_cik.drop_duplicates(subset=["CIK"], keep="last")
+                        .set_index("CIK")["Company"]
+                        .to_dict()
+                    )
+
+            if "Company" not in df_fil.columns:
+                df_fil["Company"] = pd.Series(dtype="object")
+
+            if "Ticker" in df_fil.columns:
+                df_fil["Ticker"] = (
+                    df_fil["Ticker"].fillna("").astype(str).str.upper().str.strip()
+                )
+
+            if "CIK" in df_fil.columns:
+                df_fil["CIK"] = (
+                    df_fil["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
+                )
+
+            company_series = df_fil["Company"]
+            missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
+
+            if ticker_map:
+                df_fil.loc[missing, "Company"] = (
+                    df_fil.loc[missing, "Ticker"].map(ticker_map).fillna("")
+                )
+                company_series = df_fil["Company"]
+                missing = company_series.isna() | company_series.astype(str).str.strip().eq(
+                    ""
+                )
+
+            if cik_map:
+                df_fil.loc[missing, "Company"] = (
+                    df_fil.loc[missing, "CIK"].map(cik_map).fillna("")
+                )
+                company_series = df_fil["Company"]
+                missing = company_series.isna() | company_series.astype(str).str.strip().eq(
+                    ""
+                )
+
+            if "Company" in df_fil.columns:
+                df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
+
+        age_dtype = "Int64"
+        if "Age" not in df_fil.columns:
+            df_fil["Age"] = pd.Series(dtype=age_dtype)
+
+        if "FiledAt" in df_fil.columns:
+            filed_dt = pd.to_datetime(df_fil["FiledAt"], errors="coerce", utc=True)
+            today = pd.Timestamp.utcnow().normalize()
+            age_series = (today - filed_dt.dt.normalize()).dt.days
+            age_series = age_series.where(~filed_dt.isna())
+            try:
+                df_fil["Age"] = age_series.astype(age_dtype)
+            except (TypeError, ValueError):
+                df_fil["Age"] = age_series
+
+        df_fil = _purge_filings_by_lookback(df_fil, cfg)
+
+        expected_cols = [
+            "CIK",
+            "Ticker",
+            "Company",
+            "Form",
+            "FiledAt",
+            "Age",
+            "URL",
+        ]
+        for col in expected_cols:
+            if col not in df_fil.columns:
+                df_fil[col] = pd.Series(dtype="object")
+
+        ordered_cols = expected_cols + [c for c in df_fil.columns if c not in expected_cols]
+        df_fil = df_fil[ordered_cols]
+
+        key_cols = ["CIK"]
+        url_present = False
+        if "URL" in df_fil.columns:
+            url_series = df_fil["URL"].fillna("").astype(str).str.strip()
+            df_fil["URL"] = url_series
+            url_present = url_series.ne("").any()
+
+        if url_present:
+            key_cols.append("URL")
+        else:
+            key_cols.extend(["Form", "FiledAt", "Ticker"])
+
+        return df_fil, key_cols, eligible, drop_map
+
     t0 = time.time()
     _emit(progress_fn, "filings: start")
     ticks = df_prof["Ticker"].tolist()
-    f_rows = adapter.fetch_recent_filings(
-        ticks, progress_fn=progress_fn, stop_flag=stop_flag
-    )
-    if stop_flag.get("stop"):
-        raise CancelledRun("cancel during filings")
-
-    df_fil = pd.DataFrame(f_rows)
-
-    df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
-        df_fil, df_prof, progress_fn
-    )
-
-    if not df_fil.empty and df_prof is not None and not df_prof.empty:
-        prof = df_prof.copy()
-
-        ticker_map = {}
-        if {"Ticker", "Company"}.issubset(prof.columns):
-            prof_ticker = prof[["Ticker", "Company"]].copy()
-            prof_ticker["Ticker"] = (
-                prof_ticker["Ticker"].fillna("").astype(str).str.upper().str.strip()
-            )
-            prof_ticker["Company"] = (
-                prof_ticker["Company"].fillna("").astype(str).str.strip()
-            )
-            prof_ticker = prof_ticker[
-                (prof_ticker["Ticker"] != "") & (prof_ticker["Company"] != "")
-            ]
-            if not prof_ticker.empty:
-                ticker_map = (
-                    prof_ticker.drop_duplicates(subset=["Ticker"], keep="last")
-                    .set_index("Ticker")["Company"]
-                    .to_dict()
-                )
-
-        cik_map = {}
-        if {"CIK", "Company"}.issubset(prof.columns):
-            prof_cik = prof[["CIK", "Company"]].copy()
-            prof_cik["CIK"] = (
-                prof_cik["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
-            )
-            prof_cik["Company"] = prof_cik["Company"].fillna("").astype(str).str.strip()
-            prof_cik = prof_cik[(prof_cik["CIK"] != "") & (prof_cik["Company"] != "")]
-            if not prof_cik.empty:
-                cik_map = (
-                    prof_cik.drop_duplicates(subset=["CIK"], keep="last")
-                    .set_index("CIK")["Company"]
-                    .to_dict()
-                )
-
-        if "Company" not in df_fil.columns:
-            df_fil["Company"] = pd.Series(dtype="object")
-
-        if "Ticker" in df_fil.columns:
-            df_fil["Ticker"] = (
-                df_fil["Ticker"].fillna("").astype(str).str.upper().str.strip()
-            )
-
-        if "CIK" in df_fil.columns:
-            df_fil["CIK"] = (
-                df_fil["CIK"].fillna("").astype(str).str.zfill(10).str.strip()
-            )
-
-        company_series = df_fil["Company"]
-        missing = company_series.isna() | company_series.astype(str).str.strip().eq("")
-
-        if ticker_map:
-            df_fil.loc[missing, "Company"] = (
-                df_fil.loc[missing, "Ticker"].map(ticker_map).fillna("")
-            )
-            company_series = df_fil["Company"]
-            missing = company_series.isna() | company_series.astype(str).str.strip().eq(
-                ""
-            )
-
-        if cik_map:
-            df_fil.loc[missing, "Company"] = (
-                df_fil.loc[missing, "CIK"].map(cik_map).fillna("")
-            )
-            company_series = df_fil["Company"]
-            missing = company_series.isna() | company_series.astype(str).str.strip().eq(
-                ""
-            )
-
-        if "Company" in df_fil.columns:
-            df_fil["Company"] = df_fil["Company"].fillna("").astype(str)
-
-    age_dtype = "Int64"
-    if "Age" not in df_fil.columns:
-        df_fil["Age"] = pd.Series(dtype=age_dtype)
-
-    if "FiledAt" in df_fil.columns:
-        filed_dt = pd.to_datetime(df_fil["FiledAt"], errors="coerce", utc=True)
-        today = pd.Timestamp.utcnow().normalize()
-        age_series = (today - filed_dt.dt.normalize()).dt.days
-        age_series = age_series.where(~filed_dt.isna())
-        try:
-            df_fil["Age"] = age_series.astype(age_dtype)
-        except (TypeError, ValueError):
-            df_fil["Age"] = age_series
-
-    df_fil = _purge_filings_by_lookback(df_fil, cfg)
-
-    expected_cols = ["CIK", "Ticker", "Company", "Form", "FiledAt", "Age", "URL"]
-    for col in expected_cols:
-        if col not in df_fil.columns:
-            df_fil[col] = pd.Series(dtype="object")
-
-    ordered_cols = expected_cols + [c for c in df_fil.columns if c not in expected_cols]
-    df_fil = df_fil[ordered_cols]
-
-    key_cols = ["CIK"]
-    url_present = False
-    if "URL" in df_fil.columns:
-        url_series = df_fil["URL"].fillna("").astype(str).str.strip()
-        df_fil["URL"] = url_series
-        url_present = url_series.ne("").any()
-
-    if url_present:
-        key_cols.append("URL")
-    else:
-        key_cols.extend(["Form", "FiledAt", "Ticker"])
-
-    rows_added = append_antijoin_purge(
-        cfg,
-        "filings",
-        df_fil,
-        key_cols=key_cols,
-        keep_days=filings_max_lookback(cfg),
-        date_col="FiledAt",
-    )
-    _log_step(runlog, "filings", rows_added, t0, "append+purge")
-    _emit(progress_fn, f"filings: done {rows_added} new rows {adapter.stats_string()}")
 
     filings_path = csv_path(cfg["Paths"]["data"], "filings")
     df_cached = (
@@ -979,12 +979,77 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         else pd.DataFrame()
     )
     df_cached = _purge_filings_by_lookback(df_cached, cfg)
-    df_cached, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
-        df_cached, df_prof, progress_fn, log=False
+    existing_tickers = (
+        df_cached.get("Ticker", pd.Series(dtype="object"))
+        .fillna("")
+        .astype(str)
+        .str.upper()
     )
-    df_cached.to_csv(filings_path, index=False, encoding="utf-8")
+    processed_tickers = set(existing_tickers[existing_tickers.ne("")].tolist())
 
-    return df_cached, eligible_tickers, drop_details
+    all_rows: list[dict] = adapter.fetch_recent_filings(
+        ticks,
+        progress_fn=progress_fn,
+        stop_flag=stop_flag,
+        skip_tickers=processed_tickers,
+    )
+
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel during filings")
+
+    df_new = pd.DataFrame(all_rows)
+    df_new_prepared, key_cols, eligible_tickers, drop_details = _prepare_filings_for_cache(
+        df_new, df_prof, log_gate=False
+    )
+
+    if df_new_prepared.empty:
+        df_unique = pd.DataFrame(columns=df_cached.columns)
+    else:
+        for key in key_cols:
+            if key in df_new_prepared.columns:
+                df_new_prepared[key] = df_new_prepared[key].astype(str).fillna("")
+            if key in df_cached.columns:
+                df_cached[key] = df_cached[key].astype(str).fillna("")
+
+        if df_cached.empty:
+            df_unique = df_new_prepared.copy()
+        else:
+            marker = df_new_prepared.merge(
+                df_cached[key_cols].drop_duplicates(),
+                on=key_cols,
+                how="left",
+                indicator=True,
+            )
+            df_unique = marker[marker["_merge"] == "left_only"].drop(columns=["_merge"])
+
+    if df_cached.empty and df_unique.empty:
+        df_all = df_cached.copy()
+    elif df_cached.empty:
+        df_all = df_unique.copy()
+    elif df_unique.empty:
+        df_all = df_cached.copy()
+    else:
+        df_all = pd.concat([df_cached, df_unique], ignore_index=True)
+
+    df_all = _purge_filings_by_lookback(df_all, cfg)
+    df_all, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
+        df_all, df_prof, progress_fn, log=False
+    )
+    df_all.to_csv(filings_path, index=False, encoding="utf-8")
+
+    total_drop_details = {**drop_details, **gate_drop_details}
+    total_eligible = eligible_tickers | gate_eligible
+
+    _log_step(
+        runlog,
+        "filings",
+        len(df_all),
+        t0,
+        "append+purge",
+    )
+    _emit(progress_fn, f"filings: done {len(df_all)} rows {adapter.stats_string()}")
+
+    return df_all, total_eligible, total_drop_details
 
 
 def fda_step(cfg, client, runlog, errlog, df_filings, stop_flag, progress_fn):
