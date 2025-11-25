@@ -5,10 +5,8 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
-
-from importlib import import_module
 
 from app.edgar_adapter import get_adapter
 
@@ -84,6 +82,7 @@ _CASHFLOW_HEADERS_BASE = [
     "CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
     "CONDENSED CONSOLIDATED STATEMENT OF CASH FLOWS",
     "STATEMENTS OF CASH FLOWS",
+    "STATEMENT OF CASH FLOWS",
     "INTERIM CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
     "INTERIM CONDENSED CONSOLIDATED STATEMENT OF CASH FLOWS",
 ]
@@ -109,6 +108,7 @@ _OCF_KEYWORDS_BURN_BASE = [
     "Net cash used for operating activities",
     "Net cash (used in) operating activities",
     "Net cash flows used in operating activities",
+    "Net cash used in operating activities",
 ]
 
 _OCF_KEYWORDS_PROVIDED_BASE = [
@@ -127,6 +127,7 @@ _OCF_KEYWORDS_PROVIDED_BASE = [
     "Net cash provided by (used in) operating activities",
     "Net cash flows from operating activities",
     "Net cash from operating activities",
+    "Net cash provided by (used in) operating activities",
 ]
 
 _OCF_KEYWORDS_BURN_EXTRA = [
@@ -173,29 +174,7 @@ _OCF_KEYWORDS_PROVIDED_EXTRA = [
     "Cash flows from operating activities",
 ]
 
-_PARSER_MODULES: dict[str, str] = {
-    "10-Q": "parse.q10_k10",
-    "10-K": "parse.q10_k10",
-    "20-F": "parse.f20_f40",
-    "40-F": "parse.f20_f40",
-    "6-K": "parse.k6",
-    "8-K": "parse.k8",
-    "S-3": "parse.s3",
-    "424B1": "parse.f424b",
-    "424B2": "parse.f424b",
-    "424B3": "parse.f424b",
-    "424B4": "parse.f424b",
-    "424B5": "parse.f424b",
-    "424B7": "parse.f424b",
-    "424B8": "parse.f424b",
-    "S-8": "parse.s8",
-    "S-4": "parse.s4",
-    "8-A12B": "parse.f8a12b",
-    "DEF 14A": "parse.def14a",
-    "13D": "parse.f13d_g",
-    "13G": "parse.f13d_g",
-    "13F-HR": "parse.f13f_hr",
-}
+_PARSER_MODULES: dict[str, str] = {}
 
 
 def _normalize_form_type(value: object) -> Optional[str]:
@@ -478,15 +457,6 @@ def url_matches_form(url: str, form: str | None) -> bool:
     return False
 
 
-def _resolve_parser(form_type: Optional[str]) -> Optional[Callable[[str, Optional[str], Optional[str]], dict]]:
-    normalized = _normalize_form_type(form_type)
-    module_name = _PARSER_MODULES.get(normalized or "")
-    if not module_name:
-        return None
-    module = import_module(module_name)
-    return getattr(module, "parse", None)
-
-
 def _not_implemented_result(url: str, form_type: Optional[str]) -> dict:
     label = form_type or "Unknown"
     note = f"Parsing for {label} filings is not implemented: {url}"
@@ -576,53 +546,26 @@ def get_runway_from_filing(filing_url: str) -> dict:
     if not form_type_hint and original_form_hint:
         form_type_hint = original_form_hint
 
-    parser = _resolve_parser(form_type_hint or combined_form_hint)
-    if parser is None:
-        text_form_hint: Optional[str] = None
-        fetch_error: Optional[str] = None
+    adapter = get_adapter()
+    edgar_result = adapter.runway_from_financials(canonical_url, combined_form_hint)
+    if edgar_result is not None:
+        log_runway_outcome(
+            canonical_url,
+            combined_form_hint,
+            edgar_result,
+            extra={"path": "edgar_financials"},
+        )
+        return edgar_result
 
-        if html_text is None:
-            try:
-                raw_bytes = _fetch_url(canonical_url)
-            except Exception as exc:  # pragma: no cover - network errors
-                fetch_error = f"{exc.__class__.__name__}: {exc}"
-                log_parse_event(
-                    logging.DEBUG,
-                    "form inference fetch failed",
-                    url=canonical_url,
-                    error=fetch_error,
-                )
-            else:
-                html_text = raw_bytes.decode("utf-8", errors="ignore")
-
-        if html_text:
-            unescaped = unescape_html_entities(html_text, context=canonical_url)
-            text_form_hint = _infer_form_type_from_text(strip_html(unescaped))
-
-        parser = _resolve_parser(text_form_hint or combined_form_hint)
-        if parser is not None:
-            log_parse_event(
-                logging.DEBUG,
-                "form inferred from text",
-                url=canonical_url,
-                form_hint=form_hint_query,
-                url_form=form_type_hint,
-                text_form=text_form_hint,
-            )
-        else:
-            log_parse_event(
-                logging.DEBUG,
-                "parser not implemented",
-                url=canonical_url,
-                form_hint=form_hint_query,
-                url_form=form_type_hint,
-                text_form=text_form_hint,
-                fetch_error=fetch_error,
-            )
-            fallback_form = text_form_hint or form_type_hint or form_hint_query
-            return _not_implemented_result(canonical_url, fallback_form)
-
-    return parser(canonical_url, html_text, combined_form_hint)
+    log_parse_event(
+        logging.DEBUG,
+        "parser not implemented",
+        url=canonical_url,
+        form_hint=form_hint_query,
+        url_form=form_type_hint,
+    )
+    fallback_form = form_type_hint or form_hint_query
+    return _not_implemented_result(canonical_url, fallback_form)
 
 
 __all__ = ["get_runway_from_filing", "url_matches_form", "_fetch_url", "_fetch_json", "_form_defaults", "_normalize_form_type", "_extract_form_hint_from_url", "_infer_form_type_from_url", "_infer_form_type_from_text", "_extract_note_suffix"]

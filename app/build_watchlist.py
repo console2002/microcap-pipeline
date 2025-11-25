@@ -18,9 +18,13 @@ import pandas as pd
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
 from app.utils import ensure_csv, log_line, utc_now_iso
-from parse import k8 as parse_k8
 from parse.htmlutil import preview_text
 from parse.router import _fetch_url
+
+try:  # pragma: no cover - optional for legacy parsing
+    from parse import k8 as parse_k8
+except Exception:  # pragma: no cover - keep pipeline alive without legacy module
+    parse_k8 = None
 
 
 ProgressFn = Optional[Callable[[str], None]]
@@ -502,6 +506,22 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
 
     form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
     parse_started = time.time()
+    if parse_k8 is None:
+        reason = "parse_error:legacy_parser_missing"
+        log_messages.append(
+            f"eight_k: {identifier} parse skipped url {url} reason {reason}"
+        )
+        debug_entry = [
+            utc_now_iso(),
+            url,
+            reason,
+            "",
+            len(html_text.encode("utf-8", errors="ignore")),
+            0,
+            preview_text(html_text),
+        ]
+        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
+
     try:
         result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
     except Exception as exc:  # pragma: no cover - unexpected parser failures
