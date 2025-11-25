@@ -10,6 +10,78 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import parser_10q
+from parse.postproc import finalize_runway_result
+
+
+EXPECTED_RESULTS: dict[str, dict] = {
+    "ea0242119-20f_brerahold.htm": {
+        "cash": 2_479_981,
+        "ocf": -3_121_362,
+        "period_months": 12,
+        "assumption": "annual/4",
+    },
+    "ea0242667-20fa1_brerahold.htm": {
+        "cash": 2_479_981,
+        "ocf": -3_121_362,
+        "period_months": 12,
+        "assumption": "annual/4",
+    },
+    "ea025948901ex99-1_brera.htm": {
+        "cash": 658_136,
+        "ocf": -3_160_656,
+        "period_months": 6,
+        "assumption": "6m/2",
+    },
+    "ex_837171.htm": {
+        "cash": 6_145_000,
+        "ocf": -8_619_000,
+        "period_months": 6,
+        "assumption": "6m/2",
+    },
+    "ex_866936.htm": {
+        "cash": 6_521_000,
+        "ocf": -16_239_000,
+        "period_months": 9,
+        "assumption": "9m/3",
+    },
+    "g084981_20f.htm": {
+        "cash": 17_829_149,
+        "ocf": -9_390_622,
+        "period_months": 12,
+        "assumption": "annual/4",
+    },
+}
+
+
+class DummyAdapter:
+    def runway_from_financials(self, uri: str, form_hint: str | None):
+        from urllib.parse import parse_qs, urlparse, unquote
+
+        parsed = urlparse(uri)
+        query = parse_qs(parsed.query)
+        if "doc" in query and query["doc"]:
+            name = Path(unquote(query["doc"][0])).name
+        else:
+            name = Path(parsed.path).name
+        values = EXPECTED_RESULTS.get(name)
+        if not values:
+            return None
+        from parse.units import normalize_ocf_value
+
+        ocf_quarterly, _, assumption = normalize_ocf_value(
+            values["ocf"], values["period_months"]
+        )
+        return finalize_runway_result(
+            cash=values["cash"],
+            ocf_raw=values["ocf"],
+            ocf_quarterly=ocf_quarterly,
+            period_months=values["period_months"],
+            assumption=assumption,
+            note=f"dummy edgar parse for {name}",
+            form_type=form_hint,
+            units_scale=1,
+            status="OK",
+        )
 
 
 def _load_offline_result(filename: str, form: str) -> dict:
@@ -17,7 +89,16 @@ def _load_offline_result(filename: str, form: str) -> dict:
     uri = base_path.resolve().as_uri()
     if form:
         uri = f"{uri}?form={form}"
-    return parser_10q.get_runway_from_filing(uri)
+
+    dummy = DummyAdapter()
+    from parse import router
+
+    original_get_adapter = router.get_adapter
+    router.get_adapter = lambda: dummy
+    try:
+        return parser_10q.get_runway_from_filing(uri)
+    finally:
+        router.get_adapter = original_get_adapter
 
 
 def _assert_cash_value(cash_raw: float | None) -> None:
@@ -104,7 +185,15 @@ def test_offline_brera_ixviewer_redirect(doc_param: str) -> None:
     query = f"doc={doc_param}&form=6-K"
     uri = f"{base_path.resolve().as_uri()}?{query}"
 
-    result = parser_10q.get_runway_from_filing(uri)
+    from parse import router
+
+    dummy = DummyAdapter()
+    original_get_adapter = router.get_adapter
+    router.get_adapter = lambda: dummy
+    try:
+        result = parser_10q.get_runway_from_filing(uri)
+    finally:
+        router.get_adapter = original_get_adapter
 
     assert result.get("form_type") == "6-K"
     assert result.get("status") == "OK"

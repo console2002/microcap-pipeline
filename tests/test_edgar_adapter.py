@@ -2,6 +2,8 @@ import types
 from datetime import date, timedelta
 
 import pandas as pd
+import types
+from datetime import date, timedelta
 
 import app.edgar_adapter as edgar_adapter
 from parse.router import _fetch_url
@@ -118,3 +120,76 @@ def test_set_adapter_shares_singleton(monkeypatch, tmp_path):
     edgar_adapter.set_adapter(seeded)
 
     assert edgar_adapter.get_adapter() is seeded
+
+
+def test_runway_from_financials_builds_from_statements(monkeypatch, tmp_path):
+    cashflow_df = pd.DataFrame(
+        {
+            "concept": ["cash_ocf"],
+            "label": ["Net cash used in operating activities"],
+            "Three Months Ended": [-1200],
+        }
+    )
+    balance_df = pd.DataFrame(
+        {
+            "concept": ["cash"],
+            "label": ["Cash and cash equivalents"],
+            "Three Months Ended": [5000],
+        }
+    )
+
+    class DummyRendered:
+        def __init__(self, df):
+            self.df = df
+
+        def to_dataframe(self):
+            return self.df
+
+    class DummyStatement:
+        def __init__(self, df):
+            self.df = df
+
+        def render(self, standard=True):
+            return DummyRendered(self.df)
+
+    class DummyFinancials:
+        def __init__(self):
+            self.called = True
+
+        def income_statement(self):
+            return DummyStatement(pd.DataFrame())
+
+        def balance_sheet(self):
+            return DummyStatement(balance_df)
+
+        def cashflow_statement(self):
+            return DummyStatement(cashflow_df)
+
+    monkeypatch.setattr(
+        edgar_adapter.Financials,
+        "extract",
+        classmethod(lambda cls, filing: DummyFinancials()),
+    )
+
+    adapter = edgar_adapter.EdgarAdapter(_base_cfg(tmp_path))
+    fake_filing = types.SimpleNamespace(form="10-Q")
+    monkeypatch.setattr(adapter, "_resolve_filing", lambda url: fake_filing)
+
+    result = adapter.runway_from_financials("http://example.com/filing", "10-Q")
+
+    assert result["cash_raw"] == 5000
+    assert result["ocf_raw"] == -1200
+    assert result["ocf_quarterly_raw"] == -1200
+    assert result["period_months"] == 3
+
+
+def test_parse_accession_from_file_style_url(tmp_path):
+    filing_path = tmp_path / "0001234567-23-000999.htm"
+    filing_path.write_text("<html></html>")
+
+    url = filing_path.as_uri()
+
+    cik, accession = edgar_adapter._parse_accession_from_url(url)
+
+    assert cik == "0001234567"
+    assert accession == "0001234567-23-000999"

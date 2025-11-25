@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta
 from typing import Callable, Iterable, Optional
 
-from edgar import Company, set_identity
+from edgar import Company, Financials, Filing, get_by_accession_number_enriched, set_identity
 from edgar.httprequests import download_text
 from edgar.reference.tickers import get_company_tickers
 
@@ -17,6 +18,39 @@ from app.universe_filters import load_drop_filters, should_drop_record
 logger = logging.getLogger(__name__)
 
 _ADAPTER: "EdgarAdapter" | None = None
+_ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
+_ACCESSION_FALLBACK_RE = re.compile(r"(\d{10})[-_]?(\d{2})[-_]?(\d{6})")
+
+
+def _format_accession(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    if not digits:
+        return ""
+    digits = digits.zfill(18)
+    return f"{digits[:10]}-{digits[10:12]}-{digits[12:]}"
+
+
+def _parse_accession_from_url(url: str) -> tuple[str, str]:
+    try:
+        match = _ACCESSION_RE.search(url)
+    except Exception:
+        return "", ""
+    if match:
+        cik_digits = re.sub(r"\D", "", match.group(1) or "")
+        accession_digits = _format_accession(match.group(2) or "")
+        return cik_digits.zfill(10), accession_digits
+
+    try:
+        fallback = _ACCESSION_FALLBACK_RE.search(url)
+    except Exception:
+        return "", ""
+
+    if not fallback:
+        return "", ""
+
+    cik_digits = fallback.group(1) or ""
+    accession_digits = fallback.group(1) + fallback.group(2) + fallback.group(3)
+    return _normalize_cik(cik_digits), _format_accession(accession_digits)
 
 
 def _normalize_cik(value: object) -> str:
@@ -75,6 +109,24 @@ class EdgarAdapter:
     def _rate_limit(self) -> None:
         if self.rate_limiter:
             self.rate_limiter.acquire()
+
+    def _resolve_filing(self, filing_or_url) -> Optional[Filing]:
+        if isinstance(filing_or_url, Filing):
+            return filing_or_url
+
+        if not filing_or_url:
+            return None
+
+        cik, accession = _parse_accession_from_url(str(filing_or_url))
+        if not accession:
+            return None
+
+        try:
+            self._rate_limit()
+            return get_by_accession_number_enriched(accession)
+        except Exception as exc:
+            logger.warning("Failed to fetch filing %s: %s", accession, exc)
+            return None
 
     def load_company_universe(self) -> list[dict]:
         """Return SEC company universe via edgartools ticker dataset."""
@@ -215,6 +267,146 @@ class EdgarAdapter:
 
         self._rate_limit()
         return download_text(url)
+
+    def _render_statement(self, statement) -> Optional["pd.DataFrame"]:
+        try:
+            rendered = statement.render(standard=True)
+            return rendered.to_dataframe()
+        except Exception as exc:
+            logger.debug("Failed to render statement: %s", exc)
+        return None
+
+    def _extract_numeric(self, value) -> Optional[float]:
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            text = str(value).strip()
+        except Exception:
+            return None
+        if not text:
+            return None
+        normalized = text.replace(",", "")
+        if normalized.startswith("(") and normalized.endswith(")"):
+            normalized = f"-{normalized[1:-1]}"
+        try:
+            return float(normalized)
+        except ValueError:
+            return None
+
+    def _find_value(self, df, keywords: list[str]) -> Optional[float]:
+        if df is None:
+            return None
+        value_cols = [
+            col
+            for col in df.columns
+            if col not in {"concept", "label", "level", "abstract", "dimension"}
+        ]
+        for keyword in keywords:
+            matches = df[df["label"].str.contains(keyword, case=False, na=False, regex=False)]
+            if matches.empty:
+                continue
+            row = matches.iloc[0]
+            for col in value_cols:
+                val = self._extract_numeric(row.get(col))
+                if val is not None:
+                    return val
+        return None
+
+    def _infer_period_from_columns(self, df, default_months: Optional[int]) -> Optional[int]:
+        if df is None:
+            return default_months
+        value_cols = [
+            col
+            for col in df.columns
+            if col not in {"concept", "label", "level", "abstract", "dimension"}
+        ]
+        patterns = {
+            3: re.compile(r"(THREE|3)\s+MONTH", re.IGNORECASE),
+            6: re.compile(r"(SIX|6)\s+MONTH", re.IGNORECASE),
+            9: re.compile(r"(NINE|9)\s+MONTH", re.IGNORECASE),
+            12: re.compile(r"(TWELVE|12)\s+MONTH|FISCAL YEAR|YEAR", re.IGNORECASE),
+        }
+        for col in value_cols:
+            for months, pattern in patterns.items():
+                if pattern.search(str(col) or ""):
+                    return months
+        return default_months
+
+    def extract_financial_sections(self, filing_or_url, form_hint: Optional[str]) -> Optional[dict]:
+        filing = self._resolve_filing(filing_or_url)
+        if filing is None:
+            return None
+
+        financials = Financials.extract(filing)
+        if financials is None:
+            return None
+
+        income_df = self._render_statement(financials.income_statement())
+        balance_df = self._render_statement(financials.balance_sheet())
+        cashflow_df = self._render_statement(financials.cashflow_statement())
+
+        defaults = {}  # placeholder for router defaults
+        try:
+            from parse.router import _form_defaults
+
+            defaults = _form_defaults(form_hint)
+        except Exception:
+            defaults = {}
+
+        period_default = defaults.get("period_months_default") if isinstance(defaults, dict) else None
+        period_months = self._infer_period_from_columns(cashflow_df, period_default)
+
+        ocf_keywords = (defaults.get("ocf_keywords_provided") or []) + (
+            defaults.get("ocf_keywords_burn") or []
+        )
+        cash_keywords = [
+            "Cash and cash equivalents",
+            "Cash and cash equivalents, at end of period",
+            "Cash and cash equivalents at carrying value",
+        ]
+
+        ocf_value = self._find_value(cashflow_df, ocf_keywords)
+        cash_value = self._find_value(balance_df, cash_keywords)
+
+        return {
+            "filing": filing,
+            "income": income_df,
+            "balance": balance_df,
+            "cashflow": cashflow_df,
+            "cash": cash_value,
+            "ocf": ocf_value,
+            "period_months": period_months,
+            "form_type": getattr(filing, "form", form_hint),
+        }
+
+    def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
+        from parse.units import normalize_ocf_value
+        from parse.postproc import finalize_runway_result
+
+        sections = self.extract_financial_sections(filing_or_url, form_hint)
+        if not sections:
+            return None
+
+        ocf_quarterly, normalized_period, assumption = normalize_ocf_value(
+            sections.get("ocf"), sections.get("period_months")
+        )
+        form_type = sections.get("form_type") or form_hint
+
+        note = f"values parsed from EDGAR XBRL: {filing_or_url}"
+        return finalize_runway_result(
+            cash=sections.get("cash"),
+            ocf_raw=sections.get("ocf"),
+            ocf_quarterly=ocf_quarterly,
+            period_months=normalized_period,
+            assumption=assumption,
+            note=note,
+            form_type=form_type,
+            units_scale=1,
+            status="OK" if sections.get("ocf") is not None else "Missing OCF",
+            source_tags=["XBRL"],
+        )
 
     def stats_string(self) -> str:
         if not self.rate_limiter:
