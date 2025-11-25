@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 _ADAPTER: "EdgarAdapter" | None = None
 _ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
+_ACCESSION_FALLBACK_RE = re.compile(r"(\d{10})[-_]?(\d{2})[-_]?(\d{6})")
 
 
 def _format_accession(value: str) -> str:
@@ -34,11 +35,22 @@ def _parse_accession_from_url(url: str) -> tuple[str, str]:
         match = _ACCESSION_RE.search(url)
     except Exception:
         return "", ""
-    if not match:
+    if match:
+        cik_digits = re.sub(r"\D", "", match.group(1) or "")
+        accession_digits = _format_accession(match.group(2) or "")
+        return cik_digits.zfill(10), accession_digits
+
+    try:
+        fallback = _ACCESSION_FALLBACK_RE.search(url)
+    except Exception:
         return "", ""
-    cik_digits = re.sub(r"\D", "", match.group(1) or "")
-    accession_digits = _format_accession(match.group(2) or "")
-    return cik_digits.zfill(10), accession_digits
+
+    if not fallback:
+        return "", ""
+
+    cik_digits = fallback.group(1) or ""
+    accession_digits = fallback.group(1) + fallback.group(2) + fallback.group(3)
+    return _normalize_cik(cik_digits), _format_accession(accession_digits)
 
 
 def _normalize_cik(value: object) -> str:

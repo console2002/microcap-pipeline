@@ -181,3 +181,15 @@ def test_runway_from_financials_builds_from_statements(monkeypatch, tmp_path):
     assert result["ocf_raw"] == -1200
     assert result["ocf_quarterly_raw"] == -1200
     assert result["period_months"] == 3
+
+
+def test_parse_accession_from_file_style_url(tmp_path):
+    filing_path = tmp_path / "0001234567-23-000999.htm"
+    filing_path.write_text("<html></html>")
+
+    url = filing_path.as_uri()
+
+    cik, accession = edgar_adapter._parse_accession_from_url(url)
+
+    assert cik == "0001234567"
+    assert accession == "0001234567-23-000999"
