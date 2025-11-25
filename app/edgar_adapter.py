@@ -149,8 +149,18 @@ class EdgarAdapter:
             if not ticker_norm:
                 continue
 
+            if progress_fn:
+                progress_fn(f"[edgar filings] starting {ticker_norm} ({idx}/{total})")
+
             try:
+                self._rate_limit()
                 company = Company(ticker_norm)
+            except Exception as exc:
+                logger.warning("EDGAR company lookup failed for %s: %s", ticker_norm, exc)
+                continue
+
+            try:
+                self._rate_limit()
                 filings = company.get_filings(
                     form=whitelist or None,
                     filing_date=start_expr,
