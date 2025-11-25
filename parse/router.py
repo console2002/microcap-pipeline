@@ -545,13 +545,14 @@ def get_runway_from_filing(filing_url: str) -> dict:
     form_type_hint = _infer_form_type_from_url(canonical_url)
     if not form_type_hint and original_form_hint:
         form_type_hint = original_form_hint
+    edgar_form_hint = combined_form_hint or form_type_hint
 
     adapter = get_adapter()
-    edgar_result = adapter.runway_from_financials(canonical_url, combined_form_hint)
+    edgar_result = adapter.runway_from_financials(canonical_url, edgar_form_hint)
     if edgar_result is not None:
         log_runway_outcome(
             canonical_url,
-            combined_form_hint,
+            edgar_form_hint,
             edgar_result,
             extra={"path": "edgar_financials"},
         )
