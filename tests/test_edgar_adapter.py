@@ -108,3 +108,13 @@ def test_router_fetch_url_uses_adapter(monkeypatch):
 
     assert data == b"payload"
     assert dummy.requested == ["http://example.com/test"]
+
+
+def test_set_adapter_shares_singleton(monkeypatch, tmp_path):
+    monkeypatch.setattr(edgar_adapter, "_ADAPTER", None)
+    cfg = _base_cfg(tmp_path)
+
+    seeded = edgar_adapter.EdgarAdapter(cfg)
+    edgar_adapter.set_adapter(seeded)
+
+    assert edgar_adapter.get_adapter() is seeded

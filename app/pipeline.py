@@ -19,7 +19,7 @@ from app.fmp import (
     fetch_prices,
     fetch_profiles,
 )
-from app.edgar_adapter import EdgarAdapter
+from app.edgar_adapter import EdgarAdapter, set_adapter
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
@@ -1376,6 +1376,7 @@ def run_weekly_pipeline(
     create_lock(cfg, "weekly")
     client = make_client(cfg)
     adapter = EdgarAdapter(cfg)
+    set_adapter(adapter)
 
     stages = [
         "universe",

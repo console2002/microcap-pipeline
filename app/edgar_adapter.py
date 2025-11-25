@@ -221,3 +221,11 @@ def get_adapter(cfg: Optional[dict] = None) -> EdgarAdapter:
         _ADAPTER = EdgarAdapter(cfg)
     return _ADAPTER
 
+
+def set_adapter(adapter: EdgarAdapter) -> EdgarAdapter:
+    """Seed the module-level adapter for shared throttling and identity."""
+
+    global _ADAPTER
+    _ADAPTER = adapter
+    return _ADAPTER
+
