@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event
-from .router import _fetch_url, _user_agent
+from .router import _fetch_url
 
 
 _ITEM_PATTERN = re.compile(r"item[\s\u00A0]*([0-9]{1,2}\.[0-9]{2})", re.IGNORECASE)
@@ -228,10 +228,8 @@ def _fetch_html(url: str, html: Optional[str]) -> tuple[Optional[str], bool]:
         content = _read_local_file(parsed)
         return content, url_plain or bool((parsed.path or "").lower().endswith(".txt"))
     try:
-        req = urllib_request.Request(url, headers={"User-Agent": _user_agent()})
-        with urllib_request.urlopen(req) as response:  # pragma: no cover - network
-            content_type = response.headers.get("Content-Type", "")
-            raw = response.read()
+        raw = _fetch_url(url)
+        content_type = ""
     except Exception as exc:  # pragma: no cover - network errors
         log_parse_event(logging.DEBUG, "8k fetch failed", url=url, error=str(exc))
         return None, False

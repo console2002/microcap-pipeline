@@ -3,3 +3,4 @@ requests>=2.32
 tenacity>=8.3
 python-dateutil>=2.9
 PySide6>=6.7
+edgartools>=4.31.0

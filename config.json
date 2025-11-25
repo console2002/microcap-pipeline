@@ -7,6 +7,10 @@
     "OpenFDA": 240,
     "SEC": 60
   },
+  "Edgar": {
+    "UserAgent": "console_2002@yahoo.co.uk",
+    "ThrottlePerMin": 60
+  },
   "MaxWorkers": 4,
   "TimeoutSeconds": 30,
   "Retries": 3,
