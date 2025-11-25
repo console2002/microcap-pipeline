@@ -994,7 +994,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     )
 
     if df_new_prepared.empty:
-        df_unique = pd.DataFrame(columns=df_cached.columns)
+        df_unique = df_new_prepared.copy()
     else:
         for key in key_cols:
             if key in df_new_prepared.columns:
@@ -1014,7 +1014,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             df_unique = marker[marker["_merge"] == "left_only"].drop(columns=["_merge"])
 
     if df_cached.empty and df_unique.empty:
-        df_all = df_cached.copy()
+        df_all = df_unique.copy()
     elif df_cached.empty:
         df_all = df_unique.copy()
     elif df_unique.empty:
