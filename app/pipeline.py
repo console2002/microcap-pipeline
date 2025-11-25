@@ -989,8 +989,11 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     def _persist(df: pd.DataFrame) -> None:
         df.to_csv(filings_path, index=False, encoding="utf-8")
 
-    def _dedupe_and_append(df_batch: pd.DataFrame) -> None:
+    def _dedupe_and_append(df_batch: pd.DataFrame | list[dict], ticker: str | None = None) -> None:
         nonlocal df_working, key_cols, rows_added, eligible_tickers, drop_details
+
+        if isinstance(df_batch, list):
+            df_batch = pd.DataFrame(df_batch)
 
         df_prepared, batch_key_cols, batch_eligible, batch_drop_details = _prepare_filings_for_cache(
             df_batch, df_prof, log_gate=False
