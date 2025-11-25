@@ -182,8 +182,27 @@ class EdgarAdapter:
         tickers: Iterable[str],
         progress_fn: Optional[Callable[[str], None]] = None,
         stop_flag: Optional[dict] = None,
+        *,
+        skip_tickers: Optional[set[str]] = None,
+        on_batch: Optional[Callable[[list[dict], str], None]] = None,
     ) -> list[dict]:
-        """Fetch filings for tickers filtered by whitelist/lookback rules."""
+        """Fetch filings for tickers filtered by whitelist/lookback rules.
+
+        Parameters
+        ----------
+        tickers:
+            Iterable of ticker strings to query.
+        progress_fn:
+            Optional callback for progress messages.
+        stop_flag:
+            Shared flag to allow cancellation mid-run.
+        skip_tickers:
+            If provided, any ticker already present in this set will be skipped.
+        on_batch:
+            Optional callback invoked with each ticker's filings as soon as they
+            are fetched. Enables streaming writes instead of buffering the
+            entire response.
+        """
 
         start_date = date.today() - timedelta(days=self.max_lookback)
         start_expr = start_date.isoformat() + ":"
@@ -199,6 +218,13 @@ class EdgarAdapter:
 
             ticker_norm = _normalize_ticker(ticker)
             if not ticker_norm:
+                continue
+
+            if skip_tickers and ticker_norm in skip_tickers:
+                if progress_fn:
+                    progress_fn(
+                        f"[edgar filings] skipping {ticker_norm} (already cached)"
+                    )
                 continue
 
             if progress_fn:
@@ -224,32 +250,44 @@ class EdgarAdapter:
             if filings is None:
                 continue
 
-            for filing in filings:
-                form_value = getattr(filing, "form", "")
-                filed_at = getattr(filing, "filing_date", "")
-                if not self._is_within_lookback(form_value, filed_at):
-                    continue
+            batch: list[dict] = []
+            try:
+                for filing in filings:
+                    form_value = getattr(filing, "form", "")
+                    filed_at = getattr(filing, "filing_date", "")
+                    if not self._is_within_lookback(form_value, filed_at):
+                        continue
 
-                self._rate_limit()
+                    self._rate_limit()
 
-                filing_url = (
-                    getattr(filing, "filing_url", None)
-                    or getattr(filing, "homepage_url", None)
-                    or getattr(filing, "url", None)
-                    or ""
+                    filing_url = (
+                        getattr(filing, "filing_url", None)
+                        or getattr(filing, "homepage_url", None)
+                        or getattr(filing, "url", None)
+                        or ""
+                    )
+
+                    batch.append(
+                        {
+                            "CIK": _normalize_cik(getattr(filing, "cik", "")),
+                            "Ticker": ticker_norm,
+                            "Company": getattr(filing, "company", ""),
+                            "Form": form_value,
+                            "FiledAt": filed_at,
+                            "URL": filing_url,
+                            "Desc": "",
+                        }
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "EDGAR filings iteration failed for %s: %s", ticker_norm, exc
                 )
+                batch = []
 
-                results.append(
-                    {
-                        "CIK": _normalize_cik(getattr(filing, "cik", "")),
-                        "Ticker": ticker_norm,
-                        "Company": getattr(filing, "company", ""),
-                        "Form": form_value,
-                        "FiledAt": filed_at,
-                        "URL": filing_url,
-                        "Desc": "",
-                    }
-                )
+            if batch:
+                results.extend(batch)
+                if on_batch:
+                    on_batch(batch, ticker_norm)
 
             if progress_fn and (idx % 25 == 0 or idx == total):
                 pct = int((idx / max(total, 1)) * 100)
