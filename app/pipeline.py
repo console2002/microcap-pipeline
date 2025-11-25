@@ -1000,7 +1000,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         for key in key_cols:
             if key in df_new_prepared.columns:
                 df_new_prepared[key] = df_new_prepared[key].astype(str).fillna("")
-            if key in df_cached.columns:
+            if key not in df_cached.columns:
+                df_cached[key] = pd.Series(dtype="object")
+            else:
                 df_cached[key] = df_cached[key].astype(str).fillna("")
 
         if df_cached.empty:
