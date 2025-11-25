@@ -980,61 +980,90 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     )
     df_cached = _purge_filings_by_lookback(df_cached, cfg)
 
-    all_rows: list[dict] = adapter.fetch_recent_filings(
-        ticks,
-        progress_fn=progress_fn,
-        stop_flag=stop_flag,
-    )
+    df_working = df_cached.copy()
+    key_cols: list[str] | None = None
+    rows_added = 0
+    eligible_tickers: set[str] = set()
+    drop_details: dict[str, RunwayDropDetail] = {}
 
-    if stop_flag.get("stop"):
-        raise CancelledRun("cancel during filings")
+    def _persist(df: pd.DataFrame) -> None:
+        df.to_csv(filings_path, index=False, encoding="utf-8")
 
-    df_new = pd.DataFrame(all_rows)
-    df_new_prepared, key_cols, eligible_tickers, drop_details = _prepare_filings_for_cache(
-        df_new, df_prof, log_gate=False
-    )
+    def _dedupe_and_append(df_batch: pd.DataFrame | list[dict], ticker: str | None = None) -> None:
+        nonlocal df_working, key_cols, rows_added, eligible_tickers, drop_details
 
-    if df_new_prepared.empty:
-        df_unique = df_new_prepared.copy()
-    else:
+        if isinstance(df_batch, list):
+            df_batch = pd.DataFrame(df_batch)
+
+        df_prepared, batch_key_cols, batch_eligible, batch_drop_details = _prepare_filings_for_cache(
+            df_batch, df_prof, log_gate=False
+        )
+
+        eligible_tickers |= batch_eligible
+        drop_details.update(batch_drop_details)
+
+        if df_prepared.empty:
+            return
+
+        if key_cols is None:
+            key_cols = batch_key_cols
+
         for key in key_cols:
-            if key in df_new_prepared.columns:
-                df_new_prepared[key] = df_new_prepared[key].astype(str).fillna("")
-            if key not in df_cached.columns:
-                df_cached[key] = pd.Series(dtype="object")
+            if key in df_prepared.columns:
+                df_prepared[key] = df_prepared[key].astype(str).fillna("")
+            if key not in df_working.columns:
+                df_working[key] = pd.Series(dtype="object")
             else:
-                df_cached[key] = df_cached[key].astype(str).fillna("")
+                df_working[key] = df_working[key].astype(str).fillna("")
 
-        if df_cached.empty:
-            df_unique = df_new_prepared.copy()
+        if df_working.empty:
+            df_unique = df_prepared.copy()
         else:
-            marker = df_new_prepared.merge(
-                df_cached[key_cols].drop_duplicates(),
+            marker = df_prepared.merge(
+                df_working[key_cols].drop_duplicates(),
                 on=key_cols,
                 how="left",
                 indicator=True,
             )
             df_unique = marker[marker["_merge"] == "left_only"].drop(columns=["_merge"])
 
-    if df_cached.empty and df_unique.empty:
-        df_all = df_unique.copy()
-    elif df_cached.empty:
-        df_all = df_unique.copy()
-    elif df_unique.empty:
-        df_all = df_cached.copy()
-    else:
-        df_all = pd.concat([df_cached, df_unique], ignore_index=True)
+        if df_unique.empty:
+            return
 
-    df_all = _purge_filings_by_lookback(df_all, cfg)
+        df_working = pd.concat([df_working, df_unique], ignore_index=True)
+        df_working = _purge_filings_by_lookback(df_working, cfg)
+        df_working, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
+            df_working, df_prof, progress_fn, log=False
+        )
+
+        eligible_tickers |= gate_eligible
+        drop_details.update(gate_drop_details)
+
+        rows_added += len(df_unique)
+        _persist(df_working)
+
+    adapter.fetch_recent_filings(
+        ticks,
+        progress_fn=progress_fn,
+        stop_flag=stop_flag,
+        on_batch=_dedupe_and_append,
+    )
+
+    if stop_flag.get("stop"):
+        raise CancelledRun("cancel during filings")
+
+    if key_cols is None:
+        key_cols = ["CIK", "URL", "Form", "FiledAt", "Ticker"]
+
+    df_all = _purge_filings_by_lookback(df_working, cfg)
     df_all, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
         df_all, df_prof, progress_fn, log=False
     )
-    df_all.to_csv(filings_path, index=False, encoding="utf-8")
+    _persist(df_all)
 
     total_drop_details = {**drop_details, **gate_drop_details}
     total_eligible = eligible_tickers | gate_eligible
 
-    rows_added = 0 if df_unique.empty else len(df_unique)
     _log_step(
         runlog,
         "filings",
