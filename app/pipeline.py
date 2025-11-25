@@ -980,23 +980,11 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     )
     df_cached = _purge_filings_by_lookback(df_cached, cfg)
 
-    cached_tickers: list[str] = []
-    if "Ticker" in df_cached.columns and not df_cached.empty:
-        cached_tickers = (
-            df_cached["Ticker"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.upper()
-            .unique()
-            .tolist()
-        )
-
     all_rows: list[dict] = adapter.fetch_recent_filings(
         ticks,
         progress_fn=progress_fn,
         stop_flag=stop_flag,
-        skip_tickers=cached_tickers or None,
+        skip_tickers=None,
     )
 
     if stop_flag.get("stop"):
