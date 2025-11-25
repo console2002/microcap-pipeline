@@ -1031,14 +1031,18 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     total_drop_details = {**drop_details, **gate_drop_details}
     total_eligible = eligible_tickers | gate_eligible
 
+    rows_added = 0 if df_unique.empty else len(df_unique)
     _log_step(
         runlog,
         "filings",
-        len(df_all),
+        rows_added,
         t0,
         "append+purge",
     )
-    _emit(progress_fn, f"filings: done {len(df_all)} rows {adapter.stats_string()}")
+    _emit(
+        progress_fn,
+        f"filings: done {rows_added} new rows ({len(df_all)} total) {adapter.stats_string()}",
+    )
 
     return df_all, total_eligible, total_drop_details
 
