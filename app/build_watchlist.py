@@ -515,7 +515,18 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     if parse_elapsed > 10:
         log_messages.append(f"eight_k: slow parse {parse_elapsed:.1f}s for {url}")
 
-    event = _build_eight_k_event(row, result)
+    event, skip_reason = _build_eight_k_event(row, result)
+    if event is None:
+        reason = skip_reason or "unknown"
+        log_messages.append(f"eight_k: {identifier} skipped url {url} reason {reason}")
+        debug_entry = [utc_now_iso(), url, reason, "", 0, 0, ""]
+        return _EightKProcessResult(
+            url=url,
+            event=None,
+            csv_row=None,
+            debug_entry=debug_entry,
+            log_messages=log_messages,
+        )
     exhibit_bytes = sum(len(_clean_text(exhibit.get("description", ""))) for exhibit in result.exhibits)
 
     csv_row = {
@@ -636,14 +647,23 @@ def _classify_eight_k(parsed: EdgarEightKParseResult) -> dict:
 def _build_eight_k_event(
     row,
     parsed: EdgarEightKParseResult,
-) -> EightKEvent:
+) -> tuple[Optional[EightKEvent], Optional[str]]:
     classification = _classify_eight_k(parsed)
     items_present = _join_items(parsed.items_raw)
     items_normalized = _join_items(parsed.items_normalized)
 
+    if not items_present:
+        return None, "no_items"
+
     is_catalyst = bool(classification.get("is_catalyst"))
     is_dilution = bool(classification.get("is_dilution"))
     ignore_reason = _clean_text(classification.get("ignore_reason"))
+
+    if ignore_reason:
+        return None, ignore_reason
+
+    if not (is_catalyst or is_dilution):
+        return None, "non_actionable"
 
     tier_raw = _clean_text(classification.get("tier"))
     catalyst_type = tier_raw if tier_raw in {"Tier-1", "Tier-2"} else "NONE"
@@ -710,7 +730,7 @@ def _build_eight_k_event(
         primary_ex99_docs=parsed.primary_ex99_docs,
         primary_ex10_docs=parsed.primary_ex10_docs,
         has_xbrl=parsed.has_xbrl,
-    )
+    ), None
 
 
 def _generate_eight_k_events(
