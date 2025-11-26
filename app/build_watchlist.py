@@ -881,6 +881,14 @@ def _load_eight_k_events_from_csv(
     for row in df.itertuples(index=False):
         dilution_tags_text = _clean_text(getattr(row, "DilutionTags", ""))
         dilution_tags = [tag.strip() for tag in dilution_tags_text.split(";") if tag.strip()]
+        items_present = _clean_text(getattr(row, "ItemsPresent", ""))
+        is_catalyst = _coerce_bool(getattr(row, "IsCatalyst", False))
+        is_dilution = _coerce_bool(getattr(row, "IsDilution", False))
+        ignore_reason = _clean_text(getattr(row, "IgnoreReason", ""))
+
+        if ignore_reason or (not is_catalyst and not is_dilution) or not items_present:
+            continue
+
         event = EightKEvent(
             cik=_normalize_cik(getattr(row, "CIK", "")),
             company=_clean_text(getattr(row, "Company", "")),
@@ -888,15 +896,15 @@ def _load_eight_k_events_from_csv(
             form=_clean_text(getattr(row, "Form", "")),
             filing_date=_clean_text(getattr(row, "FilingDate", "")),
             filing_url=_clean_text(getattr(row, "FilingURL", "")),
-            items_present=_clean_text(getattr(row, "ItemsPresent", "")),
-            is_catalyst=_coerce_bool(getattr(row, "IsCatalyst", False)),
+            items_present=items_present,
+            is_catalyst=is_catalyst,
             catalyst_type=_clean_text(getattr(row, "CatalystType", "")) or "NONE",
             catalyst_label="",
             tier1_type=_clean_text(getattr(row, "Tier1Type", "")),
             tier1_trigger=_clean_text(getattr(row, "Tier1Trigger", "")),
-            is_dilution=_coerce_bool(getattr(row, "IsDilution", False)),
+            is_dilution=is_dilution,
             dilution_tags=dilution_tags,
-            ignore_reason=_clean_text(getattr(row, "IgnoreReason", "")),
+            ignore_reason=ignore_reason,
             date_of_report=_clean_text(getattr(row, "DateOfReport", "")),
             accession_no=_clean_text(getattr(row, "AccessionNo", "")),
             filing_url_txt=_clean_text(getattr(row, "FilingUrlTxt", "")),
