@@ -584,11 +584,60 @@ def _format_event_label(event: EightKEvent) -> str:
     return event.catalyst_type
 
 
+def _classify_eight_k(parsed: EdgarEightKParseResult) -> dict:
+    items = parsed.items_normalized
+    actionable_items = [item for item in items if not item.startswith("9.01")]
+    event_text = (parsed.event_text or "").lower()
+
+    if not actionable_items and not parsed.has_press_release:
+        return {"ignore_reason": "no_actionable_items"}
+
+    dilution_tags: list[str] = []
+    dilution_keyword_map = {
+        "registered direct": "registered_direct",
+        "securities purchase agreement": "spa",
+        "purchase agreement": "purchase_agreement",
+        "underwriting agreement": "underwriting_agreement",
+        "subscription agreement": "subscription_agreement",
+        "at-the-market": "atm",
+        "equity line": "equity_line",
+        "convertible": "convertible",
+        "warrant": "warrant",
+        "offering": "offering",
+    }
+
+    for keyword, tag in dilution_keyword_map.items():
+        if keyword in event_text:
+            dilution_tags.append(tag)
+
+    dilution_items = ("1.01", "1.02", "3.02")
+    is_dilution = any(item.startswith(dilution_items) for item in actionable_items) or bool(dilution_tags)
+
+    catalyst_items = ("1.01", "1.02", "2.02", "5.02", "7.01", "8.01", "8.02", "8.03")
+    is_catalyst = is_dilution or any(item.startswith(catalyst_items) for item in actionable_items)
+    if not is_catalyst and parsed.has_press_release:
+        is_catalyst = True
+
+    classification = {
+        "is_catalyst": is_catalyst,
+        "is_dilution": is_dilution,
+        "dilution_tags": dilution_tags,
+    }
+
+    if is_dilution:
+        classification["tier"] = "Tier-1"
+        classification["tier1_type"] = "Financing"
+    elif is_catalyst:
+        classification["tier"] = "Tier-2"
+
+    return classification
+
+
 def _build_eight_k_event(
     row,
     parsed: EdgarEightKParseResult,
 ) -> EightKEvent:
-    classification = {}  # placeholder for future classifiers
+    classification = _classify_eight_k(parsed)
     items_present = _join_items(parsed.items_raw)
     items_normalized = _join_items(parsed.items_normalized)
 
