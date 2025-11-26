@@ -17,14 +17,8 @@ import pandas as pd
 
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
+from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
 from app.utils import ensure_csv, log_line, utc_now_iso
-from parse.htmlutil import preview_text
-from parse.router import _fetch_url
-
-try:  # pragma: no cover - optional for legacy parsing
-    from parse import k8 as parse_k8
-except Exception:  # pragma: no cover - keep pipeline alive without legacy module
-    parse_k8 = None
 
 
 ProgressFn = Optional[Callable[[str], None]]
@@ -110,10 +104,24 @@ _OUTPUT_COLUMNS = [
 
 _EIGHT_K_EVENTS_COLUMNS = [
     "CIK",
+    "Company",
     "Ticker",
+    "Form",
     "FilingDate",
+    "DateOfReport",
+    "AccessionNo",
     "FilingURL",
+    "FilingUrlTxt",
+    "PeriodOfReport",
+    "AcceptanceDateTime",
+    "HomepageURL",
     "ItemsPresent",
+    "ItemsNormalized",
+    "HasPressRelease",
+    "HasExhibits",
+    "PrimaryEx99Docs",
+    "PrimaryEx10Docs",
+    "HasXBRL",
     "IsCatalyst",
     "CatalystType",
     "Tier1Type",
@@ -137,6 +145,8 @@ _EIGHT_K_DEBUG_HEADER = [
     "bytes_exhibits",
     "sample_text",
 ]
+
+_EIGHT_K_PARSER: Optional[EdgarEightKParser] = None
 
 _NEGATIVE_DILUTION_TERMS = (
     "high risk",
@@ -356,6 +366,20 @@ class EightKEvent:
     is_dilution: bool
     dilution_tags: list[str]
     ignore_reason: str
+    company: str = ""
+    form: str = ""
+    date_of_report: str = ""
+    accession_no: str = ""
+    filing_url_txt: str = ""
+    period_of_report: str = ""
+    acceptance_datetime: str = ""
+    homepage_url: str = ""
+    items_normalized: str = ""
+    has_press_release: bool = False
+    has_exhibits: bool = False
+    primary_ex99_docs: str = ""
+    primary_ex10_docs: str = ""
+    has_xbrl: bool = False
 
     def dilution_tags_joined(self) -> str:
         return ";".join(self.dilution_tags)
@@ -440,28 +464,6 @@ def _write_eight_k_debug(entries: list[list[object]]) -> None:
         writer.writerows(entries)
 
 
-def _read_eight_k_html(url: str) -> tuple[Optional[str], Optional[str]]:
-    if not url:
-        return None, "empty_url"
-    parsed = urlsplit(url)
-    if parsed.scheme == "file":
-        path_text = unquote(parsed.path or "")
-        if parsed.netloc:
-            path_text = f"//{parsed.netloc}{path_text}"
-        candidate = Path(path_text)
-        if not candidate.exists():
-            return None, "file_missing"
-        try:
-            return candidate.read_text(encoding="utf-8", errors="ignore"), None
-        except OSError as exc:
-            return None, str(exc)
-    try:
-        raw = _fetch_url(url)
-    except Exception as exc:  # pragma: no cover - network errors
-        return None, str(exc)
-    return raw.decode("utf-8", errors="ignore"), None
-
-
 @dataclass
 class _EightKProcessResult:
     url: str
@@ -469,6 +471,13 @@ class _EightKProcessResult:
     csv_row: Optional[dict[str, object]]
     debug_entry: Optional[list[object]]
     log_messages: list[str]
+
+
+def _get_eight_k_parser() -> EdgarEightKParser:
+    global _EIGHT_K_PARSER
+    if _EIGHT_K_PARSER is None:
+        _EIGHT_K_PARSER = EdgarEightKParser()
+    return _EIGHT_K_PARSER
 
 
 def _process_eight_k_row(row) -> _EightKProcessResult:
@@ -482,50 +491,12 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     cik = _normalize_cik(getattr(row, "CIK", ""))
     identifier = ticker or cik or "unknown"
 
-    fetch_started = time.time()
-    html_text, fetch_error = _read_eight_k_html(url)
-    fetch_elapsed = time.time() - fetch_started
-    if fetch_elapsed > 10:
-        log_messages.append(f"eight_k: slow fetch {fetch_elapsed:.1f}s for {url}")
-
-    if html_text is None:
-        reason = f"fetch_failed:{fetch_error}"
-        log_messages.append(
-            f"eight_k: {identifier} fetch failed url {url} reason {reason}"
-        )
-        debug_entry = [
-            utc_now_iso(),
-            url,
-            reason,
-            "",
-            0,
-            0,
-            "",
-        ]
-        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
-
     form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
     parse_started = time.time()
-    if parse_k8 is None:
-        reason = "parse_error:legacy_parser_missing"
-        log_messages.append(
-            f"eight_k: {identifier} parse skipped url {url} reason {reason}"
-        )
-        debug_entry = [
-            utc_now_iso(),
-            url,
-            reason,
-            "",
-            len(html_text.encode("utf-8", errors="ignore")),
-            0,
-            preview_text(html_text),
-        ]
-        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
-
-    try:
-        result = parse_k8.parse(url, html=html_text, form_hint=form_hint)
-    except Exception as exc:  # pragma: no cover - unexpected parser failures
-        reason = f"parse_error:{exc}"
+    parser = _get_eight_k_parser()
+    result, parse_error = parser.parse(url, form_hint=form_hint)
+    if result is None:
+        reason = f"parse_error:{parse_error}"
         log_messages.append(
             f"eight_k: {identifier} parse failed url {url} reason {reason}"
         )
@@ -534,9 +505,9 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
             url,
             reason,
             "",
-            len(html_text.encode("utf-8", errors="ignore")),
             0,
-            preview_text(html_text),
+            0,
+            "",
         ]
         return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
 
@@ -544,35 +515,29 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     if parse_elapsed > 10:
         log_messages.append(f"eight_k: slow parse {parse_elapsed:.1f}s for {url}")
 
-    event = _build_eight_k_event(row, html_text, result)
-    exhibits = result.get("exhibits") or []
-    exhibit_bytes = sum(len(_clean_text(exhibit.get("text", ""))) for exhibit in exhibits)
-
-    if event is None:
-        items = result.get("items") or []
-        items_present = _join_items(item.get("item", "") for item in items)
-        ignore_reason = _clean_text((result.get("classification") or {}).get("ignore_reason"))
-        reason_suffix = f" ({ignore_reason})" if ignore_reason else ""
-        log_messages.append(
-            f"eight_k: {identifier} no actionable items{reason_suffix} url {url} items {items_present or 'none'}"
-        )
-        debug_entry = [
-            utc_now_iso(),
-            url,
-            "no_actionable_items",
-            items_present,
-            len(html_text.encode("utf-8", errors="ignore")),
-            exhibit_bytes,
-            preview_text(html_text),
-        ]
-        return _EightKProcessResult(url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages)
+    event = _build_eight_k_event(row, result)
+    exhibit_bytes = sum(len(_clean_text(exhibit.get("description", ""))) for exhibit in result.exhibits)
 
     csv_row = {
         "CIK": event.cik,
+        "Company": event.company,
         "Ticker": event.ticker,
+        "Form": event.form,
         "FilingDate": event.filing_date,
+        "DateOfReport": event.date_of_report,
+        "AccessionNo": event.accession_no,
         "FilingURL": event.filing_url,
+        "FilingUrlTxt": event.filing_url_txt,
+        "PeriodOfReport": event.period_of_report,
+        "AcceptanceDateTime": event.acceptance_datetime,
+        "HomepageURL": event.homepage_url,
         "ItemsPresent": event.items_present,
+        "ItemsNormalized": event.items_normalized,
+        "HasPressRelease": event.has_press_release,
+        "HasExhibits": event.has_exhibits,
+        "PrimaryEx99Docs": event.primary_ex99_docs,
+        "PrimaryEx10Docs": event.primary_ex10_docs,
+        "HasXBRL": event.has_xbrl,
         "IsCatalyst": event.is_catalyst,
         "CatalystType": event.catalyst_type,
         "Tier1Type": event.tier1_type,
@@ -589,12 +554,15 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
             [
                 f"eight_k: {identifier} parsed url {url}",
                 f"items {event.items_present or 'none'}",
+                f"items_norm {event.items_normalized or 'none'}",
                 f"catalyst {catalyst_display}",
                 f"tier1_type {event.tier1_type or 'none'}",
                 f"tier1_trigger {event.tier1_trigger or 'none'}",
                 f"dilution {dilution_display}",
                 f"dilution_tags {event.dilution_tags_joined() or 'none'}",
                 f"ignore_reason {event.ignore_reason or 'none'}",
+                f"press_release {event.has_press_release}",
+                f"exhibits {event.has_exhibits}",
             ]
         )
     )
@@ -618,21 +586,14 @@ def _format_event_label(event: EightKEvent) -> str:
 
 def _build_eight_k_event(
     row,
-    html_text: str,
-    result: dict,
-) -> Optional[EightKEvent]:
-    items = result.get("items") or []
-    classification = result.get("classification") or {}
-    exhibits = result.get("exhibits") or []
-    items_present = _join_items(item.get("item", "") for item in items)
-    if not items_present:
-        return None
+    parsed: EdgarEightKParseResult,
+) -> EightKEvent:
+    classification = {}  # placeholder for future classifiers
+    items_present = _join_items(parsed.items_raw)
+    items_normalized = _join_items(parsed.items_normalized)
 
     is_catalyst = bool(classification.get("is_catalyst"))
     is_dilution = bool(classification.get("is_dilution"))
-    if not (is_catalyst or is_dilution):
-        return None
-
     ignore_reason = _clean_text(classification.get("ignore_reason"))
 
     tier_raw = _clean_text(classification.get("tier"))
@@ -640,21 +601,30 @@ def _build_eight_k_event(
     tier1_type = _clean_text(classification.get("tier1_type"))
     tier1_trigger = _clean_text(classification.get("tier1_trigger"))
 
-    dilution_tags = []
+    dilution_tags: list[str] = []
     for tag in classification.get("dilution_tags") or []:
         text = _clean_text(tag)
         if text and text not in dilution_tags:
             dilution_tags.append(text)
 
-    filing_date = _clean_text(result.get("filing_date"))
+    filing_date = _clean_text(getattr(parsed.filing, "filing_date", ""))
     if not filing_date:
         filed_at = getattr(row, "FiledAt", "")
         parsed_date = _parse_date_value(filed_at)
         filing_date = _format_date(parsed_date)
 
-    cik = _normalize_cik(getattr(row, "CIK", ""))
+    date_of_report = _format_date(_parse_date_value(getattr(parsed.eight_k, "date_of_report", "")))
+    period_of_report = _clean_text(getattr(parsed.filing, "period_of_report", ""))
+    acceptance_dt = _clean_text(getattr(getattr(parsed.filing, "header", None), "acceptance_datetime", ""))
+    homepage_url = _clean_text(getattr(parsed.filing, "homepage_url", ""))
+    accession_no = _clean_text(getattr(parsed.filing, "accession_number", ""))
+
+    cik = _normalize_cik(getattr(row, "CIK", "")) or _normalize_cik(getattr(parsed.filing, "cik", ""))
     ticker = _normalize_ticker(getattr(row, "Ticker", ""))
-    filing_url = _clean_text(getattr(row, "URL", "")) or _clean_text(result.get("url", ""))
+    company = _clean_text(getattr(parsed.filing, "company", ""))
+    form = _clean_text(getattr(parsed.filing, "form", "")) or "8-K"
+    filing_url = _clean_text(getattr(row, "URL", "")) or _clean_text(getattr(parsed.filing, "url", ""))
+    filing_url_txt = _clean_text(parsed.filing_url_txt)
 
     label_parts: list[str] = []
     if is_catalyst:
@@ -677,6 +647,20 @@ def _build_eight_k_event(
         is_dilution=is_dilution,
         dilution_tags=dilution_tags,
         ignore_reason=ignore_reason,
+        company=company,
+        form=form,
+        date_of_report=date_of_report,
+        accession_no=accession_no,
+        filing_url_txt=filing_url_txt,
+        period_of_report=period_of_report,
+        acceptance_datetime=acceptance_dt,
+        homepage_url=homepage_url,
+        items_normalized=items_normalized,
+        has_press_release=parsed.has_press_release,
+        has_exhibits=parsed.has_exhibits,
+        primary_ex99_docs=parsed.primary_ex99_docs,
+        primary_ex10_docs=parsed.primary_ex10_docs,
+        has_xbrl=parsed.has_xbrl,
     )
 
 
@@ -830,7 +814,9 @@ def _load_eight_k_events_from_csv(
         dilution_tags = [tag.strip() for tag in dilution_tags_text.split(";") if tag.strip()]
         event = EightKEvent(
             cik=_normalize_cik(getattr(row, "CIK", "")),
+            company=_clean_text(getattr(row, "Company", "")),
             ticker=_normalize_ticker(getattr(row, "Ticker", "")),
+            form=_clean_text(getattr(row, "Form", "")),
             filing_date=_clean_text(getattr(row, "FilingDate", "")),
             filing_url=_clean_text(getattr(row, "FilingURL", "")),
             items_present=_clean_text(getattr(row, "ItemsPresent", "")),
@@ -842,6 +828,18 @@ def _load_eight_k_events_from_csv(
             is_dilution=_coerce_bool(getattr(row, "IsDilution", False)),
             dilution_tags=dilution_tags,
             ignore_reason=_clean_text(getattr(row, "IgnoreReason", "")),
+            date_of_report=_clean_text(getattr(row, "DateOfReport", "")),
+            accession_no=_clean_text(getattr(row, "AccessionNo", "")),
+            filing_url_txt=_clean_text(getattr(row, "FilingUrlTxt", "")),
+            period_of_report=_clean_text(getattr(row, "PeriodOfReport", "")),
+            acceptance_datetime=_clean_text(getattr(row, "AcceptanceDateTime", "")),
+            homepage_url=_clean_text(getattr(row, "HomepageURL", "")),
+            items_normalized=_clean_text(getattr(row, "ItemsNormalized", "")),
+            has_press_release=_coerce_bool(getattr(row, "HasPressRelease", False)),
+            has_exhibits=_coerce_bool(getattr(row, "HasExhibits", False)),
+            primary_ex99_docs=_clean_text(getattr(row, "PrimaryEx99Docs", "")),
+            primary_ex10_docs=_clean_text(getattr(row, "PrimaryEx10Docs", "")),
+            has_xbrl=_coerce_bool(getattr(row, "HasXBRL", False)),
         )
         events.append(event)
 
