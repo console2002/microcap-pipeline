@@ -7,7 +7,6 @@ from typing import Iterable, Optional
 
 from edgar import Filing
 from edgar.company_reports import EightK
-from edgar.httprequests import download_text
 
 from app.edgar_adapter import EdgarAdapter, _parse_accession_from_url
 
@@ -68,7 +67,7 @@ class EdgarEightKParser:
         raw_text = ""
 
         try:
-            raw_text = download_text(text_url)
+            raw_text = self.adapter.download_filing_text(text_url)
             filing = Filing.from_sgml_text(raw_text)
             return filing, text_url, ""
         except Exception as exc:  # pragma: no cover - defensive network handling
