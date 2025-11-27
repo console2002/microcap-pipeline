@@ -1453,7 +1453,14 @@ def run_weekly_pipeline(
     start_stage: str = "universe",
     skip_fda: bool = False,
 ):
-    """Run the weekly pipeline starting from the requested stage."""
+    """Run the weekly pipeline from universe load through validated watchlist.
+
+    This entrypoint aligns with the weekly flow: it refreshes the SEC/FMP
+    caches, builds hydrated + shortlisted candidates (W2), runs deep research
+    and runway/event parsers (W3), and materializes the validated watchlist
+    output (W4). Stages can be resumed via ``start_stage`` for incremental
+    runs.
+    """
     if stop_flag is None:
         stop_flag = {"stop": False}
 
