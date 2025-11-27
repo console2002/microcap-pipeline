@@ -8,6 +8,7 @@ class FormCount:
     parsed: int = 0
     valid: int = 0
     missing: int = 0
+    note: str = ""
 
     def ensure_consistency(self) -> None:
         total = self.valid + self.missing
@@ -29,6 +30,17 @@ class ParseProgressTracker:
         self.eight_k_processed = 0
         self.eight_k_success = 0
         self.eight_k_failed = 0
+        self._placeholder_forms: dict[str, str] = {
+            "S-3": "NI",
+            "S-8": "NI",
+            "424B": "NI",
+            "DEF 14A": "NI",
+            "FORM 3": "NI",
+            "FORM 4": "NI",
+            "FORM 5": "NI",
+        }
+        self._unspecified_form_label = "Unspecified"
+        self._missing_form_note = "Missing form detail"
 
     def reset(self) -> None:
         self.form_stats = {}
@@ -40,13 +52,20 @@ class ParseProgressTracker:
         self.eight_k_success = 0
         self.eight_k_failed = 0
         self._update_eight_k_stats()
+        self._apply_placeholders()
         self._notify()
+
+    def _apply_placeholders(self) -> None:
+        for form, note in self._placeholder_forms.items():
+            stats = self.form_stats.setdefault(form, FormCount())
+            stats.note = note
 
     def _update_eight_k_stats(self) -> None:
         if self.eight_k_processed == 0 and self.eight_k_failed == 0 and self.eight_k_success == 0:
             self.form_stats.pop("8-K Events", None)
             return
         stats = self.form_stats.setdefault("8-K Events", FormCount())
+        stats.note = ""
         stats.parsed = max(self.eight_k_processed, self.eight_k_success + self.eight_k_failed)
         stats.valid = self.eight_k_success
         stats.missing = self.eight_k_failed
@@ -135,9 +154,10 @@ class ParseProgressTracker:
         match = re.match(r"(?P<ticker>\S+)\s+fetching\s+(?P<form>[^\s]+)", body)
         if not match:
             return False
-        form = self._canonical_form(match.group("form"))
+        form = self._resolve_form_label(match.group("form"))
         was_new_form = form not in self.form_stats
-        self.form_stats.setdefault(form, FormCount())
+        stats = self.form_stats.setdefault(form, FormCount())
+        stats.note = ""
         ticker = match.group("ticker").strip()
         if ticker:
             self.ticker_last_form[ticker] = form
@@ -152,12 +172,14 @@ class ParseProgressTracker:
             return False
         ticker = remainder.split()[0]
         form_match = re.search(r"form=([^\s]+)", body)
-        form = self._canonical_form(form_match.group(1)) if form_match else "Unknown"
+        form_hint = form_match.group(1) if form_match else None
+        form = self._resolve_form_label(form_hint, ticker)
         date_match = re.search(r"date=([0-9]{4}-[0-9]{2}-[0-9]{2})", body)
         date_key = date_match.group(1) if date_match else ""
         key = (ticker, form, date_key)
 
         stats = self.form_stats.setdefault(form, FormCount())
+        stats.note = "" if form != self._unspecified_form_label else self._missing_form_note
         self.ticker_last_form[ticker] = form
         self.ticker_last_key[ticker] = key
 
@@ -193,7 +215,8 @@ class ParseProgressTracker:
         if not ticker:
             return False
 
-        self.form_stats.setdefault(form, FormCount())
+        stats = self.form_stats.setdefault(form, FormCount())
+        stats.note = ""
         self.ticker_last_form[ticker] = form
         self.ticker_last_key.setdefault(ticker, (ticker, form, ""))
 
@@ -211,9 +234,10 @@ class ParseProgressTracker:
         if not ticker:
             return False
 
-        form = self.ticker_last_form.get(ticker, "Unknown")
-        canonical_form = self._canonical_form(form)
+        form = self.ticker_last_form.get(ticker)
+        canonical_form = self._resolve_form_label(form, ticker)
         stats = self.form_stats.setdefault(canonical_form, FormCount())
+        stats.note = "" if canonical_form != self._unspecified_form_label else self._missing_form_note
 
         key = self.ticker_last_key.get(ticker, (ticker, canonical_form, ""))
         if key in self.ticker_outcomes:
@@ -255,6 +279,25 @@ class ParseProgressTracker:
         if text == "UNKNOWN":
             return "Unknown"
         return text
+
+    def _resolve_form_label(self, form: str | None, ticker: str | None = None) -> str:
+        candidate = self._canonical_form(form)
+        if candidate != "Unknown":
+            return candidate
+
+        if ticker:
+            if ticker in self.ticker_last_form:
+                prior_form = self._canonical_form(self.ticker_last_form[ticker])
+                if prior_form != "Unknown":
+                    return prior_form
+
+            if ticker in self.ticker_last_key:
+                _, prior_form, _ = self.ticker_last_key[ticker]
+                canonical = self._canonical_form(prior_form)
+                if canonical != "Unknown":
+                    return canonical
+
+        return self._unspecified_form_label
 
     def _notify(self) -> None:
         if self.on_change:
