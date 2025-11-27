@@ -1,10 +1,7 @@
-[25/11/2025 13:51:09.37] microcap-pipeline setup log 
-[25/11/2025 13:51:09.38] "=== Microcap Pipeline - Setup ==="
-[25/11/2025 13:51:09.42] "Project dir: D:\GitHub\microcap-pipeline"
-[25/11/2025 13:51:09.44] ""
-[25/11/2025 13:51:09.49] "Checking python on PATH"
-[25/11/2025 13:51:09.92] "Python version 3.13"
-[25/11/2025 13:51:24.97] "venv created at venv"
-[25/11/2025 13:53:52.54] ""
-[25/11/2025 13:53:52.54] "[SUCCESS] Environment ready. venv active."
-[25/11/2025 13:53:52.56] "You can now run python gui.py"
+[27/11/2025 15:17:38.54] microcap-pipeline setup log 
+[27/11/2025 15:17:38.55] "=== Microcap Pipeline - Setup ==="
+[27/11/2025 15:17:38.57] "Project dir: D:\GitHub\microcap-pipeline"
+[27/11/2025 15:17:38.59] ""
+[27/11/2025 15:17:38.62] "Checking python on PATH"
+[27/11/2025 15:17:39.02] "Python version 3.13"
+[27/11/2025 15:17:39.04] "venv exists, reusing venv"
