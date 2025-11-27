@@ -9,6 +9,7 @@ from typing import Iterable, List
 import pandas as pd
 
 from app.config import load_config
+from app.edgar_adapter import get_adapter
 from app.utils import ensure_csv
 
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
@@ -59,7 +60,7 @@ def compute_runway_from_html(html_text: str) -> float | None:
     return round(cash_val / quarterly_burn, 2)
 
 
-def _runway_from_filing(url: str) -> float | None:
+def _runway_from_filing(url: str, adapter=None) -> float | None:
     if not url:
         return None
     path = url
@@ -69,6 +70,14 @@ def _runway_from_filing(url: str) -> float | None:
     if candidate.exists():
         html_text = candidate.read_text(encoding="utf-8", errors="ignore")
         return compute_runway_from_html(html_text)
+    if str(url).startswith("http"):
+        try:
+            edgar_adapter = adapter or get_adapter()
+            html_text = edgar_adapter.download_filing_text(str(url))
+            if html_text:
+                return compute_runway_from_html(html_text)
+        except Exception:
+            return None
     return None
 
 
@@ -128,6 +137,7 @@ def _aggregate_evidence(primary_links: list[str]) -> str:
 def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
     cfg = load_config()
     data_dir = data_dir or cfg.get("Paths", {}).get("data", "data")
+    adapter = get_adapter(cfg)
 
     shortlist_path = os.path.join(data_dir, "20_candidate_shortlist.csv")
     filings_path = os.path.join(data_dir, "02_filings.csv")
@@ -159,9 +169,11 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
             relevant = candidate_filings[relevant_mask]
             if not relevant.empty:
                 runway_link = relevant.iloc[0].get("FilingURL") or relevant.iloc[0].get("URL", "")
-                runway_quarters = _runway_from_filing(str(runway_link))
+                runway_quarters = _runway_from_filing(str(runway_link), adapter=adapter)
         dilution = _dilution_score(filing_forms)
-        candidate_events = events[(events.get("Ticker", "").astype(str) == str(ticker)) | (events.get("CIK", "").astype(str) == str(cik))]
+        ticker_series = events.get("Ticker", pd.Series(dtype=str))
+        cik_series = events.get("CIK", pd.Series(dtype=str))
+        candidate_events = events[(ticker_series.astype(str) == str(ticker)) | (cik_series.astype(str) == str(cik))]
         catalyst = _catalyst_score(candidate_events)
         governance = _governance_score(filing_forms)
         insider = _insider_score(filing_forms)
