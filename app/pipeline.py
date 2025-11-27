@@ -1628,6 +1628,31 @@ def run_weekly_pipeline(
                     f"{csv_filename('validated_watchlist')} missing; run build_watchlist stage first or stage requires it"
                 )
 
+        # Weekly W3/W4 alignment
+        try:
+            from app.weekly_deep_research import run_weekly_deep_research
+            from app.weekly_validated import build_validated_selections
+
+            data_dir = cfg["Paths"].get("data", "data")
+
+            # Promote legacy shortlist to weekly naming if needed
+            legacy_shortlist = csv_path(data_dir, "shortlist_candidates")
+            weekly_shortlist = os.path.join(data_dir, "20_candidate_shortlist.csv")
+            if not os.path.exists(weekly_shortlist) and os.path.exists(legacy_shortlist):
+                pd.read_csv(legacy_shortlist).to_csv(weekly_shortlist, index=False)
+
+            # Promote legacy universe gate if present
+            legacy_universe = csv_path(data_dir, "profiles")
+            weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
+            if not os.path.exists(weekly_universe) and os.path.exists(legacy_universe):
+                pd.read_csv(legacy_universe).to_csv(weekly_universe, index=False)
+
+            run_weekly_deep_research(data_dir)
+            build_validated_selections(data_dir)
+            _emit(progress_fn, "weekly: W3/W4 outputs generated")
+        except Exception as exc:  # pragma: no cover - best-effort alignment
+            _emit(progress_fn, f"weekly: W3/W4 skipped ({exc})")
+
         _emit(progress_fn, "run_weekly: complete")
 
     except CancelledRun as e:
