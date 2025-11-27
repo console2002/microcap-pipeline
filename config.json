@@ -9,7 +9,7 @@
   },
   "Edgar": {
     "UserAgent": "console_2002@yahoo.co.uk",
-    "ThrottlePerMin": 60
+    "ThrottlePerMin": 600
   },
   "MaxWorkers": 4,
   "TimeoutSeconds": 30,
