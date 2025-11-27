@@ -1,0 +1,241 @@
+MICROCAP WEEKLY CONTROLLER (v0.2)
+Scope: Weekly only. Goal is to go from full universe -> hard-gated universe -> catalyst-driven shortlist -> Deep Research -> Validated selections CSV.
+Daily, snapshots, orders and execution logic are OUT OF SCOPE for now.
+
+# W1 – RUN CONTROLS & HARD GATES
+
+W1.1 Config
+- Read config (e.g. config.json) for:
+  - Hard gates (Price, ADV20, MarketCap).
+  - Lookback windows (filings, events).
+  - FilingsWhitelist (forms to fetch from EDGAR).
+  - Paths for all CSV outputs under data/.
+
+W1.2 Universe Hard Gates (symbol-level)
+- Build raw universe from approved sources (e.g. FMP, exchanges, EDGAR company list).
+- Universe rules:
+  - U.S.-listed only (NASDAQ/NYSE/AMEX/ADR). No OTC.
+  - Common stock / ordinary shares only (no ETFs, funds, prefs, etc. unless explicitly whitelisted).
+- Apply hard gates:
+  - Last price >= 1.00 USD.
+  - ADV20 (shares) >= 40,000.
+  - Preferred micro-cap band: MarketCap < 300M.
+  - Discovery may include MarketCap up to < 350M.
+  - MarketCap >= 400M => automatic EXCLUDE (execution guard).
+- Enforce:
+  - Universe CSV must include at least:
+    - Ticker, Company, CIK, Exchange, Sector, Industry, Price, MarketCap, ADV20.
+- Outputs:
+  - data/01_universe_raw.csv  (pre-gates)
+  - data/01_universe_gated.csv (after gates above)
+
+# W2 – FILINGS SCAN & CANDIDATE SHORTLIST (CATALYST SEED)
+
+W2.1 EDGAR as core source
+- All SEC filings must be fetched through edgartools (installed package), not direct requests, unless edgartools truly cannot handle a form.
+- Use FilingsWhitelist from config (examples, not exhaustive):
+  - 8-K, 8-K/A
+  - 10-Q, 10-Q/A, 10-K, 10-K/A, 10-KT, 10-KT/A
+  - 20-F, 20-F/A, 40-F, 40-F/A
+  - 6-K
+  - S-3, S-8, 424B*, S-4 (offerings/overhang)
+  - DEF 14A (governance)
+  - Forms 3/4/5 (insider)
+- For each Ticker/CIK in 01_universe_gated.csv:
+  - Fetch filings within the configured lookback window.
+  - Store master .txt and viewer URLs where possible.
+
+- Output: data/02_filings.csv
+  - Columns minimally:
+    - Ticker, Company, CIK, FormType, FilingDate, Accession, FilingURL, MasterTxtURL.
+
+W2.2 Event / Catalyst extraction
+- From 02_filings.csv, derive a catalyst/events table, focusing on:
+  - 8-K items (material events).
+  - Offerings / dilution forms (S-3/S-8/424B).
+  - Major 6-K items for foreign filers.
+- Tag each event:
+  - EventDate, EventType (earnings, financing, regulatory, contract, etc.).
+  - Tier-1 vs Tier-2 if possible (Tier-1 = clearly material: funding, regulatory approval, guidance up, etc.).
+- Output: data/09_events.csv (or equivalent)
+  - At least: Ticker, CIK, EventDate, EventType, Tier, PrimaryFilingURL, any key notes.
+
+W2.3 Candidate Shortlist
+- Join:
+  - data/01_universe_gated.csv
+  - data/09_events.csv
+- Shortlist rules:
+  - Must have at least one qualifying event within lookback window.
+  - Respect hard gates (Price, ADV20, MarketCap) already applied in W1.
+  - Keep sector caps / biotech caps OUT OF SCOPE for now (can be added later).
+- Output: data/20_candidate_shortlist.csv
+  - Columns:
+    - Ticker, Company, CIK
+    - Sector, Industry
+    - Price, MarketCap, ADV20
+    - PrimaryCatalystType, PrimaryCatalystDate
+    - PrimaryFilingURL (EDGAR)
+    - Any secondary link if already known (PR/Reuters/etc., optional at this stage).
+
+# W3 – DEEP RESEARCH (SUBSCORES & MATERIALITY)
+
+Goal: For each name in 20_candidate_shortlist.csv, compute 5 subscores + materiality using EDGAR filings as Primary evidence.
+
+W3.1 Evidence model
+- Each subscore requires:
+  - Primary evidence: SEC / registry source (10-Q/K, 20-F, 6-K, 8-K, S-3, etc.).
+  - Secondary evidence: company PR or major newswire (where applicable).
+- Mandatory subscores: Dilution, Runway, Catalyst.
+- Optional but preferred: Governance, Insider.
+- For foreign filers, treat 20-F and 6-K (and exhibits) as analogues to 10-K/10-Q.
+
+W3.2 Subscores definitions (per ticker)
+
+1) Runway
+- Source priority:
+  - 10-Q/10-K (or 20-F for foreign).
+  - If missing, 6-K + exhibits.
+- Extract:
+  - Cash and cash equivalents.
+  - Operating cash flow / quarterly burn (prefer OCF from cash-flow; fallback to net loss if necessary).
+- Compute:
+  - RunwayQuarters = Cash / QuarterlyBurn.
+- Store:
+  - RunwayQuarters (numeric).
+  - RunwayEvidencePrimary (EDGAR URLs, section refs).
+  - RunwayEvidenceSecondary (if used).
+
+2) Dilution / Overhang
+- Sources:
+  - S-3, S-8, 424B, 8-K (financing, ATM, registered direct).
+  - ATM / equity line language within 10-K/10-Q.
+- Score dilution qualitatively, e.g.:
+  - Low / Medium / High risk (or similar enum).
+- Store:
+  - DilutionScore (string/enum).
+  - LastDilutionEventDate.
+  - DilutionEvidencePrimary (filing URLs).
+  - DilutionEvidenceSecondary.
+
+3) Catalyst
+- Based on:
+  - Events from W2 (8-Ks, major contracts, regulatory milestones, funding).
+  - For biotech, clinical/regulatory milestones (PDUFA, 510(k), etc.) if present.
+- Score:
+  - CatalystScore (e.g. Tier-1, Tier-2, None).
+  - CatalystWindow (date range if needed).
+- Store primary/secondary evidence URLs.
+
+4) Governance
+- Sources:
+  - 10-K, DEF 14A (auditor, going concern, board/comp, litigation disclosures).
+- Score:
+  - GovernanceScore (e.g. OK / Concern / High-Risk).
+  - GoingConcernFlag (Y/N).
+- Store evidence URLs.
+
+5) Insider
+- Sources:
+  - Forms 3/4/5 (insider transactions).
+- Focus:
+  - Open-market insider buying (clusters, not option grants).
+- Store:
+  - InsiderScore (e.g. None / Weak / Strong).
+  - LastInsiderBuyDate.
+  - Evidence URLs.
+
+W3.3 Biotech peer read-through
+- For biotech names (sector/industry flags):
+  - Attempt to link at least one relevant peer event (e.g. similar drug, same indication).
+  - Store:
+    - BiotechPeerRead (Y/N).
+    - BiotechPeerEvidence (short note or link).
+- If biotech and BiotechPeerRead is missing or negative, candidate will be `TBD - exclude` in W4.
+
+W3.4 Materiality and subscore count
+- Compute:
+  - SubscoresEvidencedCount = number of subscores (out of 5) with both:
+    - Non-null score, and
+    - At least one Primary evidence link.
+- Materiality:
+  - Flag whether the combined picture is materially interesting (e.g. High / Medium / Low / Fail).
+- ConvictionScore (optional):
+  - Only compute if SubscoresEvidencedCount >= 4 and mandatory subscores are evidenced.
+  - Can be simple numeric or grade, derived from the 5 subscores + materiality.
+
+W3.5 W3 output CSV
+- Output: data/30_deep_research.csv
+- Columns (minimum):
+  - Ticker, Company, CIK
+  - Sector, Industry
+  - Price, MarketCap, ADV20
+  - RunwayQuarters
+  - DilutionScore
+  - CatalystScore
+  - GovernanceScore
+  - InsiderScore
+  - BiotechPeerRead
+  - SubscoresEvidencedCount
+  - Materiality
+  - ConvictionScore (optional)
+  - EvidencePrimary (one or more EDGAR URLs, possibly semicolon-separated)
+  - EvidenceSecondary (optional)
+  - Status (to be used by W4; see below)
+
+# W4 – VALIDATED CANDIDATE SET (FINAL WEEKLY SELECTIONS)
+
+Goal: From 30_deep_research.csv (W3), produce a validated selections CSV with clear pass/fail logic.
+
+W4.1 Validation rules
+- Mandatory for a candidate to be VALIDATED:
+  - DilutionScore present (non-null, not “Unknown”).
+  - RunwayQuarters present (non-null and numeric).
+  - CatalystScore present (non-null).
+  - SubscoresEvidencedCount >= 4 (out of 5).
+  - Materiality is acceptable (not a failing state).
+  - If biotech:
+    - BiotechPeerRead == Y.
+- Names failing any of the above are `TBD - exclude`.
+
+W4.2 Status field
+- For each row in 30_deep_research.csv, set:
+  - Status = "Validated" if all rules above pass.
+  - Status = "TBD - exclude" otherwise.
+- Status is the only status used by downstream Weekly logic for now.
+
+W4.3 Validated selections CSV
+- Join back any missing universe/shortlist fields if needed (from data/01_universe_gated.csv and data/20_candidate_shortlist.csv) using (Ticker, CIK).
+- Output: data/40_validated_selections.csv
+- Minimum columns:
+  - Ticker
+  - Company
+  - CIK
+  - Sector
+  - Industry
+  - Price
+  - MarketCap
+  - ADV20
+  - RunwayQuarters
+  - DilutionScore
+  - CatalystScore
+  - GovernanceScore
+  - InsiderScore
+  - BiotechPeerRead
+  - SubscoresEvidencedCount
+  - Materiality
+  - Status   (only "Validated" rows should be present in this file)
+  - PrimaryCatalystDate
+  - PrimaryCatalystType
+  - PrimaryFilingURL
+  - Any other core evidence links useful later (optional)
+
+- Optionally, also write:
+  - data/40_tbd_exclusions.csv containing all rows where Status = "TBD - exclude" plus reasons (if available).
+
+# OUT OF SCOPE (FOR NOW)
+
+- Daily controller and snapshot / portfolio state.
+- Execution override guard, spread buckets, %ADV execution limits.
+- Orders, stops, and RTH-only rules.
+
+These will be added later. For now, the Weekly run is complete when data/40_validated_selections.csv has been produced from the latest universe and filings.
