@@ -194,6 +194,10 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
         subscore_count = sum(1 for v in subscores.values() if v and bool(evidence_primary))
         materiality = _materiality(subscore_count, catalyst)
 
+        price = getattr(row, "Price", None)
+        if price is None or (isinstance(price, (float, int)) and pd.isna(price)):
+            price = getattr(row, "Close", None)
+
         output_rows.append(
             {
                 "Ticker": ticker,
@@ -201,7 +205,7 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 "CIK": cik,
                 "Sector": sector,
                 "Industry": industry,
-                "Price": getattr(row, "Price", None),
+                "Price": price,
                 "MarketCap": getattr(row, "MarketCap", None),
                 "ADV20": getattr(row, "ADV20", None),
                 "RunwayQuarters": runway_quarters,
