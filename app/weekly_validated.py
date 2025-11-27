@@ -64,6 +64,10 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
             suffixes=("", "_dup"),
         )
         dup_cols = [c for c in merged.columns if c.endswith("_dup")]
+        for dup_col in dup_cols:
+            base_col = dup_col[:-4]
+            if base_col in merged.columns:
+                merged[base_col] = merged[base_col].combine_first(merged[dup_col])
         if dup_cols:
             merged = merged.drop(columns=dup_cols)
 
