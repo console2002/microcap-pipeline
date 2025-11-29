@@ -1603,6 +1603,28 @@ def run_weekly_pipeline(
         _promote_weekly_events(data_dir)
 
         if start_idx <= stages.index("candidate_shortlist"):
+            prices_path = csv_path(cfg["Paths"].get("data", "data"), "prices")
+            need_prices = True
+            if os.path.exists(prices_path):
+                try:
+                    df_prices = pd.read_csv(prices_path, encoding="utf-8")
+                    required_cols = {"Ticker", "Close", "Volume", "Date"}
+                    if not df_prices.empty and required_cols.issubset(df_prices.columns):
+                        need_prices = False
+                        _emit(
+                            progress_fn,
+                            f"prices: skipped (using cached {csv_filename('prices')})",
+                        )
+                except Exception:
+                    need_prices = True
+
+            if need_prices:
+                if df_prof is None:
+                    df_prof = _load_cached_dataframe(cfg, "profiles")
+                _ = prices_step(
+                    cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
+                )
+
             hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             canonical_short = os.path.join(data_dir, "20_candidate_shortlist.csv")
