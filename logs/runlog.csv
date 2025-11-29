@@ -1,8 +1,11 @@
 timestamp,module,rows_added,duration_ms,note
-2025-11-29T19:21:05.851748+00:00,SEC_universe,10096,2209,loaded
-2025-11-29T19:26:16.366063+00:00,profiles,287,310512,append+purge
-2025-11-29T19:39:50.201976+00:00,filings,5390,813807,append+purge
-2025-11-29T19:54:07.354229+00:00,parse_8k,2234,857123,write 09_8k_events.csv
-2025-11-29T19:54:41.799803+00:00,prices,16117,34331,append+purge
-2025-11-29T19:54:42.293028+00:00,hydrate,287,450,write 05_hydrated_candidates.csv
-2025-11-29T19:54:42.335789+00:00,shortlist,196,41,write 06_shortlist_candidates.csv
+2025-11-29T20:35:33.644796+00:00,SEC_universe,10096,2139,loaded
+2025-11-29T20:40:44.065996+00:00,profiles,287,310418,append+purge
+2025-11-29T20:54:19.674460+00:00,filings,5390,815571,append+purge
+2025-11-29T21:01:17.465483+00:00,SEC_universe,10096,2444,loaded
+2025-11-29T21:06:30.974238+00:00,profiles,287,313505,append+purge
+2025-11-29T21:20:40.198948+00:00,filings,5390,849185,append+purge
+2025-11-29T21:36:08.150881+00:00,parse_8k,2234,927920,write 09_8k_events.csv
+2025-11-29T21:36:42.797013+00:00,prices,16117,34637,append+purge
+2025-11-29T21:36:43.366239+00:00,hydrate,287,524,write 05_hydrated_candidates.csv
+2025-11-29T21:36:43.412224+00:00,shortlist,196,44,write 06_shortlist_candidates.csv

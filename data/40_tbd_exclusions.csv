@@ -1,197 +1,41 @@
 Ticker,Company,CIK,Reason
-ABAT,American Battery Technology Company Common Stock,1576873,Mandatory subscore missing
-ACB,Aurora Cannabis Inc.,1683541,Mandatory subscore missing
-ACCO,ACCO Brands Corporation,712034,Mandatory subscore missing
-ACRE,Ares Commercial Real Estate Corporation,1529377,Mandatory subscore missing
-AGEN,Agenus Inc.,1098972,Mandatory subscore missing
-AIRS,"AirSculpt Technologies, Inc.",1870940,Mandatory subscore missing
-AISP,"Airship AI Holdings, Inc.",1842566,Mandatory subscore missing
-ALTO,"Alto Ingredients, Inc.",778164,Mandatory subscore missing
-AMTX,"Aemetis, Inc.",738214,Mandatory subscore missing
-ANVS,"Annovis Bio, Inc.",1477845,Mandatory subscore missing
-APUS,"Apimeds Pharmaceuticals US, Inc",1894525,Mandatory subscore missing
-APVO,Aptevo Therapeutics Inc.,1671584,Mandatory subscore missing
-ARAY,Accuray Incorporated,1138723,Mandatory subscore missing
-ARBE,Arbe Robotics Ltd.,1861841,Mandatory subscore missing
-ASPN,"Aspen Aerogels, Inc.",1145986,Mandatory subscore missing
-ATNM,"Actinium Pharmaceuticals, Inc.",1388320,Mandatory subscore missing
-AVD,American Vanguard Corporation,5981,Mandatory subscore missing
-BAER,"Bridger Aerospace Group Holdings, Inc. Common Stock",1941536,Mandatory subscore missing
-BCG,"Binah Capital Group, Inc.",1953984,Mandatory subscore missing
-BEEM,Beam Global,1398805,Mandatory subscore missing
-BGSF,"BGSF, Inc.",1474903,Mandatory subscore missing
-BLFY,Blue Foundry Bancorp,1846017,Mandatory subscore missing
-BLNK,Blink Charging Co.,1429764,Mandatory subscore missing
-BLZE,"Backblaze, Inc.",1462056,Mandatory subscore missing
-BMEA,"Biomea Fusion, Inc.",1840439,Mandatory subscore missing
-BOSC,B.O.S. Better Online Solutions Ltd.,1005516,Mandatory subscore missing
-BTCS,BTCS Inc.,1436229,Mandatory subscore missing
-BTM,Bitcoin Depot Inc.,1901799,Mandatory subscore missing
-BWEN,"Broadwind, Inc.",1120370,Mandatory subscore missing
-BZUN,Baozun Inc.,1625414,Mandatory subscore missing
-CABA,"Cabaletta Bio, Inc.",1759138,Mandatory subscore missing
-CERS,Cerus Corporation,1020214,Mandatory subscore missing
-CGC,Canopy Growth Corporation,1737927,Mandatory subscore missing
-CGTX,"Cognition Therapeutics, Inc.",1455365,Mandatory subscore missing
-CHMI,Cherry Hill Mortgage Investment Corporation,1571776,Mandatory subscore missing
-CHPT,"ChargePoint Holdings, Inc.",1777393,Mandatory subscore missing
-CIO,"City Office REIT, Inc.",1593222,Mandatory subscore missing
-CRBU,"Caribou Biosciences, Inc.",1619856,Mandatory subscore missing
-CRDF,"Cardiff Oncology, Inc.",1213037,Mandatory subscore missing
-CTM,"Castellum, Inc.",1877939,Mandatory subscore missing
-CYPH,Cypherpunk Technologies Inc.,1509745,Mandatory subscore missing
-CZNC,Citizens & Northern Corporation,810958,Mandatory subscore missing
-DAAQ,Digital Asset Acquisition Corp.,2052162,Mandatory subscore missing
-DCTH,"Delcath Systems, Inc.",872912,Mandatory subscore missing
-DDD,3D Systems Corporation,910638,Mandatory subscore missing
-DENN,Denny's Corporation,852772,Mandatory subscore missing
-DGXX,Digi Power X Inc.,1854368,Mandatory subscore missing
-DHX,"DHI Group, Inc.",1393883,Mandatory subscore missing
-DSX,Diana Shipping Inc.,1318885,Mandatory subscore missing
-EARN,Ellington Credit Company,1560672,Mandatory subscore missing
-EDIT,"Editas Medicine, Inc.",1650664,Mandatory subscore missing
-EGHT,"8x8, Inc.",1023731,Mandatory subscore missing
-ELBM,Electra Battery Materials Corporation,1907184,Mandatory subscore missing
-ELDN,"Eledon Pharmaceuticals, Inc.",1404281,Mandatory subscore missing
-EMIS,Emmis Acquisition Corp. Class A Ordinary Shares,2075816,Mandatory subscore missing
-EPM,Evolution Petroleum Corporation,1006655,Mandatory subscore missing
-ETHM,Dynamix Corporation Class A Ordinary Shares,2028699,Mandatory subscore missing
-ETHZ,Ethzilla Corp.,1690080,Mandatory subscore missing
-EXFY,"Expensify, Inc.",1476840,Mandatory subscore missing
-FCEL,"FuelCell Energy, Inc.",886128,Mandatory subscore missing
-FEMY,Femasys Inc.,1339005,Mandatory subscore missing
-FF,FutureFuel Corp.,1337298,Mandatory subscore missing
-FLUX,"Flux Power Holdings, Inc.",1083743,Mandatory subscore missing
-FLWS,"1-800-FLOWERS.COM, Inc.",1084869,Mandatory subscore missing
-FNGR,"FingerMotion, Inc.",1602409,Mandatory subscore missing
-FNKO,"Funko, Inc.",1704711,Mandatory subscore missing
-FTEK,"Fuel Tech, Inc.",846913,Mandatory subscore missing
-GCTS,"GCT Semiconductor Holding, Inc.",1851961,Mandatory subscore missing
-GIW,GigCapital8 Corp.,2080019,Mandatory subscore missing
-GLDG,GoldMining Inc.,1538847,Mandatory subscore missing
-GLL,ProShares UltraShort Gold,1415311,Mandatory subscore missing
-GPRO,"GoPro, Inc.",1500435,Mandatory subscore missing
-GRCE,"Grace Therapeutics, Inc.",1444192,Mandatory subscore missing
-GRRR,Gorilla Technology Group Inc.,1903145,Mandatory subscore missing
-GRWG,GrowGeneration Corp.,1604868,Mandatory subscore missing
-GSRF,GSR IV Acquisition Corp. Class A ordinary share,2073928,Mandatory subscore missing
-GUTS,"Fractyl Health, Inc. Common Stock",1572616,Mandatory subscore missing
-HIT,"Health In Tech, Inc.",2019505,Mandatory subscore missing
-HOVR,New Horizon Aircraft Ltd.,1930021,Mandatory subscore missing
-HOWL,"Werewolf Therapeutics, Inc.",1785530,Mandatory subscore missing
-HRZN,Horizon Technology Finance Corporation,1487428,Mandatory subscore missing
-HUSA,Houston American Energy Corp.,1156041,Mandatory subscore missing
-III,"Information Services Group, Inc.",1371489,Mandatory subscore missing
-IINN,Inspira Technologies Oxy B.H.N. Ltd.,1837493,Mandatory subscore missing
-IMRX,Immuneering Corporation,1790340,Mandatory subscore missing
-INBK,First Internet Bancorp,1562463,Mandatory subscore missing
-INSG,Inseego Corp.,1022652,Mandatory subscore missing
-INV,"Innventure, Inc.",2001557,Mandatory subscore missing
-IPI,"Intrepid Potash, Inc.",1421461,Mandatory subscore missing
-IVVD,"Invivyd, Inc.",1832038,Mandatory subscore missing
-KLXE,"KLX Energy Services Holdings, Inc.",1738827,Mandatory subscore missing
-KNOP,KNOT Offshore Partners LP,1564180,Mandatory subscore missing
-KOLD,ProShares UltraShort Bloomberg Natural Gas,1415311,Mandatory subscore missing
-LAND,Gladstone Land Corporation,1495240,Mandatory subscore missing
-LFVN,LifeVantage Corporation,849146,Mandatory subscore missing
-LHSW,Lianhe Sowell International Group Ltd Ordinary Shares,2004024,Mandatory subscore missing
-LIDR,"AEye, Inc.",1818644,Mandatory subscore missing
-LITM,Snow Lake Resources Ltd.,1769697,Mandatory subscore missing
-LKSPU,Lake Superior Acquisition Corp.,2043508,Mandatory subscore missing
-LOAN,"Manhattan Bridge Capital, Inc.",1080340,Mandatory subscore missing
-LOKV,Live Oak Acquisition Corp. V Class A Ordinary Shares,2048951,Mandatory subscore missing
-LOVE,The Lovesac Company,1701758,Mandatory subscore missing
-LPSN,"LivePerson, Inc.",1102993,Mandatory subscore missing
-LUCD,Lucid Diagnostics Inc.,1799011,Mandatory subscore missing
-LUNG,Pulmonx Corporation,1127537,Mandatory subscore missing
-LWAC,LightWave Acquisition Corp.,2061379,Mandatory subscore missing
-MAIA,"MAIA Biotechnology, Inc.",1878313,Mandatory subscore missing
-MAMO,Massimo Group Common Stock,1952853,Mandatory subscore missing
-MBVI,M3-Brigade Acquisition VI Corp. Class A Ordinary Shares,2073928,Mandatory subscore missing
-MGNX,"MacroGenics, Inc.",1125345,Mandatory subscore missing
-MIRA,"MIRA Pharmaceuticals, Inc.",1904286,Mandatory subscore missing
-MIST,Milestone Pharmaceuticals Inc.,1408443,Mandatory subscore missing
-MPAA,"Motorcar Parts of America, Inc.",918251,Mandatory subscore missing
-MREO,Mereo BioPharma Group plc,1719714,Mandatory subscore missing
-MURA,Mural Oncology plc,1971543,Mandatory subscore missing
-MX,Magnachip Semiconductor Corporation,1325702,Mandatory subscore missing
-NEO,"NeoGenomics, Inc.",1077183,Mandatory subscore missing
-NFE,New Fortress Energy Inc.,1749723,Mandatory subscore missing
-NHTC,Natural Health Trends Corp.,912061,Mandatory subscore missing
-NKTX,"Nkarta, Inc.",1787400,Mandatory subscore missing
-NREF,"NexPoint Real Estate Finance, Inc.",1786248,Mandatory subscore missing
-NRXS,"NeurAxis, Inc.",1933567,Mandatory subscore missing
-NVX,Novonix Limited,1859795,Mandatory subscore missing
-NXXT,NextNRG Inc.,1817004,Mandatory subscore missing
-OBA,Oxley Bridge Acquisition Limited,2034313,Mandatory subscore missing
-OEC,Orion Engineered Carbons S.A.,1609804,Mandatory subscore missing
-OGI,Organigram Global Inc.,1620737,Mandatory subscore missing
-OMEX,"Odyssey Marine Exploration, Inc.",798528,Mandatory subscore missing
-ONL,Orion Properties Inc.,1873923,Mandatory subscore missing
-OPAD,Offerpad Solutions Inc.,1825024,Mandatory subscore missing
-ORMP,Oramed Pharmaceuticals Inc.,1176309,Mandatory subscore missing
-OSS,"One Stop Systems, Inc.",1394056,Mandatory subscore missing
-OSTX,OS Therapies Incorporated,1795091,Mandatory subscore missing
-OTLK,"Outlook Therapeutics, Inc.",1649989,Mandatory subscore missing
-OVID,Ovid Therapeutics Inc.,1636651,Mandatory subscore missing
-PALI,"Palisade Bio, Inc.",1357459,Mandatory subscore missing
-PELI,Pelican Acquisition Corporation Ordinary Shares,2037431,Mandatory subscore missing
-PERF,Perfect Corp.,1899830,Mandatory subscore missing
-PETS,"PetMed Express, Inc.",1040130,Mandatory subscore missing
-PHGE,BiomX Inc.,1739174,Mandatory subscore missing
-PHUN,"Phunware, Inc.",1665300,Mandatory subscore missing
-PLBY,"Playboy, Inc.",1803914,Mandatory subscore missing
-POWW,Outdoor Holding Company,1015383,Mandatory subscore missing
-PRQR,ProQR Therapeutics N.V.,1612940,Mandatory subscore missing
-PSQH,"PSQ Holdings, Inc.",1847064,Mandatory subscore missing
+NUKK,Nukkleus Inc.,1592782,Mandatory subscore missing
 PXLW,"Pixelworks, Inc.",1040161,Mandatory subscore missing
-PYPD,PolyPid Ltd.,1611842,Mandatory subscore missing
-PZG,Paramount Gold Nevada Corp.,1629210,Mandatory subscore missing
-QIPT,Quipt Home Medical Corp.,1540013,Mandatory subscore missing
-RCEL,"AVITA Medical, Inc.",1762303,Mandatory subscore missing
-RDNW,"RideNow Group, Inc.",1596961,Mandatory subscore missing
-RDZN,"Roadzen, Inc.",1868640,Mandatory subscore missing
-REKR,"Rekor Systems, Inc.",1697851,Mandatory subscore missing
-RILY,"B. Riley Financial, Inc.",1464790,Mandatory subscore missing
-RNTX,Rein Therapeutics Inc.,1420565,Mandatory subscore missing
-RXT,"Rackspace Technology, Inc.",1810019,Mandatory subscore missing
-SCLX,Scilex Holding Company,1820190,Mandatory subscore missing
-SCM,Stellus Capital Investment Corporation,1551901,Mandatory subscore missing
-SCO,ProShares UltraShort Bloomberg Crude Oil,1415311,Mandatory subscore missing
-SMX,SMX (Security Matters) Public Limited Company,1940674,Mandatory subscore missing
-SOHO,Sotherly Hotels Inc.,1301236,Mandatory subscore missing
-SOL,"Emeren Group, Ltd.",1417892,Mandatory subscore missing
-SPCE,"Virgin Galactic Holdings, Inc.",1706946,Mandatory subscore missing
-SPOK,"Spok Holdings, Inc.",1289945,Mandatory subscore missing
-SPRB,"Spruce Biosciences, Inc.",1683553,Mandatory subscore missing
-SPRU,Spruce Power Holding Corporation,1772720,Mandatory subscore missing
-SRFM,Surf Air Mobility Inc.,1936224,Mandatory subscore missing
-SSTI,"SoundThinking, Inc.",1351636,Mandatory subscore missing
-STEM,"Stem, Inc.",1758766,Mandatory subscore missing
-SUIG,SUI Group Holdings Limited,1425355,Mandatory subscore missing
-SVCO,"Silvaco Group, Inc. Common Stock",1943289,Mandatory subscore missing
-SXTC,"China SXT Pharmaceuticals, Inc.",1723980,Mandatory subscore missing
+PETS,"PetMed Express, Inc.",1040130,Mandatory subscore missing
+DTSQ,DT Cloud Star Acquisition Corporation,2017950,Mandatory subscore missing
+HOVR,New Horizon Aircraft Ltd.,1930021,Mandatory subscore missing
+HUSA,Houston American Energy Corp.,1156041,Mandatory subscore missing
 TNXP,Tonix Pharmaceuticals Holding Corp.,1430306,Mandatory subscore missing
-TNYA,"Tenaya Therapeutics, Inc.",1858848,Mandatory subscore missing
-TPVG,TriplePoint Venture Growth BDC Corp.,1580345,Mandatory subscore missing
-TSSI,"TSS, Inc.",1320760,Mandatory subscore missing
-TTSH,"Tile Shop Holdings, Inc.",1552800,Mandatory subscore missing
-TVA,Texas Ventures Acquisition III Corp,2033991,Mandatory subscore missing
-UHG,"United Homes Group, Inc.",1830188,Mandatory subscore missing
-UIS,Unisys Corporation,746838,Mandatory subscore missing
-UMAC,"Unusual Machines, Inc.",1956955,Mandatory subscore missing
-USAU,U.S. Gold Corp.,27093,Mandatory subscore missing
-USIO,"Usio, Inc.",1088034,Mandatory subscore missing
-VERI,"Veritone, Inc.",1615165,Mandatory subscore missing
-VLN,Valens Semiconductor Ltd.,1863006,Mandatory subscore missing
-VTGN,"VistaGen Therapeutics, Inc.",1411685,Mandatory subscore missing
-VUZI,Vuzix Corporation,1463972,Mandatory subscore missing
-WDH,Waterdrop Inc.,1823986,Mandatory subscore missing
-WTI,"W&T Offshore, Inc.",1288403,Mandatory subscore missing
-XPER,Xperi Inc.,1788999,Mandatory subscore missing
+NXXT,NextNRG Inc.,1817004,Mandatory subscore missing
+BLFY,Blue Foundry Bancorp,1846017,Mandatory subscore missing
+IVVD,"Invivyd, Inc.",1832038,Mandatory subscore missing
+SCLX,Scilex Holding Company,1820190,Mandatory subscore missing
+BTM,Bitcoin Depot Inc.,1901799,Mandatory subscore missing
+MAIA,"MAIA Biotechnology, Inc.",1878313,Mandatory subscore missing
+BAER,"Bridger Aerospace Group Holdings, Inc. Common Stock",1941536,Mandatory subscore missing
+RILY,"B. Riley Financial, Inc.",1464790,Mandatory subscore missing
+LOAN,"Manhattan Bridge Capital, Inc.",1080340,Mandatory subscore missing
+SRFM,Surf Air Mobility Inc.,1936224,Mandatory subscore missing
+PZG,Paramount Gold Nevada Corp.,1629210,Mandatory subscore missing
+RDZN,"Roadzen, Inc.",1868640,Mandatory subscore missing
+PLBY,"Playboy, Inc.",1803914,Mandatory subscore missing
+LOVE,The Lovesac Company,1701758,Mandatory subscore missing
+ISBA,Isabella Bank Corporation,842517,Mandatory subscore missing
 XTIA,"XTI Aerospace, Inc.",1529113,Mandatory subscore missing
-XYF,X Financial,1725033,Mandatory subscore missing
-YCS,ProShares UltraShort Yen,1415311,Mandatory subscore missing
-ZENA,"ZenaTech, Inc.",1997403,Mandatory subscore missing
-ZVIA,Zevia PBC,1854139,Mandatory subscore missing
+TVRD,"Tvardi Therapeutics, Inc.",1742947,Mandatory subscore missing
+CYPH,Cypherpunk Technologies Inc.,1509745,Mandatory subscore missing
+EARN,Ellington Credit Company,1560672,Mandatory subscore missing
+APACU,StoneBridge Acquisition II Corporation,2043630,Mandatory subscore missing
+VIASP,"Via Renewables, Inc.",1606268,Mandatory subscore missing
+VWAV,"VisionWave Holdings, Inc.",1845942,Mandatory subscore missing
+FLUX,"Flux Power Holdings, Inc.",1083743,Mandatory subscore missing
 ZYXI,"Zynex, Inc.",846475,Mandatory subscore missing
+WTGUU,Wintergreen Acquisition Corp.,2053927,Mandatory subscore missing
+AISP,"Airship AI Holdings, Inc.",1842566,Mandatory subscore missing
+ORMP,Oramed Pharmaceuticals Inc.,1176309,Mandatory subscore missing
+PHGE,BiomX Inc.,1739174,Mandatory subscore missing
+FEMY,Femasys Inc.,1339005,Mandatory subscore missing
+BEEM,Beam Global,1398805,Mandatory subscore missing
+FGBI,"First Guaranty Bancshares, Inc.",1408534,Mandatory subscore missing
+FNGR,"FingerMotion, Inc.",1602409,Mandatory subscore missing
+ELDN,"Eledon Pharmaceuticals, Inc.",1404281,Mandatory subscore missing
