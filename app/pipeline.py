@@ -1473,10 +1473,11 @@ def _promote_weekly_shortlist(data_dir: str) -> None:
     source = canonical_shortlist
     if os.path.exists(legacy_shortlist):
         legacy_mtime = os.path.getmtime(legacy_shortlist)
-        canon_mtime = os.path.getmtime(canonical_shortlist) if os.path.exists(
-            canonical_shortlist
+        canon_mtime = (
+            os.path.getmtime(canonical_shortlist)
+            if os.path.exists(canonical_shortlist)
+            else 0
         )
-        else 0
 
         if not os.path.exists(canonical_shortlist) or legacy_mtime >= canon_mtime:
             source = legacy_shortlist
