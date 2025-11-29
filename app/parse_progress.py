@@ -160,7 +160,10 @@ class ParseProgressTracker:
         return detail
 
     def _handle_fetch(self, body: str) -> bool:
-        match = re.match(r"(?P<ticker>\S+)\s+fetching\s+(?P<form>[^\s]+)", body)
+        match = re.match(
+            r"(?P<ticker>\S+)\s+fetching\s+(?P<form>.+?)(?=\s+(?:filed|url)\b|$)",
+            body,
+        )
         if not match:
             return False
         form = self._resolve_form_label(match.group("form"))
@@ -207,7 +210,7 @@ class ParseProgressTracker:
 
     def _handle_form_status(self, body: str) -> bool:
         match = re.match(
-            r"(?P<ticker>\S+)\s+(?P<form>[^\s]+)\s+form status\s+(?P<status>.*)",
+            r"(?P<ticker>\S+)\s+(?P<form>.+?)\s+form status\s+(?P<status>.*)",
             body,
         )
         if not match:
@@ -232,7 +235,10 @@ class ParseProgressTracker:
         return self._record_outcome(ticker, "OK", force_valid=True)
 
     def _handle_incomplete(self, body: str) -> bool:
-        match = re.match(r"(?P<ticker>\S+)\s+(?P<form>[^\s]+)\s+incomplete:\s*(?P<reason>.*)", body)
+        match = re.match(
+            r"(?P<ticker>\S+)\s+(?P<form>.+?)\s+incomplete:\s*(?P<reason>.*)",
+            body,
+        )
         if not match:
             return False
 

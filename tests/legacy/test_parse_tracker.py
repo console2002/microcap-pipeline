@@ -139,3 +139,28 @@ def test_parse_tracker_handles_dr_forms_and_aliases() -> None:
 
     assert tracker.form_stats["FORM 4"].missing == 1
     assert tracker.form_stats["FORM 4"].parsed == 1
+
+
+def test_parse_tracker_handles_spaced_form_names() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEF 14A filed 2024-03-01 url https://example.com/def14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] GOVT DEF 14A form status OK governance evidence captured"
+    )
+
+    assert tracker.form_stats["DEF 14A"].valid == 1
+    assert tracker.form_stats["DEF 14A"].parsed == 1
+
+    tracker.process_message(
+        "dr_forms [INFO] INS fetching FORM 4 filed 2024-03-02 url https://example.com/form4.htm"
+    )
+    tracker.process_message(
+        "dr_forms [WARN] INS FORM 4 incomplete: missing filing URL"
+    )
+
+    assert tracker.form_stats["FORM 4"].missing == 1
+    assert tracker.form_stats["FORM 4"].parsed == 1
