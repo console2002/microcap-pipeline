@@ -168,6 +168,12 @@ def test_parse_tracker_handles_spaced_form_names() -> None:
     assert tracker.form_stats["FORM 4"].missing == 1
     assert tracker.form_stats["FORM 4"].parsed == 1
 
+    tracker.process_message("dr_forms [INFO] INS fetching FORM4 filed 2024-03-03")
+    tracker.process_message("dr_forms [OK] INS FORM4 form status OK")
+
+    assert tracker.form_stats["FORM 4"].valid == 1
+    assert tracker.form_stats["FORM 4"].parsed == 2
+
 
 def test_parse_tracker_canonicalizes_proxy_aliases() -> None:
     tracker = ParseProgressTracker(on_change=None)
