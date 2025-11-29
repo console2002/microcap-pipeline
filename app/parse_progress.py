@@ -299,6 +299,9 @@ class ParseProgressTracker:
         text = raw_text.upper()
         if text.endswith("/A"):
             text = text[:-2]
+        form_digit_match = re.fullmatch(r"FORM\s*(3|4|5)", text)
+        if form_digit_match:
+            return f"FORM {form_digit_match.group(1)}"
         for prefix, mapped in (
             ("10-QT", "10-Q"),
             ("10-Q", "10-Q"),
