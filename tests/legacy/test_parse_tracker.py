@@ -169,6 +169,30 @@ def test_parse_tracker_handles_spaced_form_names() -> None:
     assert tracker.form_stats["FORM 4"].parsed == 1
 
 
+def test_parse_tracker_canonicalizes_proxy_aliases() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEF14A filed 2024-04-01 url https://example.com/def14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] GOVT DEF14A form status OK governance evidence captured"
+    )
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEFM14 filed 2024-04-02 url https://example.com/defm14.htm"
+    )
+    tracker.process_message(
+        "dr_forms [WARN] GOVT DEFM14 incomplete: missing filing URL"
+    )
+
+    assert tracker.form_stats["DEF 14A"].parsed == 2
+    assert tracker.form_stats["DEF 14A"].valid == 1
+    assert tracker.form_stats["DEF 14A"].missing == 1
+    assert "DEF14A" not in tracker.form_stats
+
+
 def test_iter_filings_treats_nan_urls_as_missing() -> None:
     filings = pd.DataFrame(
         [
