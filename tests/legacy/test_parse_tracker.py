@@ -1,11 +1,14 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.parse_progress import ParseProgressTracker
+from app.weekly_deep_research import _iter_filings_for_forms
 
 
 def test_parse_tracker_compute_counts_once_without_date() -> None:
@@ -164,3 +167,22 @@ def test_parse_tracker_handles_spaced_form_names() -> None:
 
     assert tracker.form_stats["FORM 4"].missing == 1
     assert tracker.form_stats["FORM 4"].parsed == 1
+
+
+def test_iter_filings_treats_nan_urls_as_missing() -> None:
+    filings = pd.DataFrame(
+        [
+            {
+                "FormType": "DEF 14A",
+                "FilingDate": "2024-03-15",
+                "FilingURL": pd.NA,
+            }
+        ]
+    )
+
+    entries = list(
+        _iter_filings_for_forms(filings, "FormType", {"DEF 14A"})
+    )
+
+    assert len(entries) == 1
+    assert entries[0]["url"] == ""

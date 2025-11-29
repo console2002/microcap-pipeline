@@ -286,6 +286,16 @@ def _iter_filings_for_forms(
     form_col: str,
     forms: set[str],
 ) -> Iterable[dict]:
+    def _first_non_missing(record: pd.Series, keys: tuple[str, ...]) -> str:
+        for key in keys:
+            value = record.get(key)
+            if value is None:
+                continue
+            if pd.isna(value):
+                continue
+            return value
+        return ""
+
     for _, record in filings.iterrows():
         form = _normalize_form(record.get(form_col))
         if not form:
@@ -298,10 +308,13 @@ def _iter_filings_for_forms(
             or compact.startswith(target.replace(" ", ""))
             for target in forms
         ):
+            filed_at = _first_non_missing(record, ("FilingDate", "Date"))
+            url = _first_non_missing(record, ("FilingURL", "URL"))
+
             yield {
                 "form": form,
-                "filed_at": record.get("FilingDate") or record.get("Date") or "",
-                "url": record.get("FilingURL") or record.get("URL") or "",
+                "filed_at": filed_at,
+                "url": url,
             }
 
 
