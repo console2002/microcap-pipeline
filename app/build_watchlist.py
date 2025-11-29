@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from edgar_core.eight_k import classify_event
+
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
 from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
@@ -110,6 +112,7 @@ _EIGHT_K_EVENTS_COLUMNS = [
     "Ticker",
     "Form",
     "FilingDate",
+    "EventDate",
     "DateOfReport",
     "AccessionNo",
     "FilingURL",
@@ -124,6 +127,10 @@ _EIGHT_K_EVENTS_COLUMNS = [
     "PrimaryEx99Docs",
     "PrimaryEx10Docs",
     "HasXBRL",
+    "EventType",
+    "EventTier",
+    "PrimarySourceURL",
+    "SecondarySourceURL",
     "IsCatalyst",
     "CatalystType",
     "Tier1Type",
@@ -382,6 +389,10 @@ class EightKEvent:
     primary_ex99_docs: str = ""
     primary_ex10_docs: str = ""
     has_xbrl: bool = False
+    event_type: str = ""
+    event_tier: str = ""
+    primary_source_url: str = ""
+    secondary_source_url: str = ""
 
     def dilution_tags_joined(self) -> str:
         return ";".join(self.dilution_tags)
@@ -466,6 +477,111 @@ def _write_eight_k_debug(entries: list[list[object]]) -> None:
         writer.writerows(entries)
 
 
+def _write_canonical_events(events_df: pd.DataFrame, data_dir: str) -> pd.DataFrame:
+    """Write the normalized W2 events table to ``09_events.csv``.
+
+    Schema (additive to legacy columns):
+        - Ticker, Company, CIK
+        - event_date (ISO)
+        - event_type (categorical catalyst label)
+        - event_tier (Tier-1/Tier-2/Other)
+        - primary_source_url (SEC/FDA/SAM/etc.)
+        - secondary_source_url (news/PR if available)
+    The canonical file feeds the W2 shortlist and the W3 CatalystScore stage.
+    """
+
+    canonical_cols = [
+        "Ticker",
+        "Company",
+        "CIK",
+        "event_date",
+        "event_type",
+        "event_tier",
+        "primary_source_url",
+        "secondary_source_url",
+        "Form",
+        "FilingDate",
+        "EventDate",
+        "DateOfReport",
+        "AccessionNo",
+        "FilingURL",
+        "FilingUrlTxt",
+        "PeriodOfReport",
+        "AcceptanceDateTime",
+        "HomepageURL",
+        "ItemsPresent",
+        "ItemsNormalized",
+        "EventType",
+        "EventTier",
+        "PrimarySourceURL",
+        "SecondarySourceURL",
+    ]
+
+    def _first_non_empty(row, fields):
+        for field in fields:
+            val = row.get(field)
+            if pd.notna(val) and str(val).strip():
+                return val
+        return ""
+
+    def _normalize_tier(val: str) -> str:
+        text = str(val or "").strip()
+        if not text:
+            return "Other"
+        upper = text.upper()
+        if "1" in upper:
+            return "Tier-1"
+        if "2" in upper:
+            return "Tier-2"
+        if upper.startswith("TIER"):
+            return text
+        return "Other"
+
+    canonical_rows: list[dict[str, object]] = []
+    for row in events_df.to_dict(orient="records"):
+        event_date = _first_non_empty(row, ["EventDate", "DateOfReport", "FilingDate"])
+        primary_url = _first_non_empty(row, ["PrimarySourceURL", "FilingURL", "FilingUrlTxt", "URL"])
+        secondary_url = _first_non_empty(row, ["SecondarySourceURL", "HomepageURL"])
+        event_type = _first_non_empty(row, ["EventType", "CatalystType", "ItemsNormalized", "ItemsPresent"])
+        event_tier = _normalize_tier(_first_non_empty(row, ["EventTier", "Tier", "CatalystType"]))
+        canonical_rows.append(
+            {
+                "Ticker": row.get("Ticker", ""),
+                "Company": row.get("Company", ""),
+                "CIK": row.get("CIK", ""),
+                "event_date": event_date,
+                "event_type": event_type,
+                "event_tier": event_tier,
+                "primary_source_url": primary_url,
+                "secondary_source_url": secondary_url,
+                "Form": row.get("Form", ""),
+                "FilingDate": row.get("FilingDate", ""),
+                "EventDate": row.get("EventDate", ""),
+                "DateOfReport": row.get("DateOfReport", ""),
+                "AccessionNo": row.get("AccessionNo", ""),
+                "FilingURL": row.get("FilingURL", ""),
+                "FilingUrlTxt": row.get("FilingUrlTxt", ""),
+                "PeriodOfReport": row.get("PeriodOfReport", ""),
+                "AcceptanceDateTime": row.get("AcceptanceDateTime", ""),
+                "HomepageURL": row.get("HomepageURL", ""),
+                "ItemsPresent": row.get("ItemsPresent", ""),
+                "ItemsNormalized": row.get("ItemsNormalized", ""),
+                "EventType": row.get("EventType", ""),
+                "EventTier": row.get("EventTier", ""),
+                "PrimarySourceURL": row.get("PrimarySourceURL", ""),
+                "SecondarySourceURL": row.get("SecondarySourceURL", ""),
+                "Tier": event_tier,
+                "EventDate_canonical": event_date,
+                "PrimarySource": primary_url,
+                "SecondarySource": secondary_url,
+            }
+        )
+
+    canonical = pd.DataFrame(canonical_rows, columns=canonical_cols + ["Tier", "EventDate_canonical", "PrimarySource", "SecondarySource"])
+    canonical.to_csv(os.path.join(data_dir, "09_events.csv"), index=False)
+    return canonical
+
+
 @dataclass
 class _EightKProcessResult:
     url: str
@@ -537,6 +653,7 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
         "Ticker": event.ticker,
         "Form": event.form,
         "FilingDate": event.filing_date,
+        "EventDate": event.date_of_report or event.filing_date,
         "DateOfReport": event.date_of_report,
         "AccessionNo": event.accession_no,
         "FilingURL": event.filing_url,
@@ -551,6 +668,10 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
         "PrimaryEx99Docs": event.primary_ex99_docs,
         "PrimaryEx10Docs": event.primary_ex10_docs,
         "HasXBRL": event.has_xbrl,
+        "EventType": event.event_type,
+        "EventTier": event.event_tier,
+        "PrimarySourceURL": event.primary_source_url,
+        "SecondarySourceURL": event.secondary_source_url,
         "IsCatalyst": event.is_catalyst,
         "CatalystType": event.catalyst_type,
         "Tier1Type": event.tier1_type,
@@ -646,6 +767,25 @@ def _classify_eight_k(parsed: EdgarEightKParseResult) -> dict:
     return classification
 
 
+def _best_tier(*tiers: str) -> str:
+    ranking = {"tier-1": 3, "tier1": 3, "tier-2": 2, "tier2": 2, "other": 1}
+    best = "Other"
+    best_rank = 0
+    for tier in tiers:
+        norm = str(tier or "").lower()
+        rank = ranking.get(norm, 0)
+        if rank > best_rank:
+            best_rank = rank
+            best = tier if tier else "Other"
+    if best_rank == 0:
+        return "Other"
+    if best_rank == 3:
+        return "Tier-1"
+    if best_rank == 2:
+        return "Tier-2"
+    return "Other"
+
+
 def _build_eight_k_event(
     row,
     parsed: EdgarEightKParseResult,
@@ -678,6 +818,12 @@ def _build_eight_k_event(
         if text and text not in dilution_tags:
             dilution_tags.append(text)
 
+    event_type_guess, heuristic_tier = classify_event(
+        _clean_text(getattr(parsed.filing, "form", "")) or "8-K",
+        parsed.items_normalized,
+        getattr(parsed, "event_text", ""),
+    )
+
     filing_date = _clean_text(getattr(parsed.filing, "filing_date", ""))
     if not filing_date:
         filed_at = getattr(row, "FiledAt", "")
@@ -696,6 +842,13 @@ def _build_eight_k_event(
     form = _clean_text(getattr(parsed.filing, "form", "")) or "8-K"
     filing_url = _clean_text(getattr(row, "URL", "")) or _clean_text(getattr(parsed.filing, "url", ""))
     filing_url_txt = _clean_text(parsed.filing_url_txt)
+
+    event_tier = _best_tier(tier_raw, heuristic_tier)
+    event_type = event_type_guess
+    if classification.get("is_dilution") and event_tier != "Tier-1":
+        event_tier = "Tier-1"
+    if classification.get("is_dilution") and event_type == "OtherEvent":
+        event_type = "Financing"
 
     label_parts: list[str] = []
     if is_catalyst:
@@ -732,6 +885,10 @@ def _build_eight_k_event(
         primary_ex99_docs=parsed.primary_ex99_docs,
         primary_ex10_docs=parsed.primary_ex10_docs,
         has_xbrl=parsed.has_xbrl,
+        event_type=event_type,
+        event_tier=event_tier,
+        primary_source_url=filing_url,
+        secondary_source_url="",
     ), None
 
 
@@ -853,6 +1010,7 @@ def _generate_eight_k_events(
 
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
     events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
+    _write_canonical_events(events_df, data_dir)
 
     _eight_k_debug_path()
     _write_eight_k_debug(debug_entries)

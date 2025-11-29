@@ -110,17 +110,22 @@ def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None
     if events is None or events.empty:
         return "None", None, None, None
     events = events.copy()
-    events["Tier"] = events.get("Tier", pd.Series(dtype=str)).astype(str)
+    events["Tier"] = events.get("Tier", events.get("event_tier", pd.Series(dtype=str))).astype(str)
     tier1 = events[events["Tier"].str.contains("1", case=False, na=False)]
     target = tier1 if not tier1.empty else events
-    sort_cols = [col for col in ["EventDate", "FilingDate"] if col in target.columns]
+    sort_cols = [col for col in ["EventDate", "event_date", "FilingDate"] if col in target.columns]
     if sort_cols:
         target = target.sort_values(by=sort_cols, ascending=True, na_position="last")
     row = target.iloc[0]
     score = "Tier-1" if not tier1.empty else "Tier-2"
-    event_date = row.get("EventDate") or row.get("FilingDate")
-    event_type = row.get("EventType") or row.get("ItemsNormalized") or row.get("ItemsPresent")
-    url = row.get("FilingURL") or row.get("URL")
+    event_date = row.get("EventDate") or row.get("event_date") or row.get("FilingDate")
+    event_type = (
+        row.get("event_type")
+        or row.get("EventType")
+        or row.get("ItemsNormalized")
+        or row.get("ItemsPresent")
+    )
+    url = row.get("PrimarySource") or row.get("primary_source_url") or row.get("FilingURL") or row.get("URL")
     return score, event_date, event_type, url
 
 

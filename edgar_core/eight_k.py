@@ -2,11 +2,56 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict
+from typing import Dict, Iterable, Tuple
 
 from edgar import Filing
 
 logger = logging.getLogger(__name__)
+
+
+def classify_event(form: str, items: Iterable[str], text: str) -> Tuple[str, str]:
+    """Classify an 8-K style event into a normalized type and tier.
+
+    The helper uses item numbers and lightweight keyword checks to bucket
+    events into the catalyst-first categories expected by W2/W3. The returned
+    tuple is ``(event_type, event_tier)`` where ``event_tier`` is one of
+    ``{"Tier-1", "Tier-2", "Other"}``.
+    """
+
+    normalized_items = [str(item).lower() for item in items if item]
+    text_l = (text or "").lower()
+
+    def _has_any(substrs: Iterable[str]) -> bool:
+        return any(sub in text_l for sub in substrs)
+
+    event_type = "OtherEvent"
+    event_tier = "Other"
+
+    if _has_any(["at-the-market", "atm", "equity line", "registered direct", "convertible", "warrant", "offering"]):
+        return "ATM", "Tier-1"
+
+    if _has_any(["fda", "clearance", "approval", "510(k)", "pdufa", "de novo"]):
+        return "FDA", "Tier-1"
+
+    if _has_any(["guidance", "raise guidance", "increase guidance", "upward guidance"]):
+        return "GuidanceUp", "Tier-1"
+
+    if _has_any(["contract", "award", "purchase order", "task order", "funded"]):
+        return "ContractAward", "Tier-1"
+
+    if _has_any(["uplist", "upli", "listing", "nyse", "nasdaq", "spin-off", "spinoff"]):
+        return "ListingChange", "Tier-1"
+
+    if any(str(item).startswith("2.02") for item in normalized_items):
+        event_type = "Earnings"
+        event_tier = "Tier-2"
+    elif any(str(item).startswith("5.02") for item in normalized_items):
+        event_type = "ManagementChange"
+        event_tier = "Tier-2"
+    elif normalized_items:
+        event_tier = "Tier-2"
+
+    return event_type, event_tier
 
 
 def extract_8k_event(filing: Filing) -> Dict:
