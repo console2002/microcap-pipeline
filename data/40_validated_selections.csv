@@ -1,1 +1,1 @@
-Ticker,Company,CIK,Sector,Catalyst rationale,Validation status,ADV20,Discovery price ref
+Ticker,Company,CIK,Sector,Industry,Venue,Price,MarketCap,ADV20,Runway (qtrs),DilutionScore,CatalystScore,GovernanceScore,InsiderScore,BiotechPeerRead,SubscoresEvidencedCount,Materiality,PrimaryCatalystDate,PrimaryCatalystType,PrimarySource,SecondarySource,ValidationStatus

@@ -9,3 +9,11 @@ timestamp,module,rows_added,duration_ms,note
 2025-11-29T21:36:42.797013+00:00,prices,16117,34637,append+purge
 2025-11-29T21:36:43.366239+00:00,hydrate,287,524,write 05_hydrated_candidates.csv
 2025-11-29T21:36:43.412224+00:00,shortlist,196,44,write 06_shortlist_candidates.csv
+2025-11-29T22:22:14.451214+00:00,SEC_universe,10096,2466,loaded
+2025-11-29T22:22:51.711073+00:00,SEC_universe,10096,2298,loaded
+2025-11-29T22:28:02.987011+00:00,profiles,287,311274,append+purge
+2025-11-29T22:43:04.105180+00:00,filings,5390,901092,append+purge
+2025-11-29T22:59:54.856642+00:00,parse_8k,2234,1010719,write 09_8k_events.csv
+2025-11-29T23:00:35.380824+00:00,prices,16117,40518,append+purge
+2025-11-29T23:00:35.936431+00:00,hydrate,287,516,write 05_hydrated_candidates.csv
+2025-11-29T23:00:35.983450+00:00,shortlist,196,46,write 06_shortlist_candidates.csv
