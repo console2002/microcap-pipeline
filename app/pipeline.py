@@ -20,6 +20,7 @@ from app.fmp import (
     fetch_profiles,
 )
 from app.edgar_adapter import EdgarAdapter, set_adapter
+from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
@@ -1237,6 +1238,9 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     )
     _emit(progress_fn, f"shortlist: wrote {len(short)} rows")
 
+    # Build the canonical W2.B candidate shortlist (20_candidate_shortlist.csv)
+    build_candidate_shortlist(cfg["Paths"]["data"])
+
 
 def deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn):
     if stop_flag.get("stop"):
@@ -1458,6 +1462,8 @@ def _promote_weekly_events(data_dir: str) -> None:
     canonical_events = os.path.join(data_dir, "09_events.csv")
     legacy_events = os.path.join(data_dir, "09_8k_events.csv")
     source = canonical_events if os.path.exists(canonical_events) else None
+    # LEGACY compatibility: fall back to 09_8k_events only when the canonical
+    # events table was not produced by the new W2 path.
     if not source and os.path.exists(legacy_events):
         source = legacy_events
     if source and source != canonical_events:
@@ -1638,6 +1644,7 @@ def run_weekly_pipeline(
                     cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
                 )
 
+            # W2.B Candidate Shortlist (20_candidate_shortlist.csv)
             hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             canonical_short = os.path.join(data_dir, "20_candidate_shortlist.csv")
