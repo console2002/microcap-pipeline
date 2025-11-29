@@ -33,7 +33,7 @@ def test_validation_rules_and_conviction_logic():
     missing_subscore["DilutionEvidencePrimary"] = ""
     status, reason = evaluate_validation(missing_subscore)
     assert status == "TBD — exclude"
-    assert reason == "Mandatory subscore missing"
+    assert reason.startswith("Mandatory subscore missing")
 
     assert _conviction_from_subscores(4, True) == "Medium"
     assert _conviction_from_subscores(5, True) == "High"

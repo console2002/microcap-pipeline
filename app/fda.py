@@ -129,7 +129,13 @@ def fetch_fda_events(
             progress_fn("[FDA] aborting fetch – no filings rows provided")
         return out_rows
 
-    if not (cfg["FDA"]["EnableDevice"] or cfg["FDA"]["EnableDrug"]):
+    fda_cfg = cfg.get("FDA") or {}
+    if not fda_cfg:
+        if progress_fn:
+            progress_fn("[FDA] configuration missing; skipping")
+        return out_rows
+
+    if not (fda_cfg.get("EnableDevice") or fda_cfg.get("EnableDrug")):
         if progress_fn:
             progress_fn("[FDA] both device/drug lookups disabled; skipping")
         return out_rows  # nothing requested
@@ -201,7 +207,7 @@ def fetch_fda_events(
         if progress_fn:
             progress_fn("[FDA] no companies to query after mapping; exiting")
         return out_rows
-    per_minute = cfg["RateLimitsPerMin"]["OpenFDA"]
+    per_minute = cfg.get("RateLimitsPerMin", {}).get("OpenFDA")
     api_key = cfg.get("OpenFDAKey", "")
 
     fetched_device = 0

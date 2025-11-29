@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 import os
 import re
 from pathlib import Path
@@ -11,9 +12,12 @@ import pandas as pd
 from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.utils import ensure_csv
+from edgar_core.runway import extract_runway_from_filing
 
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
 RUNWAY_FORMS = ("10-Q", "10-K", "20-F", "6-K", "40-F")
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_form(text: str | None) -> str:
@@ -58,6 +62,34 @@ def compute_runway_from_html(html_text: str) -> float | None:
         return None
     quarterly_burn = abs(burn_val)
     return round(cash_val / quarterly_burn, 2)
+
+
+def compute_runway_quarters(url: str, adapter=None) -> tuple[float | None, bool]:
+    """Return (runway_quarters, used_primary_parser)."""
+
+    if not url:
+        return None, False
+
+    adapter = adapter or get_adapter()
+
+    try:
+        filing = adapter._resolve_filing(url)  # type: ignore[attr-defined]
+    except Exception:
+        filing = None
+        logger.debug("weekly_w3: _resolve_filing failed", exc_info=True)
+
+    if filing is not None:
+        try:
+            result = extract_runway_from_filing(filing)
+            quarters = result.get("runway_quarters")
+            if quarters is not None and quarters > 0:
+                return round(float(quarters), 2), True
+        except Exception:
+            logger.debug("weekly_w3: extract_runway_from_filing failed", exc_info=True)
+
+    # fallback to HTML regex parsing
+    fallback = _runway_from_filing(str(url), adapter=adapter)
+    return fallback, False
 
 
 def _runway_from_filing(url: str, adapter=None) -> float | None:
@@ -363,7 +395,15 @@ def run_weekly_deep_research(
                 if "FilingDate" in relevant.columns:
                     relevant = relevant.sort_values(by="FilingDate", ascending=False, na_position="last")
                 runway_link = relevant.iloc[0].get("FilingURL") or relevant.iloc[0].get("URL", "")
-                runway_quarters = _runway_from_filing(str(runway_link), adapter=adapter)
+                runway_quarters, used_primary = compute_runway_quarters(str(runway_link), adapter=adapter)
+                if runway_quarters is None:
+                    logger.info(
+                        "weekly_w3: runway parse failed for %s (%s), leaving Runway (qtrs)=TBD",
+                        ticker,
+                        cik,
+                    )
+                elif not used_primary:
+                    logger.debug("weekly_w3: runway regex fallback used for %s", ticker)
                 runway_evidence.append(str(runway_link))
 
         dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
@@ -571,4 +611,4 @@ def run_weekly_deep_research(
     return pd.DataFrame(output_rows)
 
 
-__all__ = ["compute_runway_from_html", "run_weekly_deep_research"]
+__all__ = ["compute_runway_from_html", "compute_runway_quarters", "run_weekly_deep_research"]

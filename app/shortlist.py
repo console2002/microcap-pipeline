@@ -2,7 +2,7 @@ import pandas as pd
 
 def build_shortlist(cfg: dict, candidates: pd.DataFrame) -> pd.DataFrame:
     hg = cfg["HardGates"]
-    rule = cfg["ShortlistRule"]
+    rule = cfg.get("ShortlistRule", {})
 
     df = candidates.copy()
 
@@ -17,8 +17,9 @@ def build_shortlist(cfg: dict, candidates: pd.DataFrame) -> pd.DataFrame:
         (df["MarketCap"] <= hg["CapMax"]) &
         (df["ADV20"] >= hg["ADV20_Min"]) &
         (
-            (rule["UseFilingsCatalyst"] & has_sec) |
-            (rule["UseFDACatalyst"] & has_fda)
+            (rule.get("UseFilingsCatalyst", False) & has_sec)
+            |
+            (rule.get("UseFDACatalyst", False) & has_fda)
         )
     )
 

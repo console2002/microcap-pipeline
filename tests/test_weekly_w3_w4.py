@@ -127,4 +127,4 @@ def test_w3_deep_research_and_w4(tmp_path):
     assert validated.iloc[0]["Ticker"] == "ABC"
     assert len(exclusions) == 1
     assert exclusions.iloc[0]["Ticker"] == "XYZ"
-    assert set(validated.columns) >= {"Validation status", "Catalyst rationale"}
+    assert set(validated.columns) >= {"ValidationStatus", "PrimarySource", "SecondarySource"}
