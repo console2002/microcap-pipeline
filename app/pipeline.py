@@ -20,6 +20,7 @@ from app.fmp import (
     fetch_profiles,
 )
 from app.edgar_adapter import EdgarAdapter, set_adapter
+from app.runway_utils import compute_runway_quarters
 from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
@@ -837,6 +838,51 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
 
 def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag, progress_fn):
+    def _attach_runway_metrics(df_fil: pd.DataFrame) -> pd.DataFrame:
+        if df_fil is None:
+            df_fil = pd.DataFrame()
+
+        work = df_fil.copy()
+        for col in ["RunwayQuarters", "HasRunway", "RunwaySourceURL"]:
+            if col not in work.columns:
+                work[col] = pd.NA
+
+        if work.empty:
+            work["HasRunway"] = work.get("HasRunway", pd.Series(dtype=bool)).fillna(False)
+            return work
+
+        form_col = "FormType" if "FormType" in work.columns else "Form"
+        runway_forms = (
+            US_RUNWAY_FORM_PREFIXES + FPI_ANNUAL_FORM_PREFIXES + FPI_INTERIM_FORM_PREFIXES
+        )
+        cache: dict[str, float | None] = {}
+
+        for idx, rec in work.iterrows():
+            form = str(rec.get(form_col, "")).upper()
+            if not form or not any(form.startswith(prefix) for prefix in runway_forms):
+                continue
+
+            url = rec.get("URL") or rec.get("FilingURL") or ""
+            if not url:
+                continue
+
+            if url not in cache:
+                quarters, _ = compute_runway_quarters(str(url), adapter=adapter)
+                cache[url] = quarters
+            quarters = cache.get(url)
+
+            if quarters is not None:
+                try:
+                    work.at[idx, "RunwayQuarters"] = float(quarters)
+                except Exception:
+                    work.at[idx, "RunwayQuarters"] = quarters
+                work.at[idx, "HasRunway"] = True
+                if not work.at[idx, "RunwaySourceURL"]:
+                    work.at[idx, "RunwaySourceURL"] = url
+
+        work["HasRunway"] = work.get("HasRunway", pd.Series(dtype=bool)).fillna(False)
+        return work
+
     def _prepare_filings_for_cache(
         df_fil: pd.DataFrame,
         df_prof: pd.DataFrame,
@@ -937,6 +983,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             except (TypeError, ValueError):
                 df_fil["Age"] = age_series
 
+        df_fil = _attach_runway_metrics(df_fil)
+
         df_fil = _purge_filings_by_lookback(df_fil, cfg)
 
         expected_cols = [
@@ -947,6 +995,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             "FiledAt",
             "Age",
             "URL",
+            "RunwayQuarters",
+            "HasRunway",
+            "RunwaySourceURL",
         ]
         for col in expected_cols:
             if col not in df_fil.columns:
@@ -1189,6 +1240,8 @@ def prices_step(cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn):
         if col not in df_p.columns:
             df_p[col] = pd.Series(dtype="object")
 
+    # 03_prices.csv remains as an intermediate cache to support hydrate/legacy
+    # shortlist builds; W3/W4 consume downstream candidate CSVs instead of this file directly.
     rows_added = append_antijoin_purge(
         cfg,
         "prices",
@@ -1211,6 +1264,8 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, "hydrate: start")
     cands = hydrate_candidates(cfg)
     cands_path = csv_path(cfg["Paths"]["data"], "hydrated_candidates")
+    # 05_hydrated_candidates.csv supports hydrate/legacy shortlist review and is not
+    # consumed directly by W3/W4.
     cands.to_csv(cands_path, index=False, encoding="utf-8")
     _log_step(
         runlog,
@@ -1228,6 +1283,8 @@ def hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, "shortlist: start")
     short = build_shortlist(cfg, cands)
     short_path = csv_path(cfg["Paths"]["data"], "shortlist_candidates")
+    # 06_shortlist_candidates.csv is a legacy shortlist helper; canonical W2 uses
+    # 20_candidate_shortlist.csv downstream.
     short.to_csv(short_path, index=False, encoding="utf-8")
     _log_step(
         runlog,
@@ -1364,6 +1421,8 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during parse_8k")
 
+    # LEGACY events file 09_8k_events.csv is retained for compatibility; canonical
+    # W2/W3 paths consume 09_events.csv promoted later.
     _log_step(
         runlog, "parse_8k", row_count, t0, f"write {csv_filename('eight_k_events')}"
     )
@@ -1514,15 +1573,17 @@ def _weekly_summary(data_dir: str, progress_fn) -> None:
         else:
             counts[label] = 0
 
-    lines = ["WEEKLY_PIPELINE SUMMARY:"]
-    lines.append(f"  universe={counts['universe']} rows")
-    lines.append(f"  filings={counts['filings']} rows")
-    lines.append(f"  events={counts['events']} rows")
-    lines.append(f"  shortlist={counts['shortlist']} rows")
-    lines.append(f"  deep_research={counts['deep_research']} rows")
-    lines.append(f"  validated={counts['validated']} rows")
-    lines.append(f"  tbd={counts['tbd']} rows")
-    _emit(progress_fn, "\n".join(lines))
+    summary_line = (
+        "WEEKLY_SUMMARY: "
+        f"universe={counts['universe']} "
+        f"filings={counts['filings']} "
+        f"events={counts['events']} "
+        f"shortlist={counts['shortlist']} "
+        f"deep_research={counts['deep_research']} "
+        f"validated={counts['validated']} "
+        f"tbd={counts['tbd']}"
+    )
+    _emit(progress_fn, summary_line)
 
 
 def run_weekly_pipeline(
