@@ -1,3 +1,5 @@
+# LEGACY: pre-weekly pipeline module kept for compatibility.
+# Not used by run_weekly_pipeline / weekly W3/W4.
 """Populate deep-research results with catalyst/dilution/governance insights."""
 from __future__ import annotations
 
