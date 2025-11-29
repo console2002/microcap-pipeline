@@ -9,7 +9,8 @@ from typing import Callable, Iterable, List
 import pandas as pd
 
 from app.config import load_config
-from app.runway_utils import compute_runway_quarters
+from app.edgar_adapter import get_adapter
+from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.utils import ensure_csv
 
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
@@ -337,7 +338,8 @@ def run_weekly_deep_research(
         )
 
         if quarters is None and evidence_url:
-            quarters, _ = compute_runway_quarters(str(evidence_url))
+            adapter = get_adapter()
+            quarters, _ = compute_runway_quarters(str(evidence_url), adapter=adapter)
 
         return quarters, evidence_url, pd.notna(quarters)
 
@@ -585,4 +587,4 @@ def run_weekly_deep_research(
     return pd.DataFrame(output_rows)
 
 
-__all__ = ["run_weekly_deep_research"]
+__all__ = ["compute_runway_from_html", "compute_runway_quarters", "run_weekly_deep_research"]
