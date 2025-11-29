@@ -1467,10 +1467,22 @@ def _promote_weekly_events(data_dir: str) -> None:
 def _promote_weekly_shortlist(data_dir: str) -> None:
     canonical_shortlist = os.path.join(data_dir, "20_candidate_shortlist.csv")
     legacy_shortlist = csv_path(data_dir, "shortlist_candidates")
-    if os.path.exists(canonical_shortlist):
+    if not (os.path.exists(legacy_shortlist) or os.path.exists(canonical_shortlist)):
         return
+
+    source = canonical_shortlist
     if os.path.exists(legacy_shortlist):
-        pd.read_csv(legacy_shortlist).to_csv(canonical_shortlist, index=False)
+        legacy_mtime = os.path.getmtime(legacy_shortlist)
+        canon_mtime = os.path.getmtime(canonical_shortlist) if os.path.exists(
+            canonical_shortlist
+        )
+        else 0
+
+        if not os.path.exists(canonical_shortlist) or legacy_mtime >= canon_mtime:
+            source = legacy_shortlist
+
+    if source != canonical_shortlist:
+        pd.read_csv(source).to_csv(canonical_shortlist, index=False)
 
 
 def _weekly_summary(data_dir: str, progress_fn) -> None:
