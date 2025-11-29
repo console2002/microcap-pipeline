@@ -5,7 +5,6 @@ from .eight_k import extract_8k_event
 from .offerings import extract_offering
 from .governance import extract_governance
 from .insider import extract_insider_events, aggregate_insider_events
-from .ownership import extract_13f_holdings, extract_13d_g_positions
 
 __all__ = [
     "extract_runway_from_filing",
@@ -14,6 +13,4 @@ __all__ = [
     "extract_governance",
     "extract_insider_events",
     "aggregate_insider_events",
-    "extract_13f_holdings",
-    "extract_13d_g_positions",
 ]

@@ -102,7 +102,7 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, s
     elif normalized:
         score = "Low"
     else:
-        score = "Unknown"
+        score = "TBD"
     return score, _aggregate_evidence(evidence), last_date
 
 
@@ -129,7 +129,7 @@ def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str,
     evidence = []
     going_concern = "N"
     if not filings.empty:
-        gov_mask = filings[form_col].astype(str).str.upper().str.contains("DEF 14A|10-K|20-F|40-F", regex=True)
+        gov_mask = filings[form_col].astype(str).str.upper().str.contains("DEF 14A|10-K|10-Q|20-F|40-F", regex=True)
         gov_records = filings[gov_mask]
         for _, rec in gov_records.iterrows():
             url = rec.get("FilingURL") or rec.get("URL")
@@ -145,7 +145,7 @@ def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str,
     elif normalized:
         score = "Concern"
     else:
-        score = ""
+        score = "TBD"
     return score, going_concern, _aggregate_evidence(evidence)
 
 
@@ -153,7 +153,7 @@ def _insider_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str | N
     forms = filings.get(form_col, pd.Series(dtype=str)).astype(str)
     evidence = []
     dates = []
-    score = ""
+    score = "TBD"
     for _, rec in filings.iterrows():
         form = _normalize_form(rec.get(form_col))
         if form in {"3", "4", "5"} or form.startswith("4"):
@@ -178,6 +178,8 @@ def _materiality(subscore_count: int, catalyst: str) -> str:
         return "High"
     if subscore_count >= 3:
         return "Medium"
+    if subscore_count == 0:
+        return "N/A"
     return "Low"
 
 
@@ -185,6 +187,56 @@ def _aggregate_evidence(primary_links: list[str]) -> str:
     clean = [link for link in primary_links if link]
     deduped = list(dict.fromkeys(clean))
     return ";".join(deduped)
+
+
+def _classify_evidence(links: list[str]) -> tuple[list[str], list[str]]:
+    """Split evidence links into primary (SEC/registry) vs secondary."""
+
+    primary: list[str] = []
+    secondary: list[str] = []
+    for link in links:
+        if not link:
+            continue
+        normalized = str(link).strip()
+        lower = normalized.lower()
+        if lower.startswith("file://") or "sec.gov" in lower or "edgar" in lower:
+            primary.append(normalized)
+        else:
+            secondary.append(normalized)
+    return list(dict.fromkeys(primary)), list(dict.fromkeys(secondary))
+
+
+def _conviction_from_subscores(subscore_count: int, mandatory_ok: bool) -> str:
+    if not mandatory_ok or subscore_count < 4:
+        return ""
+    if subscore_count >= 5:
+        return "High"
+    return "Medium"
+
+
+def _materiality_label(raw: str) -> str:
+    if not raw or raw == "N/A":
+        return "N/A"
+    lowered = raw.lower()
+    if lowered in {"high", "medium"}:
+        return f"pass ({raw})"
+    if lowered in {"low", "fail"}:
+        return f"fail ({raw})"
+    return raw
+
+
+def _status_from_row(
+    mandatory_ok: bool,
+    subscore_count: int,
+    materiality: str,
+    biotech_peer: str,
+) -> str:
+    materiality_lower = materiality.lower()
+    materiality_ok = materiality_lower.startswith("pass") or materiality_lower.startswith("n/a")
+    biotech_ok = not biotech_peer.startswith("TBD")
+    if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
+        return "Validated"
+    return "TBD — exclude"
 
 
 def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
@@ -214,7 +266,7 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
         industry = getattr(row, "Industry", "") if hasattr(row, "Industry") else ""
         candidate_filings = filings[(filings.get("Ticker", "").astype(str) == str(ticker)) | (filings.get("CIK", "").astype(str) == str(cik))]
         form_col = "FormType" if "FormType" in candidate_filings.columns else "Form"
-        filing_forms = candidate_filings.get(form_col, pd.Series(dtype=str))
+
         runway_link = ""
         runway_quarters = None
         runway_evidence: list[str] = []
@@ -227,6 +279,7 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 runway_link = relevant.iloc[0].get("FilingURL") or relevant.iloc[0].get("URL", "")
                 runway_quarters = _runway_from_filing(str(runway_link), adapter=adapter)
                 runway_evidence.append(str(runway_link))
+
         dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
         ticker_series = events.get("Ticker", pd.Series(dtype=str))
         cik_series = events.get("CIK", pd.Series(dtype=str))
@@ -235,19 +288,56 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
         governance, going_concern, governance_evidence = _governance_details(candidate_filings, form_col)
         insider, last_insider_date, insider_evidence = _insider_details(candidate_filings, form_col)
         biotech_flag = _biotech_peer_flag(str(sector), str(industry))
-        evidence_links: list[str] = []
-        evidence_links.extend(runway_evidence)
-        evidence_primary = _aggregate_evidence(evidence_links)
+        biotech_peer_field = "N"
+        biotech_peer_evidence = ""
+        if biotech_flag == "Y":
+            biotech_peer_evidence = "Peer: stub"
+            biotech_peer_field = f"Y:{biotech_peer_evidence}" if biotech_peer_evidence else "TBD"
 
-        subscores = {
-            "runway": runway_quarters is not None,
-            "dilution": dilution not in {"", "Unknown"} and bool(dilution_evidence),
-            "catalyst": catalyst != "None" and bool(catalyst_url),
-            "governance": bool(governance) and bool(governance_evidence),
-            "insider": bool(insider) and bool(insider_evidence),
+        dilution_label = dilution if dilution in {"High", "Low"} else "TBD"
+        catalyst_label = catalyst
+        if catalyst_type:
+            catalyst_label = f"{catalyst}: {catalyst_type}"
+
+        governance_label = governance or "TBD"
+        insider_label = insider or "TBD"
+
+        evidence_map = {
+            "runway": runway_evidence,
+            "dilution": dilution_evidence.split(";") if dilution_evidence else [],
+            "catalyst": [catalyst_url] if catalyst_url else [],
+            "governance": governance_evidence.split(";") if governance_evidence else [],
+            "insider": insider_evidence.split(";") if insider_evidence else [],
         }
-        subscore_count = sum(1 for v in subscores.values())
-        materiality = _materiality(subscore_count, catalyst)
+
+        primary_links: list[str] = []
+        secondary_links: list[str] = []
+        subscore_flags = {}
+        for key, links in evidence_map.items():
+            prim, sec = _classify_evidence(links)
+            primary_links.extend(prim)
+            secondary_links.extend(sec)
+            value_for_key = {
+                "runway": runway_quarters,
+                "dilution": dilution_label,
+                "catalyst": catalyst_label,
+                "governance": governance_label,
+                "insider": insider_label,
+            }.get(key)
+            valid_value = value_for_key not in {"", None, "TBD", "Unknown"}
+            subscore_flags[key] = valid_value and bool(prim)
+
+        subscore_count = sum(1 for v in subscore_flags.values() if v)
+        materiality_raw = _materiality(subscore_count, catalyst_label)
+        materiality_label = _materiality_label(materiality_raw)
+
+        mandatory_ok = all(subscore_flags.get(key, False) for key in ["dilution", "runway", "catalyst"])
+        conviction = _conviction_from_subscores(subscore_count, mandatory_ok)
+        biotech_field = biotech_peer_field if biotech_flag == "Y" else "N"
+        status = _status_from_row(mandatory_ok, subscore_count, materiality_label, biotech_field)
+
+        evidence_primary = _aggregate_evidence(primary_links)
+        evidence_secondary = _aggregate_evidence(secondary_links)
 
         price = getattr(row, "Price", None)
         if price is None or (isinstance(price, (float, int)) and pd.isna(price)):
@@ -264,15 +354,24 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 "MarketCap": getattr(row, "MarketCap", None),
                 "ADV20": getattr(row, "ADV20", None),
                 "RunwayQuarters": runway_quarters,
+                "Runway (qtrs)": runway_quarters if runway_quarters is not None else "TBD",
                 "DilutionScore": dilution,
+                "Dilution": dilution_label,
                 "CatalystScore": catalyst,
+                "Catalyst": catalyst_label,
                 "GovernanceScore": governance,
+                "Governance": governance_label,
                 "InsiderScore": insider,
+                "Insider": insider_label,
                 "RunwayEvidencePrimary": _aggregate_evidence(runway_evidence),
                 "DilutionEvidencePrimary": dilution_evidence,
                 "CatalystEvidencePrimary": _aggregate_evidence([catalyst_url] if catalyst_url else []),
                 "GovernanceEvidencePrimary": governance_evidence,
                 "InsiderEvidencePrimary": insider_evidence,
+                "Evidence (Primary links)": evidence_primary,
+                "Evidence (Secondary links)": evidence_secondary,
+                "EvidencePrimary": evidence_primary,
+                "EvidenceSecondary": evidence_secondary,
                 "PrimaryCatalystDate": catalyst_date,
                 "PrimaryCatalystType": catalyst_type,
                 "PrimaryCatalystURL": catalyst_url,
@@ -280,54 +379,63 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 "LastInsiderBuyDate": last_insider_date,
                 "GoingConcernFlag": going_concern,
                 "BiotechPeerRead": biotech_flag,
-                "BiotechPeerEvidence": "Peer: stub" if biotech_flag == "Y" else "",
+                "Biotech Peer Read-Through (Y/N + link)": biotech_field,
+                "BiotechPeerEvidence": biotech_peer_evidence,
                 "SubscoresEvidencedCount": subscore_count,
-                "Materiality": materiality,
-                "ConvictionScore": None,
-                "EvidencePrimary": evidence_primary,
-                "EvidenceSecondary": "",
-                "Status": "",
+                "Subscores Evidenced (x/5)": subscore_count,
+                "Materiality": materiality_raw,
+                "Materiality (pass/fail + note)": materiality_label,
+                "ConvictionScore": conviction,
+                "Status": status,
             }
         )
 
     output_path = os.path.join(data_dir, "30_deep_research.csv")
-    if output_rows:
-        fieldnames = list(output_rows[0].keys())
-    else:
-        fieldnames = [
-            "Ticker",
-            "Company",
-            "CIK",
-            "Sector",
-            "Industry",
-            "Price",
-            "MarketCap",
-            "ADV20",
-            "RunwayQuarters",
-            "DilutionScore",
-            "CatalystScore",
-            "GovernanceScore",
-            "InsiderScore",
-            "RunwayEvidencePrimary",
-            "DilutionEvidencePrimary",
-            "CatalystEvidencePrimary",
-            "GovernanceEvidencePrimary",
-            "InsiderEvidencePrimary",
-            "PrimaryCatalystDate",
-            "PrimaryCatalystType",
-            "PrimaryCatalystURL",
-            "LastDilutionEventDate",
-            "LastInsiderBuyDate",
-            "GoingConcernFlag",
-            "BiotechPeerRead",
-            "BiotechPeerEvidence",
-            "SubscoresEvidencedCount",
-            "Materiality",
-            "ConvictionScore",
-            "EvidencePrimary",
-            "EvidenceSecondary",
-            "Status",
-        ]
+    default_fields = [
+        "Ticker",
+        "Company",
+        "CIK",
+        "Sector",
+        "Industry",
+        "Price",
+        "MarketCap",
+        "ADV20",
+        "RunwayQuarters",
+        "Runway (qtrs)",
+        "DilutionScore",
+        "Dilution",
+        "CatalystScore",
+        "Catalyst",
+        "GovernanceScore",
+        "Governance",
+        "InsiderScore",
+        "Insider",
+        "RunwayEvidencePrimary",
+        "DilutionEvidencePrimary",
+        "CatalystEvidencePrimary",
+        "GovernanceEvidencePrimary",
+        "InsiderEvidencePrimary",
+        "Evidence (Primary links)",
+        "Evidence (Secondary links)",
+        "EvidencePrimary",
+        "EvidenceSecondary",
+        "PrimaryCatalystDate",
+        "PrimaryCatalystType",
+        "PrimaryCatalystURL",
+        "LastDilutionEventDate",
+        "LastInsiderBuyDate",
+        "GoingConcernFlag",
+        "BiotechPeerRead",
+        "Biotech Peer Read-Through (Y/N + link)",
+        "BiotechPeerEvidence",
+        "SubscoresEvidencedCount",
+        "Subscores Evidenced (x/5)",
+        "Materiality",
+        "Materiality (pass/fail + note)",
+        "ConvictionScore",
+        "Status",
+    ]
+    fieldnames = list(output_rows[0].keys()) if output_rows else default_fields
     ensure_csv(output_path, fieldnames)
     with open(output_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
