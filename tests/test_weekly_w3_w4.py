@@ -81,8 +81,8 @@ def test_w3_deep_research_and_w4(tmp_path):
     _write_csv(
         data_dir / "09_events.csv",
         [
-            {"Ticker": "ABC", "CIK": "0000000001", "Tier": "Tier-1"},
-            {"Ticker": "XYZ", "CIK": "0000000002", "Tier": "Tier-2"},
+            {"Ticker": "ABC", "CIK": "0000000001", "Tier": "Tier-1", "FilingURL": "https://example.com/abc"},
+            {"Ticker": "XYZ", "CIK": "0000000002", "Tier": "Tier-2", "FilingURL": "https://example.com/xyz"},
         ],
     )
 
@@ -103,6 +103,9 @@ def test_w3_deep_research_and_w4(tmp_path):
     assert abc_row["DilutionScore"] == "High"
     assert abc_row["CatalystScore"] == "Tier-1"
     assert abc_row["BiotechPeerRead"] == "Y"
+    assert abc_row["RunwayEvidencePrimary"]
+    assert abc_row["DilutionEvidencePrimary"]
+    assert abc_row["CatalystEvidencePrimary"]
 
     validated, exclusions = build_validated_selections(str(data_dir))
     assert (data_dir / "40_validated_selections.csv").exists()

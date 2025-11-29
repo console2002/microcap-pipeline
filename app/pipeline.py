@@ -1641,6 +1641,30 @@ def run_weekly_pipeline(
             if not os.path.exists(weekly_shortlist) and os.path.exists(legacy_shortlist):
                 pd.read_csv(legacy_shortlist).to_csv(weekly_shortlist, index=False)
 
+            # Promote legacy event classification to canonical weekly naming
+            legacy_events = os.path.join(data_dir, "09_8k_events.csv")
+            weekly_events = os.path.join(data_dir, "09_events.csv")
+            if not os.path.exists(weekly_events) and os.path.exists(legacy_events):
+                pd.read_csv(legacy_events).to_csv(weekly_events, index=False)
+
+            # If shortlist missing but universe + events are available, synthesize
+            universe_path = os.path.join(data_dir, "01_universe_gated.csv")
+            if not os.path.exists(weekly_shortlist) and os.path.exists(universe_path):
+                events_df = pd.read_csv(weekly_events) if os.path.exists(weekly_events) else pd.DataFrame()
+                universe_df = pd.read_csv(universe_path)
+                if not events_df.empty:
+                    event_keys = set(
+                        zip(events_df.get("Ticker", pd.Series(dtype=str)).astype(str),
+                            events_df.get("CIK", pd.Series(dtype=str)).astype(str))
+                    )
+                    rows = []
+                    for item in universe_df.itertuples(index=False):
+                        key = (str(getattr(item, "Ticker", "")), str(getattr(item, "CIK", "")))
+                        if key in event_keys:
+                            rows.append(item._asdict())
+                    if rows:
+                        pd.DataFrame(rows).to_csv(weekly_shortlist, index=False)
+
             # Promote legacy universe gate if present
             legacy_universe = csv_path(data_dir, "profiles")
             weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")

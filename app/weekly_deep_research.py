@@ -81,38 +81,91 @@ def _runway_from_filing(url: str, adapter=None) -> float | None:
     return None
 
 
-def _dilution_score(forms: Iterable[str]) -> str:
+def _dilution_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str | None]:
+    forms = filings.get(form_col, pd.Series(dtype=str)).astype(str).tolist()
     normalized = {_normalize_form(f) for f in forms if f}
+    evidence = []
+    last_date = None
+    for _, record in filings.iterrows():
+        form = _normalize_form(record.get(form_col))
+        if not form:
+            continue
+        if form in DILUTION_FORMS or any(form.startswith(prefix) for prefix in DILUTION_FORMS):
+            url = record.get("FilingURL") or record.get("URL") or ""
+            if url:
+                evidence.append(str(url))
+            date_val = record.get("FilingDate") or record.get("Date")
+            if pd.notna(date_val):
+                last_date = date_val
     if any(form in DILUTION_FORMS or form.startswith(tuple(DILUTION_FORMS)) for form in normalized):
-        return "High"
-    if normalized:
-        return "Low"
-    return "Unknown"
+        score = "High"
+    elif normalized:
+        score = "Low"
+    else:
+        score = "Unknown"
+    return score, _aggregate_evidence(evidence), last_date
 
 
-def _catalyst_score(events: pd.DataFrame) -> str:
+def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None, str | None]:
     if events is None or events.empty:
-        return "None"
-    tier_series = events.get("Tier")
-    if tier_series is not None and tier_series.astype(str).str.contains("1", case=False, na=False).any():
-        return "Tier-1"
-    return "Tier-2"
+        return "None", None, None, None
+    events = events.copy()
+    events["Tier"] = events.get("Tier", pd.Series(dtype=str)).astype(str)
+    tier1 = events[events["Tier"].str.contains("1", case=False, na=False)]
+    target = tier1 if not tier1.empty else events
+    sort_cols = [col for col in ["EventDate", "FilingDate"] if col in target.columns]
+    if sort_cols:
+        target = target.sort_values(by=sort_cols, ascending=True, na_position="last")
+    row = target.iloc[0]
+    score = "Tier-1" if not tier1.empty else "Tier-2"
+    event_date = row.get("EventDate") or row.get("FilingDate")
+    event_type = row.get("EventType") or row.get("ItemsNormalized") or row.get("ItemsPresent")
+    url = row.get("FilingURL") or row.get("URL")
+    return score, event_date, event_type, url
 
 
-def _governance_score(forms: Iterable[str]) -> str:
-    normalized = {_normalize_form(f) for f in forms if f}
-    if any("DEF 14A" in form for form in normalized) or any(
-        form.startswith(prefix) for form in normalized for prefix in RUNWAY_FORMS
-    ):
-        return "OK"
-    return ""
+def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str]:
+    normalized = {_normalize_form(f) for f in filings.get(form_col, pd.Series(dtype=str)).astype(str) if f}
+    evidence = []
+    going_concern = "N"
+    if not filings.empty:
+        gov_mask = filings[form_col].astype(str).str.upper().str.contains("DEF 14A|10-K|20-F|40-F", regex=True)
+        gov_records = filings[gov_mask]
+        for _, rec in gov_records.iterrows():
+            url = rec.get("FilingURL") or rec.get("URL")
+            if url:
+                evidence.append(str(url))
+            text = str(rec.get("FilingText", ""))
+            if re.search(r"going concern", text, re.IGNORECASE):
+                going_concern = "Y"
+    if any("DEF 14A" in form for form in normalized):
+        score = "OK"
+    elif any(form.startswith(prefix) for form in normalized for prefix in RUNWAY_FORMS):
+        score = "OK"
+    elif normalized:
+        score = "Concern"
+    else:
+        score = ""
+    return score, going_concern, _aggregate_evidence(evidence)
 
 
-def _insider_score(forms: Iterable[str]) -> str:
-    normalized = {_normalize_form(f) for f in forms if f}
-    if any(form.startswith("4") or form in {"3", "5"} for form in normalized):
-        return "Weak"
-    return ""
+def _insider_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str | None, str]:
+    forms = filings.get(form_col, pd.Series(dtype=str)).astype(str)
+    evidence = []
+    dates = []
+    score = ""
+    for _, rec in filings.iterrows():
+        form = _normalize_form(rec.get(form_col))
+        if form in {"3", "4", "5"} or form.startswith("4"):
+            url = rec.get("FilingURL") or rec.get("URL")
+            if url:
+                evidence.append(str(url))
+            date_val = rec.get("FilingDate") or rec.get("Date")
+            if pd.notna(date_val):
+                dates.append(date_val)
+            score = "Strong" if form.startswith("4") else "Weak"
+    last_date = max(dates) if dates else None
+    return score, last_date, _aggregate_evidence(evidence)
 
 
 def _biotech_peer_flag(sector: str, industry: str) -> str:
@@ -164,34 +217,36 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
         filing_forms = candidate_filings.get(form_col, pd.Series(dtype=str))
         runway_link = ""
         runway_quarters = None
+        runway_evidence: list[str] = []
         if not candidate_filings.empty:
             relevant_mask = candidate_filings.get(form_col, pd.Series(dtype=str)).astype(str).str.upper().str.startswith(RUNWAY_FORMS)
             relevant = candidate_filings[relevant_mask]
             if not relevant.empty:
+                if "FilingDate" in relevant.columns:
+                    relevant = relevant.sort_values(by="FilingDate", ascending=False, na_position="last")
                 runway_link = relevant.iloc[0].get("FilingURL") or relevant.iloc[0].get("URL", "")
                 runway_quarters = _runway_from_filing(str(runway_link), adapter=adapter)
-        dilution = _dilution_score(filing_forms)
+                runway_evidence.append(str(runway_link))
+        dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
         ticker_series = events.get("Ticker", pd.Series(dtype=str))
         cik_series = events.get("CIK", pd.Series(dtype=str))
         candidate_events = events[(ticker_series.astype(str) == str(ticker)) | (cik_series.astype(str) == str(cik))]
-        catalyst = _catalyst_score(candidate_events)
-        governance = _governance_score(filing_forms)
-        insider = _insider_score(filing_forms)
+        catalyst, catalyst_date, catalyst_type, catalyst_url = _catalyst_details(candidate_events)
+        governance, going_concern, governance_evidence = _governance_details(candidate_filings, form_col)
+        insider, last_insider_date, insider_evidence = _insider_details(candidate_filings, form_col)
         biotech_flag = _biotech_peer_flag(str(sector), str(industry))
         evidence_links: list[str] = []
-        if runway_link:
-            evidence_links.append(str(runway_link))
-        evidence_links.extend(candidate_filings.get("FilingURL", pd.Series(dtype=str)).dropna().astype(str).tolist())
+        evidence_links.extend(runway_evidence)
         evidence_primary = _aggregate_evidence(evidence_links)
 
         subscores = {
             "runway": runway_quarters is not None,
-            "dilution": dilution not in {"", "Unknown"},
-            "catalyst": catalyst != "None",
-            "governance": bool(governance),
-            "insider": bool(insider),
+            "dilution": dilution not in {"", "Unknown"} and bool(dilution_evidence),
+            "catalyst": catalyst != "None" and bool(catalyst_url),
+            "governance": bool(governance) and bool(governance_evidence),
+            "insider": bool(insider) and bool(insider_evidence),
         }
-        subscore_count = sum(1 for v in subscores.values() if v and bool(evidence_primary))
+        subscore_count = sum(1 for v in subscores.values())
         materiality = _materiality(subscore_count, catalyst)
 
         price = getattr(row, "Price", None)
@@ -213,7 +268,19 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 "CatalystScore": catalyst,
                 "GovernanceScore": governance,
                 "InsiderScore": insider,
+                "RunwayEvidencePrimary": _aggregate_evidence(runway_evidence),
+                "DilutionEvidencePrimary": dilution_evidence,
+                "CatalystEvidencePrimary": _aggregate_evidence([catalyst_url] if catalyst_url else []),
+                "GovernanceEvidencePrimary": governance_evidence,
+                "InsiderEvidencePrimary": insider_evidence,
+                "PrimaryCatalystDate": catalyst_date,
+                "PrimaryCatalystType": catalyst_type,
+                "PrimaryCatalystURL": catalyst_url,
+                "LastDilutionEventDate": last_dilution_date,
+                "LastInsiderBuyDate": last_insider_date,
+                "GoingConcernFlag": going_concern,
                 "BiotechPeerRead": biotech_flag,
+                "BiotechPeerEvidence": "Peer: stub" if biotech_flag == "Y" else "",
                 "SubscoresEvidencedCount": subscore_count,
                 "Materiality": materiality,
                 "ConvictionScore": None,
@@ -241,7 +308,19 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
             "CatalystScore",
             "GovernanceScore",
             "InsiderScore",
+            "RunwayEvidencePrimary",
+            "DilutionEvidencePrimary",
+            "CatalystEvidencePrimary",
+            "GovernanceEvidencePrimary",
+            "InsiderEvidencePrimary",
+            "PrimaryCatalystDate",
+            "PrimaryCatalystType",
+            "PrimaryCatalystURL",
+            "LastDilutionEventDate",
+            "LastInsiderBuyDate",
+            "GoingConcernFlag",
             "BiotechPeerRead",
+            "BiotechPeerEvidence",
             "SubscoresEvidencedCount",
             "Materiality",
             "ConvictionScore",

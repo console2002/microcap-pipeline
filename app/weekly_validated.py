@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import csv
 import os
 from typing import List
 
@@ -32,6 +33,12 @@ def _passes_rules(row: pd.Series) -> bool:
     materiality = str(row.get("Materiality", "")).lower()
     if materiality in {"low", "fail", ""}:
         return False
+    governance = str(row.get("GovernanceScore", "")).lower()
+    if governance in {"highrisk", "concern"} and row.get("GoingConcernFlag") == "Y":
+        return False
+    insider = str(row.get("InsiderScore", "")).lower()
+    if insider == "" or insider == "none":
+        pass
     if _is_biotech(str(row.get("Sector", "")), str(row.get("Industry", ""))):
         if str(row.get("BiotechPeerRead", "")) != "Y":
             return False
