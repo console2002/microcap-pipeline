@@ -135,16 +135,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.weekly_stage_combo = QtWidgets.QComboBox()
         self.weekly_stage_combo.addItem("Universe (Full Run)", "universe")
-        self.weekly_stage_combo.addItem("Profiles", "profiles")
-        self.weekly_stage_combo.addItem("Filings", "filings")
-        self.weekly_stage_combo.addItem("Prices", "prices")
-        self.weekly_stage_combo.addItem("FDA", "fda")
-        self.weekly_stage_combo.addItem("Hydrate + Shortlist", "hydrate")
-        self.weekly_stage_combo.addItem("Deep Research", "deep_research")
-        self.weekly_stage_combo.addItem("Parse Q10", "parse_q10")
-        self.weekly_stage_combo.addItem("Parse 8-K", "parse_8k")
-        self.weekly_stage_combo.addItem("Populate DR Output", "dr_populate")
-        self.weekly_stage_combo.addItem("Build Validated Watchlist", "build_watchlist")
+        self.weekly_stage_combo.addItem("Filings (01/02)", "filings")
+        self.weekly_stage_combo.addItem("Events (09_events)", "events")
+        self.weekly_stage_combo.addItem(
+            "Candidate Shortlist (20)", "candidate_shortlist"
+        )
+        self.weekly_stage_combo.addItem("Weekly Deep Research (30)", "deep_research")
+        self.weekly_stage_combo.addItem(
+            "Weekly Validated Selections (40)", "validated"
+        )
 
         self.daily_stage_combo = QtWidgets.QComboBox()
         self.daily_stage_combo.addItem("Prices", "prices")
@@ -393,17 +392,15 @@ class MainWindow(QtWidgets.QMainWindow):
             stage = stage_match.group("stage")
             known_stages = {
                 "universe",
-                "profiles",
                 "filings",
-                "prices",
-                "fda",
+                "events",
+                "candidate_shortlist",
+                "deep_research",
+                "validated",
+                "eight_k",
+                "parse_8k",
                 "hydrate",
                 "shortlist",
-                "deep_research",
-                "parse_q10",
-                "eight_k",
-                "dr_populate",
-                "build_watchlist",
             }
             if stage in known_stages:
                 return stage
@@ -422,7 +419,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def _pretty_stage_label(self, stage: str) -> str:
         custom = {
             "eight_k": "8-K",
-            "dr_populate": "Populate DR",
+            "parse_8k": "8-K",
+            "candidate_shortlist": "Candidate Shortlist",
+            "validated": "Validated Selections",
         }
         if stage in custom:
             return custom[stage]

@@ -1,3 +1,5 @@
+# LEGACY: pre-weekly pipeline module kept for compatibility.
+# Not used by run_weekly_pipeline / weekly W3/W4.
 """Build a validated watchlist from deep research results and market data."""
 from __future__ import annotations
 

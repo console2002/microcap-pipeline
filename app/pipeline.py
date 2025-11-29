@@ -1447,19 +1447,76 @@ def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     return rows_written
 
 
+def _write_weekly_universe(data_dir: str, df_prof: pd.DataFrame | None) -> None:
+    if df_prof is None or df_prof.empty:
+        return
+    weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
+    df_prof.to_csv(weekly_universe, index=False)
+
+
+def _promote_weekly_events(data_dir: str) -> None:
+    canonical_events = os.path.join(data_dir, "09_events.csv")
+    legacy_events = os.path.join(data_dir, "09_8k_events.csv")
+    source = canonical_events if os.path.exists(canonical_events) else None
+    if not source and os.path.exists(legacy_events):
+        source = legacy_events
+    if source and source != canonical_events:
+        pd.read_csv(source).to_csv(canonical_events, index=False)
+
+
+def _promote_weekly_shortlist(data_dir: str) -> None:
+    canonical_shortlist = os.path.join(data_dir, "20_candidate_shortlist.csv")
+    legacy_shortlist = csv_path(data_dir, "shortlist_candidates")
+    if os.path.exists(canonical_shortlist):
+        return
+    if os.path.exists(legacy_shortlist):
+        pd.read_csv(legacy_shortlist).to_csv(canonical_shortlist, index=False)
+
+
+def _weekly_summary(data_dir: str, progress_fn) -> None:
+    summary_targets = {
+        "universe": "01_universe_gated.csv",
+        "filings": "02_filings.csv",
+        "events": "09_events.csv",
+        "shortlist": "20_candidate_shortlist.csv",
+        "deep_research": "30_deep_research.csv",
+        "validated": "40_validated_selections.csv",
+        "tbd": "40_tbd_exclusions.csv",
+    }
+
+    counts: dict[str, int] = {}
+    for label, filename in summary_targets.items():
+        path = os.path.join(data_dir, filename)
+        if os.path.exists(path):
+            try:
+                counts[label] = len(pd.read_csv(path, encoding="utf-8"))
+            except Exception:
+                counts[label] = 0
+        else:
+            counts[label] = 0
+
+    lines = ["WEEKLY_PIPELINE SUMMARY:"]
+    lines.append(f"  universe={counts['universe']} rows")
+    lines.append(f"  filings={counts['filings']} rows")
+    lines.append(f"  events={counts['events']} rows")
+    lines.append(f"  shortlist={counts['shortlist']} rows")
+    lines.append(f"  deep_research={counts['deep_research']} rows")
+    lines.append(f"  validated={counts['validated']} rows")
+    lines.append(f"  tbd={counts['tbd']} rows")
+    _emit(progress_fn, "\n".join(lines))
+
+
 def run_weekly_pipeline(
     stop_flag=None,
     progress_fn=None,
     start_stage: str = "universe",
     skip_fda: bool = False,
 ):
-    """Run the weekly pipeline from universe load through validated watchlist.
+    """Run the weekly pipeline from universe load through validated selections.
 
-    This entrypoint aligns with the weekly flow: it refreshes the SEC/FMP
-    caches, builds hydrated + shortlisted candidates (W2), runs deep research
-    and runway/event parsers (W3), and materializes the validated watchlist
-    output (W4). Stages can be resumed via ``start_stage`` for incremental
-    runs.
+    The WEEKLY path now follows the canonical 01/02/09/20/30/40 flow and no
+    longer depends on legacy runway_extract/dr_populate/build_watchlist CSVs.
+    Stages can be resumed via ``start_stage`` for incremental runs.
     """
     if stop_flag is None:
         stop_flag = {"stop": False}
@@ -1479,16 +1536,11 @@ def run_weekly_pipeline(
 
     stages = [
         "universe",
-        "profiles",
         "filings",
-        "prices",
-        "fda",
-        "hydrate",
+        "events",
+        "candidate_shortlist",
         "deep_research",
-        "parse_q10",
-        "parse_8k",
-        "dr_populate",
-        "build_watchlist",
+        "validated",
     ]
     if start_stage not in stages:
         raise ValueError(f"Unknown weekly start_stage '{start_stage}'")
@@ -1496,6 +1548,7 @@ def run_weekly_pipeline(
     try:
         _emit(progress_fn, f"run_weekly: start (from {start_stage})")
 
+        data_dir = cfg["Paths"].get("data", "data")
         df_uni = None
         df_prof = None
         df_fil = None
@@ -1504,25 +1557,12 @@ def run_weekly_pipeline(
 
         if start_idx <= stages.index("universe"):
             df_uni = universe_step(cfg, adapter, runlog, errlog, stop_flag, progress_fn)
-        else:
-            _emit(progress_fn, f"universe: skipped (starting at {start_stage})")
-
-        if start_idx <= stages.index("profiles"):
-            if df_uni is None:
-                df_uni = _load_cached_universe(cfg)
-                _emit(
-                    progress_fn,
-                    f"profiles: using cached tickers from {csv_filename('profiles')}",
-                )
             df_prof = profiles_step(
                 cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn
             )
         else:
             df_prof = _load_cached_dataframe(cfg, "profiles")
-            _emit(
-                progress_fn,
-                f"profiles: skipped (loaded cached {csv_filename('profiles')})",
-            )
+            _emit(progress_fn, f"universe: skipped (loaded cached {csv_filename('profiles')})")
 
         eligible_tickers: set[str] | None = None
         drop_details: dict[str, RunwayDropDetail] | None = None
@@ -1536,6 +1576,7 @@ def run_weekly_pipeline(
             )
         else:
             df_fil = _load_cached_dataframe(cfg, "filings")
+            df_prof = df_prof or _load_cached_dataframe(cfg, "profiles")
             df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
                 df_fil, df_prof, progress_fn
             )
@@ -1548,135 +1589,57 @@ def run_weekly_pipeline(
             df_prof = _restrict_profiles_to_core_filings(
                 df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
+            _write_weekly_universe(data_dir, df_prof)
 
-        if start_idx <= stages.index("prices"):
-            if df_prof is None:
-                df_prof = _load_cached_dataframe(cfg, "profiles")
-                _emit(progress_fn, f"prices: using cached {csv_filename('profiles')}")
-            _ = prices_step(
-                cfg, client, runlog, errlog, df_prof, stop_flag, progress_fn
-            )
-        else:
-            _emit(progress_fn, "prices: skipped (starting later stage)")
-
-        if start_idx <= stages.index("fda"):
-            if skip_fda:
-                _emit(progress_fn, "fda: skipped (option selected)")
-            else:
-                if df_fil is None:
-                    df_fil = _load_cached_dataframe(cfg, "filings")
-                    _emit(progress_fn, f"fda: using cached {csv_filename('filings')}")
-                _ = fda_step(
-                    cfg, client, runlog, errlog, df_fil, stop_flag, progress_fn
-                )
-        else:
-            _emit(progress_fn, "fda: skipped (starting later stage)")
-
-        if start_idx <= stages.index("hydrate"):
-            hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
-        else:
-            short_path = csv_path(cfg["Paths"]["data"], "shortlist_candidates")
-            if not os.path.exists(short_path):
-                raise RuntimeError(
-                    f"{csv_filename('shortlist_candidates')} missing; run hydrate stage first or stage requires it"
-                )
-            _emit(progress_fn, "hydrate: skipped (starting later stage)")
-            _emit(progress_fn, "shortlist: skipped (starting later stage)")
-
-        if start_idx <= stages.index("deep_research"):
-            deep_research_step(cfg, runlog, errlog, stop_flag, progress_fn)
-        else:
-            results_path = csv_path(cfg["Paths"]["data"], "deep_research_results")
-            if not os.path.exists(results_path):
-                raise RuntimeError(
-                    f"{csv_filename('deep_research_results')} missing; run deep_research stage first or stage requires it"
-                )
-
-        if start_idx <= stages.index("parse_q10"):
-            parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn)
-        else:
-            runway_path = csv_path(cfg["Paths"]["data"], "runway_extract_results")
-            if not os.path.exists(runway_path):
-                raise RuntimeError(
-                    f"{csv_filename('runway_extract_results')} missing; run parse_q10 stage first or stage requires it"
-                )
-
-        if start_idx <= stages.index("parse_8k"):
+        if start_idx <= stages.index("events"):
             parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
-            events_path = csv_path(cfg["Paths"]["data"], "eight_k_events")
-            if not os.path.exists(events_path):
-                raise RuntimeError(
-                    f"{csv_filename('eight_k_events')} missing; run parse_8k stage first or stage requires it"
-                )
-
-        if start_idx <= stages.index("dr_populate"):
-            dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn)
-        else:
-            full_path = csv_path(cfg["Paths"]["data"], "dr_populate_results")
-            if not os.path.exists(full_path):
-                raise RuntimeError(
-                    f"{csv_filename('dr_populate_results')} missing; run dr_populate stage first or stage requires it"
-                )
-
-        if start_idx <= stages.index("build_watchlist"):
-            build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
-        else:
-            validated_path = csv_path(cfg["Paths"]["data"], "validated_watchlist")
-            if not os.path.exists(validated_path):
-                raise RuntimeError(
-                    f"{csv_filename('validated_watchlist')} missing; run build_watchlist stage first or stage requires it"
-                )
-
-        # Weekly W3/W4 alignment
-        try:
-            from app.weekly_deep_research import run_weekly_deep_research
-            from app.weekly_validated import build_validated_selections
-
-            data_dir = cfg["Paths"].get("data", "data")
-
-            # Promote legacy shortlist to weekly naming if needed
-            legacy_shortlist = csv_path(data_dir, "shortlist_candidates")
-            weekly_shortlist = os.path.join(data_dir, "20_candidate_shortlist.csv")
-            if not os.path.exists(weekly_shortlist) and os.path.exists(legacy_shortlist):
-                pd.read_csv(legacy_shortlist).to_csv(weekly_shortlist, index=False)
-
-            # Promote legacy event classification to canonical weekly naming
+            events_path = os.path.join(data_dir, "09_events.csv")
             legacy_events = os.path.join(data_dir, "09_8k_events.csv")
-            weekly_events = os.path.join(data_dir, "09_events.csv")
-            if not os.path.exists(weekly_events) and os.path.exists(legacy_events):
-                pd.read_csv(legacy_events).to_csv(weekly_events, index=False)
+            if not os.path.exists(events_path) and not os.path.exists(legacy_events):
+                raise RuntimeError("09_events.csv missing; run events stage first")
+            _emit(progress_fn, "events: skipped (using cached output)")
 
-            # If shortlist missing but universe + events are available, synthesize
-            universe_path = os.path.join(data_dir, "01_universe_gated.csv")
-            if not os.path.exists(weekly_shortlist) and os.path.exists(universe_path):
-                events_df = pd.read_csv(weekly_events) if os.path.exists(weekly_events) else pd.DataFrame()
-                universe_df = pd.read_csv(universe_path)
-                if not events_df.empty:
-                    event_keys = set(
-                        zip(events_df.get("Ticker", pd.Series(dtype=str)).astype(str),
-                            events_df.get("CIK", pd.Series(dtype=str)).astype(str))
-                    )
-                    rows = []
-                    for item in universe_df.itertuples(index=False):
-                        key = (str(getattr(item, "Ticker", "")), str(getattr(item, "CIK", "")))
-                        if key in event_keys:
-                            rows.append(item._asdict())
-                    if rows:
-                        pd.DataFrame(rows).to_csv(weekly_shortlist, index=False)
+        _promote_weekly_events(data_dir)
 
-            # Promote legacy universe gate if present
-            legacy_universe = csv_path(data_dir, "profiles")
-            weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
-            if not os.path.exists(weekly_universe) and os.path.exists(legacy_universe):
-                pd.read_csv(legacy_universe).to_csv(weekly_universe, index=False)
+        if start_idx <= stages.index("candidate_shortlist"):
+            hydrate_and_shortlist_step(cfg, runlog, errlog, stop_flag, progress_fn)
+        else:
+            canonical_short = os.path.join(data_dir, "20_candidate_shortlist.csv")
+            legacy_short = csv_path(data_dir, "shortlist_candidates")
+            if not os.path.exists(canonical_short) and not os.path.exists(legacy_short):
+                raise RuntimeError(
+                    "20_candidate_shortlist.csv missing; run candidate_shortlist stage first"
+                )
+            _emit(progress_fn, "shortlist: skipped (using cached output)")
 
+        _promote_weekly_shortlist(data_dir)
+
+        from app.weekly_deep_research import run_weekly_deep_research
+        from app.weekly_validated import build_validated_selections
+
+        if start_idx <= stages.index("deep_research"):
             run_weekly_deep_research(data_dir, progress_fn=progress_fn)
-            build_validated_selections(data_dir)
-            _emit(progress_fn, "weekly: W3/W4 outputs generated")
-        except Exception as exc:  # pragma: no cover - best-effort alignment
-            _emit(progress_fn, f"weekly: W3/W4 skipped ({exc})")
+        else:
+            dr_path = os.path.join(data_dir, "30_deep_research.csv")
+            if not os.path.exists(dr_path):
+                raise RuntimeError(
+                    "30_deep_research.csv missing; run deep_research stage first"
+                )
+            _emit(progress_fn, "deep_research: skipped (using cached output)")
 
+        if start_idx <= stages.index("validated"):
+            build_validated_selections(data_dir)
+        else:
+            val_path = os.path.join(data_dir, "40_validated_selections.csv")
+            tbd_path = os.path.join(data_dir, "40_tbd_exclusions.csv")
+            if not (os.path.exists(val_path) and os.path.exists(tbd_path)):
+                raise RuntimeError(
+                    "Validated outputs missing; run validated stage first to produce 40_* CSVs"
+                )
+            _emit(progress_fn, "validated: skipped (using cached output)")
+
+        _weekly_summary(data_dir, progress_fn)
         _emit(progress_fn, "run_weekly: complete")
 
     except CancelledRun as e:
