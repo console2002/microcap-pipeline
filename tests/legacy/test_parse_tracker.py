@@ -1,11 +1,14 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.parse_progress import ParseProgressTracker
+from app.weekly_deep_research import _iter_filings_for_forms
 
 
 def test_parse_tracker_compute_counts_once_without_date() -> None:
@@ -108,3 +111,102 @@ def test_parse_tracker_handles_placeholders_and_unspecified() -> None:
         "parse_q10 [INFO] SAMPLE fetching S-3 filed 2024-01-02 url https://example.com"
     )
     assert tracker.form_stats["S-3"].note == ""
+
+
+def test_parse_tracker_handles_dr_forms_and_aliases() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] TICK fetching 424B5 filed 2024-02-01 url https://example.com/424b5.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] TICK 424B5 form status OK dilution evidence captured"
+    )
+
+    assert "424B" in tracker.form_stats
+    assert tracker.form_stats["424B"].valid == 1
+    assert tracker.form_stats["424B"].parsed == 1
+
+    tracker.process_message(
+        "dr_forms [INFO] TICK fetching DEFA14A filed 2024-02-02 url https://example.com/defa14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] TICK DEFA14A form status OK governance evidence captured"
+    )
+
+    assert tracker.form_stats["DEF 14A"].valid == 1
+
+    tracker.process_message("dr_forms [INFO] TICK fetching 4 filed 2024-02-03")
+    tracker.process_message("dr_forms [WARN] TICK 4 incomplete: missing filing URL")
+
+    assert tracker.form_stats["FORM 4"].missing == 1
+    assert tracker.form_stats["FORM 4"].parsed == 1
+
+
+def test_parse_tracker_handles_spaced_form_names() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEF 14A filed 2024-03-01 url https://example.com/def14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] GOVT DEF 14A form status OK governance evidence captured"
+    )
+
+    assert tracker.form_stats["DEF 14A"].valid == 1
+    assert tracker.form_stats["DEF 14A"].parsed == 1
+
+    tracker.process_message(
+        "dr_forms [INFO] INS fetching FORM 4 filed 2024-03-02 url https://example.com/form4.htm"
+    )
+    tracker.process_message(
+        "dr_forms [WARN] INS FORM 4 incomplete: missing filing URL"
+    )
+
+    assert tracker.form_stats["FORM 4"].missing == 1
+    assert tracker.form_stats["FORM 4"].parsed == 1
+
+
+def test_parse_tracker_canonicalizes_proxy_aliases() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEF14A filed 2024-04-01 url https://example.com/def14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] GOVT DEF14A form status OK governance evidence captured"
+    )
+
+    tracker.process_message(
+        "dr_forms [INFO] GOVT fetching DEFM14 filed 2024-04-02 url https://example.com/defm14.htm"
+    )
+    tracker.process_message(
+        "dr_forms [WARN] GOVT DEFM14 incomplete: missing filing URL"
+    )
+
+    assert tracker.form_stats["DEF 14A"].parsed == 2
+    assert tracker.form_stats["DEF 14A"].valid == 1
+    assert tracker.form_stats["DEF 14A"].missing == 1
+    assert "DEF14A" not in tracker.form_stats
+
+
+def test_iter_filings_treats_nan_urls_as_missing() -> None:
+    filings = pd.DataFrame(
+        [
+            {
+                "FormType": "DEF 14A",
+                "FilingDate": "2024-03-15",
+                "FilingURL": pd.NA,
+            }
+        ]
+    )
+
+    entries = list(
+        _iter_filings_for_forms(filings, "FormType", {"DEF 14A"})
+    )
+
+    assert len(entries) == 1
+    assert entries[0]["url"] == ""
