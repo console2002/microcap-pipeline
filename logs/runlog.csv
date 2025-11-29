@@ -1,12 +1,8 @@
 timestamp,module,rows_added,duration_ms,note
-2025-11-29T16:15:41.660760+00:00,SEC_universe,10096,2363,loaded
-2025-11-29T16:20:52.627882+00:00,profiles,287,310964,append+purge
-2025-11-29T16:45:07.546823+00:00,filings,5390,1454894,append+purge
-2025-11-29T16:45:40.990465+00:00,prices,16117,33434,append+purge
-2025-11-29T16:45:42.043889+00:00,hydrate,287,1001,write 05_hydrated_candidates.csv
-2025-11-29T16:45:42.124746+00:00,shortlist,196,79,write 06_shortlist_candidates.csv
-2025-11-29T16:45:42.846763+00:00,deep_research,196,719,write 07_deep_research_results.csv
-2025-11-29T16:54:02.157326+00:00,parse_q10,196,499304,write 08_runway_extract_results.csv
-2025-11-29T17:08:37.618188+00:00,parse_8k,2234,875457,write 09_8k_events.csv
-2025-11-29T17:08:39.439212+00:00,dr_populate,196,1814,write 10_dr_populate_results.csv
-2025-11-29T17:08:41.250207+00:00,build_watchlist,35,1810,write validated_watchlist
+2025-11-29T19:21:05.851748+00:00,SEC_universe,10096,2209,loaded
+2025-11-29T19:26:16.366063+00:00,profiles,287,310512,append+purge
+2025-11-29T19:39:50.201976+00:00,filings,5390,813807,append+purge
+2025-11-29T19:54:07.354229+00:00,parse_8k,2234,857123,write 09_8k_events.csv
+2025-11-29T19:54:41.799803+00:00,prices,16117,34331,append+purge
+2025-11-29T19:54:42.293028+00:00,hydrate,287,450,write 05_hydrated_candidates.csv
+2025-11-29T19:54:42.335789+00:00,shortlist,196,41,write 06_shortlist_candidates.csv
