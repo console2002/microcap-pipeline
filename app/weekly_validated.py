@@ -4,12 +4,15 @@ import csv
 import os
 from typing import List, Tuple
 
+import logging
 import pandas as pd
 
 from app.config import load_config
 from app.utils import ensure_csv
 
 MANDATORY_FIELDS = ["RunwayQuarters", "Dilution", "Catalyst"]
+
+logger = logging.getLogger(__name__)
 
 
 def _load_csv(path: str) -> pd.DataFrame:
@@ -42,19 +45,17 @@ def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bo
 
 
 def _materiality_passed(materiality: str) -> bool:
-    lowered = str(materiality).lower()
-    if lowered.startswith("fail"):
-        return False
-    if lowered in {"", "nan"}:
-        return True
-    return True
+    lowered = str(materiality).strip().lower()
+    return lowered.startswith("pass")
 
 
 def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     """Return (status, reason) using W3/W4 gating rules."""
 
     dilution_ok = _subscore_evidenced(row, "Dilution", "DilutionEvidencePrimary")
-    runway_ok = _subscore_evidenced(
+    runway_value = row.get("RunwayQuarters", row.get("Runway (qtrs)"))
+    runway_numeric = pd.notna(runway_value) and str(runway_value) not in {"", "nan", "TBD", "Unknown"}
+    runway_ok = runway_numeric and _subscore_evidenced(
         row, ["RunwayQuarters", "Runway (qtrs)"], "RunwayEvidencePrimary"
     )
     catalyst_ok = _subscore_evidenced(row, "Catalyst", "CatalystEvidencePrimary")
@@ -153,6 +154,7 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
         "MarketCap",
         "ADV20",
         "Runway (qtrs)",
+        "RunwayQuarters",
         "DilutionScore",
         "CatalystScore",
         "GovernanceScore",
@@ -160,13 +162,24 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
         "BiotechPeerRead",
         "SubscoresEvidencedCount",
         "Materiality",
+        "ConvictionScore",
         "PrimaryCatalystDate",
         "PrimaryCatalystType",
         "PrimarySource",
         "SecondarySource",
+        "Status",
         "ValidationStatus",
     ]
-    exclusion_fields = ["Ticker", "Company", "CIK", "Sector", "Industry", "Reason"]
+    exclusion_fields = [
+        "Ticker",
+        "Company",
+        "CIK",
+        "Sector",
+        "Industry",
+        "Reason",
+        "Materiality",
+        "Status",
+    ]
 
     def _first_available(row: pd.Series, keys: list[str]):
         for key in keys:
@@ -194,6 +207,7 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
                 "MarketCap": _first_available(r, ["MarketCap", "Cap_Musd", "Cap($M)"]),
                 "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
                 "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
+                "RunwayQuarters": r.get("RunwayQuarters"),
                 "DilutionScore": r.get("Dilution", r.get("DilutionScore")),
                 "CatalystScore": r.get("Catalyst", r.get("CatalystScore")),
                 "GovernanceScore": r.get("Governance", r.get("GovernanceScore")),
@@ -203,11 +217,13 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
                     r, ["SubscoresEvidencedCount", "Subscores Evidenced (x/5)"]
                 ),
                 "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
+                "ConvictionScore": r.get("ConvictionScore"),
                 "PrimaryCatalystDate": r.get("PrimaryCatalystDate"),
                 "PrimaryCatalystType": r.get("PrimaryCatalystType"),
                 "PrimarySource": primary_links[0] if primary_links else r.get("RunwayEvidencePrimary"),
                 "SecondarySource": secondary_links[0] if secondary_links else r.get("EvidenceSecondary"),
-                "ValidationStatus": r.get("Status"),
+                "Status": r.get("Status", "Validated"),
+                "ValidationStatus": r.get("Status", "Validated"),
             }
         )
 
@@ -219,8 +235,22 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
                 "Company": r.get("Company"),
                 "CIK": r.get("CIK"),
                 "Reason": r.get("Reason", "Did not meet validation rule"),
+                "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
+                "Status": r.get("Status"),
             }
         )
+
+    reason_counts = (
+        pd.Series([r.get("Reason", "") for r in exclusions_output if r.get("Reason")])
+        .value_counts()
+        .to_dict()
+    )
+    logger.info(
+        "WEEKLY_VALIDATION: validated=%s tbd=%s by_reason=%s",
+        len(validated_output),
+        len(exclusions_output),
+        reason_counts,
+    )
 
     ensure_csv(val_path, validated_fields)
     with open(val_path, "w", newline="", encoding="utf-8") as handle:

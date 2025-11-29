@@ -4,15 +4,13 @@ import csv
 import logging
 import os
 import re
-from pathlib import Path
 from typing import Callable, Iterable, List
 
 import pandas as pd
 
 from app.config import load_config
-from app.edgar_adapter import get_adapter
+from app.runway_utils import compute_runway_quarters
 from app.utils import ensure_csv
-from edgar_core.runway import extract_runway_from_filing
 
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
 RUNWAY_FORMS = ("10-Q", "10-K", "20-F", "6-K", "40-F")
@@ -35,82 +33,6 @@ def _load_csv(path: str, required: Iterable[str] | None = None) -> pd.DataFrame:
         if missing:
             raise RuntimeError(f"{path} missing required columns: {', '.join(missing)}")
     return df
-
-
-def _extract_numeric(text: str) -> float | None:
-    cleaned = text.replace(",", "")
-    cleaned = cleaned.replace("(", "-").replace(")", "")
-    match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
-    if not match:
-        return None
-    try:
-        return float(match.group(0))
-    except ValueError:
-        return None
-
-
-def compute_runway_from_html(html_text: str) -> float | None:
-    if not html_text:
-        return None
-    cash_match = re.search(r"cash and cash equivalents[:\s]*\$?([\d,\.\(\)-]+)", html_text, re.IGNORECASE)
-    burn_match = re.search(r"operating activities[:\s]*\$?([\d,\.\(\)-]+)", html_text, re.IGNORECASE)
-    if not cash_match or not burn_match:
-        return None
-    cash_val = _extract_numeric(cash_match.group(1))
-    burn_val = _extract_numeric(burn_match.group(1))
-    if cash_val is None or burn_val is None or burn_val == 0:
-        return None
-    quarterly_burn = abs(burn_val)
-    return round(cash_val / quarterly_burn, 2)
-
-
-def compute_runway_quarters(url: str, adapter=None) -> tuple[float | None, bool]:
-    """Return (runway_quarters, used_primary_parser)."""
-
-    if not url:
-        return None, False
-
-    adapter = adapter or get_adapter()
-
-    try:
-        filing = adapter._resolve_filing(url)  # type: ignore[attr-defined]
-    except Exception:
-        filing = None
-        logger.debug("weekly_w3: _resolve_filing failed", exc_info=True)
-
-    if filing is not None:
-        try:
-            result = extract_runway_from_filing(filing)
-            quarters = result.get("runway_quarters")
-            if quarters is not None and quarters > 0:
-                return round(float(quarters), 2), True
-        except Exception:
-            logger.debug("weekly_w3: extract_runway_from_filing failed", exc_info=True)
-
-    # fallback to HTML regex parsing
-    fallback = _runway_from_filing(str(url), adapter=adapter)
-    return fallback, False
-
-
-def _runway_from_filing(url: str, adapter=None) -> float | None:
-    if not url:
-        return None
-    path = url
-    if url.startswith("file://"):
-        path = url.replace("file://", "")
-    candidate = Path(path)
-    if candidate.exists():
-        html_text = candidate.read_text(encoding="utf-8", errors="ignore")
-        return compute_runway_from_html(html_text)
-    if str(url).startswith("http"):
-        try:
-            edgar_adapter = adapter or get_adapter()
-            html_text = edgar_adapter.download_filing_text(str(url))
-            if html_text:
-                return compute_runway_from_html(html_text)
-        except Exception:
-            return None
-    return None
 
 
 def _dilution_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str | None]:
@@ -210,14 +132,17 @@ def _biotech_peer_flag(sector: str, industry: str) -> str:
     return "Y" if "biotech" in combined or "biotechnology" in combined else "N"
 
 
-def _materiality(subscore_count: int, catalyst: str) -> str:
-    if subscore_count >= 4 and catalyst != "None":
-        return "High"
-    if subscore_count >= 3:
-        return "Medium"
-    if subscore_count == 0:
-        return "N/A"
-    return "Low"
+def _materiality(subscore_count: int, catalyst: str, mandatory_ok: bool) -> str:
+    catalyst_lower = str(catalyst).lower()
+    if not mandatory_ok:
+        return "FAIL - Mandatory subscores missing"
+    if catalyst_lower.startswith("tier-1"):
+        return "PASS - Tier1" if subscore_count >= 4 else "FAIL - Tier1 insufficient support"
+    if catalyst_lower.startswith("tier-2"):
+        return "PASS - Tier2" if subscore_count >= 4 else "FAIL - Tier2 insufficient support"
+    if catalyst_lower not in {"", "none", "tbd"} and subscore_count >= 4:
+        return "PASS - Multi"
+    return "FAIL - Weak catalyst"
 
 
 def _aggregate_evidence(primary_links: list[str]) -> str:
@@ -243,23 +168,14 @@ def _classify_evidence(links: list[str]) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(primary)), list(dict.fromkeys(secondary))
 
 
-def _conviction_from_subscores(subscore_count: int, mandatory_ok: bool) -> str:
-    if not mandatory_ok or subscore_count < 4:
-        return ""
+def _conviction_from_subscores(subscore_count: int, mandatory_ok: bool, materiality: str) -> str:
+    if not mandatory_ok or not str(materiality).startswith("PASS"):
+        return "Low"
     if subscore_count >= 5:
         return "High"
-    return "Medium"
-
-
-def _materiality_label(raw: str) -> str:
-    if not raw or raw == "N/A":
-        return "N/A"
-    lowered = raw.lower()
-    if lowered in {"high", "medium"}:
-        return f"pass ({raw})"
-    if lowered in {"low", "fail"}:
-        return f"fail ({raw})"
-    return raw
+    if subscore_count >= 4:
+        return "Medium"
+    return "Low"
 
 
 def _status_from_row(
@@ -269,7 +185,7 @@ def _status_from_row(
     biotech_peer: str,
 ) -> str:
     materiality_lower = materiality.lower()
-    materiality_ok = materiality_lower.startswith("pass") or materiality_lower.startswith("n/a")
+    materiality_ok = materiality_lower.startswith("pass")
     biotech_ok = not biotech_peer.startswith("TBD")
     if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
         return "Validated"
@@ -360,8 +276,6 @@ def run_weekly_deep_research(
 ) -> pd.DataFrame:
     cfg = load_config()
     data_dir = data_dir or cfg.get("Paths", {}).get("data", "data")
-    adapter = get_adapter(cfg)
-
     shortlist_path = os.path.join(data_dir, "20_candidate_shortlist.csv")
     filings_path = os.path.join(data_dir, "02_filings.csv")
     events_path = os.path.join(data_dir, "09_events.csv")
@@ -376,6 +290,56 @@ def run_weekly_deep_research(
             raise RuntimeError(f"{shortlist_path} missing required column {col}")
 
     output_rows: List[dict] = []
+    runway_numeric_count = 0
+    runway_evidence_only: list[str] = []
+
+    def _select_runway_details(candidate_filings: pd.DataFrame, form_col: str):
+        if candidate_filings.empty:
+            return None, "", False
+
+        filings_with_form = candidate_filings.copy()
+        filings_with_form[form_col] = filings_with_form.get(form_col, pd.Series(dtype=str)).astype(str)
+        mask = filings_with_form[form_col].str.upper().str.startswith(RUNWAY_FORMS)
+        subset = filings_with_form[mask]
+        if subset.empty:
+            return None, "", False
+
+        subset = subset.copy()
+        subset["RunwayQuarters"] = pd.to_numeric(subset.get("RunwayQuarters"), errors="coerce")
+
+        def _sort_key(rec: pd.Series):
+            age_val = rec.get("Age")
+            if pd.notna(age_val):
+                return age_val
+            filed_at = rec.get("FiledAt") or rec.get("FilingDate") or rec.get("Date")
+            try:
+                return (pd.Timestamp.utcnow() - pd.to_datetime(filed_at)).days
+            except Exception:
+                return 10**6
+
+        subset["_runway_sort"] = subset.apply(_sort_key, axis=1)
+        subset = subset.sort_values(by="_runway_sort", ascending=True, na_position="last")
+        with_numeric = subset[subset["RunwayQuarters"].notna()]
+        target = with_numeric if not with_numeric.empty else subset
+        chosen = target.iloc[0]
+
+        quarters = chosen.get("RunwayQuarters")
+        try:
+            quarters = float(quarters) if pd.notna(quarters) else None
+        except Exception:
+            quarters = None
+
+        evidence_url = (
+            chosen.get("RunwaySourceURL")
+            or chosen.get("FilingURL")
+            or chosen.get("URL")
+            or ""
+        )
+
+        if quarters is None and evidence_url:
+            quarters, _ = compute_runway_quarters(str(evidence_url))
+
+        return quarters, evidence_url, pd.notna(quarters)
 
     for row in shortlist.itertuples(index=False):
         ticker = getattr(row, "Ticker")
@@ -389,22 +353,18 @@ def run_weekly_deep_research(
         runway_quarters = None
         runway_evidence: list[str] = []
         if not candidate_filings.empty:
-            relevant_mask = candidate_filings.get(form_col, pd.Series(dtype=str)).astype(str).str.upper().str.startswith(RUNWAY_FORMS)
-            relevant = candidate_filings[relevant_mask]
-            if not relevant.empty:
-                if "FilingDate" in relevant.columns:
-                    relevant = relevant.sort_values(by="FilingDate", ascending=False, na_position="last")
-                runway_link = relevant.iloc[0].get("FilingURL") or relevant.iloc[0].get("URL", "")
-                runway_quarters, used_primary = compute_runway_quarters(str(runway_link), adapter=adapter)
-                if runway_quarters is None:
-                    logger.info(
-                        "weekly_w3: runway parse failed for %s (%s), leaving Runway (qtrs)=TBD",
-                        ticker,
-                        cik,
-                    )
-                elif not used_primary:
-                    logger.debug("weekly_w3: runway regex fallback used for %s", ticker)
+            runway_quarters, runway_link, _ = _select_runway_details(
+                candidate_filings, form_col
+            )
+            if runway_link:
                 runway_evidence.append(str(runway_link))
+            if runway_quarters is None and runway_link:
+                runway_evidence_only.append(str(ticker))
+                logger.info(
+                    "weekly_w3: runway missing numeric value for %s (%s) despite evidence", ticker, cik
+                )
+            elif runway_quarters is not None:
+                runway_numeric_count += 1
 
         dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
         dilution_forms = list(
@@ -492,12 +452,12 @@ def run_weekly_deep_research(
             valid_value = value_for_key not in {"", None, "TBD", "Unknown"}
             subscore_flags[key] = valid_value and bool(prim)
 
-        subscore_count = sum(1 for v in subscore_flags.values() if v)
-        materiality_raw = _materiality(subscore_count, catalyst_label)
-        materiality_label = _materiality_label(materiality_raw)
-
         mandatory_ok = all(subscore_flags.get(key, False) for key in ["dilution", "runway", "catalyst"])
-        conviction = _conviction_from_subscores(subscore_count, mandatory_ok)
+        subscore_count = sum(1 for v in subscore_flags.values() if v)
+        materiality_raw = _materiality(subscore_count, catalyst_label, mandatory_ok)
+        materiality_label = materiality_raw
+
+        conviction = _conviction_from_subscores(subscore_count, mandatory_ok, materiality_label)
         biotech_field = biotech_peer_field if biotech_flag == "Y" else "N"
         status = _status_from_row(mandatory_ok, subscore_count, materiality_label, biotech_field)
 
@@ -507,6 +467,8 @@ def run_weekly_deep_research(
         price = getattr(row, "Price", None)
         if price is None or (isinstance(price, (float, int)) and pd.isna(price)):
             price = getattr(row, "Close", None)
+
+        runway_display = str(runway_quarters) if runway_quarters is not None else "TBD"
 
         output_rows.append(
             {
@@ -519,7 +481,7 @@ def run_weekly_deep_research(
                 "MarketCap": getattr(row, "MarketCap", None),
                 "ADV20": getattr(row, "ADV20", None),
                 "RunwayQuarters": runway_quarters,
-                "Runway (qtrs)": runway_quarters if runway_quarters is not None else "TBD",
+                "Runway (qtrs)": runway_display,
                 "DilutionScore": dilution,
                 "Dilution": dilution_label,
                 "CatalystScore": catalyst,
@@ -553,6 +515,18 @@ def run_weekly_deep_research(
                 "ConvictionScore": conviction,
                 "Status": status,
             }
+        )
+
+    runway_missing_with_evidence = len(runway_evidence_only)
+    logger.info(
+        "weekly_w3: runway summary numeric=%s evidence_only=%s",
+        runway_numeric_count,
+        runway_missing_with_evidence,
+    )
+    if runway_evidence_only:
+        logger.debug(
+            "weekly_w3: runway evidence without numeric for %s",
+            ", ".join(runway_evidence_only[:5]),
         )
 
     output_path = os.path.join(data_dir, "30_deep_research.csv")
@@ -611,4 +585,4 @@ def run_weekly_deep_research(
     return pd.DataFrame(output_rows)
 
 
-__all__ = ["compute_runway_from_html", "compute_runway_quarters", "run_weekly_deep_research"]
+__all__ = ["run_weekly_deep_research"]
