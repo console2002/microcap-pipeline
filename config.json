@@ -1,10 +1,8 @@
 {
   "UserAgent": "console_2002@yahoo.co.uk",
   "FMPKey": "kXWx3ZdlUFLcYcyYCma9i2wCbw8EeQwP",
-  "OpenFDAKey": "h1iWeSbEe7N2wPB59eyF0KqVD8wauO5yMiiTaJe0",
   "RateLimitsPerMin": {
     "FMP": 300,
-    "OpenFDA": 240,
     "SEC": 60
   },
   "Edgar": {
@@ -19,11 +17,10 @@
     2,
     4
   ],
-  "BatchSizes": {
-    "Profiles": 500,
-    "Prices": 100,
-    "OpenFDA": 100
-  },
+    "BatchSizes": {
+      "Profiles": 500,
+      "Prices": 100
+    },
   "Paths": {
     "data": "./data",
     "logs": "./logs"
@@ -91,8 +88,7 @@
     ]
   },
   "Windows": {
-    "DaysBack_Prices": 60,
-    "DaysBack_FDA": 120
+    "DaysBack_Prices": 60
   },
   "FilingsWhitelist": [
     "8-K",
@@ -130,18 +126,8 @@
     "13G/A",
     "13F-HR"
   ],
-  "FDA": {
-    "EnableDevice": true,
-    "EnableDrug": true,
-    "StatusesAllowed": [
-      "Approved",
-      "Cleared",
-      "Granted"
-    ]
-  },
   "ShortlistRule": {
-    "UseFilingsCatalyst": true,
-    "UseFDACatalyst": true
+    "UseFilingsCatalyst": true
   },
   "GUI": {
     "LogRefreshSeconds": 2,

@@ -23,10 +23,20 @@ def _is_biotech(sector: str, industry: str) -> bool:
     return "biotech" in text or "biotechnology" in text
 
 
-def _subscore_evidenced(row: pd.Series, value_field: str, evidence_field: str) -> bool:
-    value = row.get(value_field)
-    if pd.isna(value) or str(value) in {"", "nan", "TBD", "Unknown"}:
+def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bool:
+    if isinstance(value_fields, str):
+        value_fields = [value_fields]
+
+    value = None
+    for field in value_fields:
+        candidate = row.get(field)
+        if pd.notna(candidate) and str(candidate) not in {"", "nan", "TBD", "Unknown"}:
+            value = candidate
+            break
+
+    if value is None:
         return False
+
     evidence = str(row.get(evidence_field, ""))
     return bool(evidence)
 
@@ -44,7 +54,9 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     """Return (status, reason) using W3/W4 gating rules."""
 
     dilution_ok = _subscore_evidenced(row, "Dilution", "DilutionEvidencePrimary")
-    runway_ok = _subscore_evidenced(row, "Runway (qtrs)", "RunwayEvidencePrimary")
+    runway_ok = _subscore_evidenced(
+        row, ["RunwayQuarters", "Runway (qtrs)"], "RunwayEvidencePrimary"
+    )
     catalyst_ok = _subscore_evidenced(row, "Catalyst", "CatalystEvidencePrimary")
     mandatory_ok = dilution_ok and runway_ok and catalyst_ok
 
@@ -52,21 +64,33 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     materiality_field = row.get("Materiality (pass/fail + note)", row.get("Materiality", ""))
     materiality_ok = _materiality_passed(materiality_field)
 
-    biotech_peer = str(row.get("Biotech Peer Read-Through (Y/N + link)", ""))
+    biotech_peer = str(
+        row.get("BiotechPeerRead", row.get("Biotech Peer Read-Through (Y/N + link)", ""))
+    )
     biotech_ok = not biotech_peer.startswith("TBD")
 
     if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
         return "Validated", ""
 
-    if not mandatory_ok:
-        return "TBD — exclude", "Mandatory subscore missing"
+    missing_reasons = []
+    missing_mandatory = []
+    if not runway_ok:
+        missing_mandatory.append("Runway")
+    if not dilution_ok:
+        missing_mandatory.append("Dilution")
+    if not catalyst_ok:
+        missing_mandatory.append("Catalyst")
+    if missing_mandatory:
+        missing_reasons.append("Mandatory subscore missing: " + ", ".join(missing_mandatory))
     if subscore_count < 4:
-        return "TBD — exclude", "Subscores <4/5"
+        missing_reasons.append("Subscores <4/5")
     if not biotech_ok:
-        return "TBD — exclude", "Biotech peer read-through missing"
+        missing_reasons.append("Biotech peer read-through missing")
     if not materiality_ok:
-        return "TBD — exclude", "Materiality fail"
-    return "TBD — exclude", "Did not meet validation rule"
+        missing_reasons.append("Materiality fail")
+
+    reason = "; ".join(missing_reasons) if missing_reasons else "Did not meet validation rule"
+    return "TBD — exclude", reason
 
 
 def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -123,25 +147,67 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
         "Company",
         "CIK",
         "Sector",
-        "Catalyst rationale",
-        "Validation status",
+        "Industry",
+        "Venue",
+        "Price",
+        "MarketCap",
         "ADV20",
-        "Discovery price ref",
+        "Runway (qtrs)",
+        "DilutionScore",
+        "CatalystScore",
+        "GovernanceScore",
+        "InsiderScore",
+        "BiotechPeerRead",
+        "SubscoresEvidencedCount",
+        "Materiality",
+        "PrimaryCatalystDate",
+        "PrimaryCatalystType",
+        "PrimarySource",
+        "SecondarySource",
+        "ValidationStatus",
     ]
-    exclusion_fields = ["Ticker", "Company", "CIK", "Reason"]
+    exclusion_fields = ["Ticker", "Company", "CIK", "Sector", "Industry", "Reason"]
+
+    def _first_available(row: pd.Series, keys: list[str]):
+        for key in keys:
+            if key in row and pd.notna(row.get(key)):
+                return row.get(key)
+        return None
 
     validated_output: List[dict] = []
     for _, r in validated.iterrows():
+        primary_links = str(r.get("Evidence (Primary links)", "")).split(";") if r.get("Evidence (Primary links)") else []
+        secondary_links = (
+            str(r.get("Evidence (Secondary links)", "")).split(";")
+            if r.get("Evidence (Secondary links)")
+            else []
+        )
         validated_output.append(
             {
                 "Ticker": r.get("Ticker"),
                 "Company": r.get("Company"),
                 "CIK": r.get("CIK"),
                 "Sector": r.get("Sector"),
-                "Catalyst rationale": r.get("Catalyst", r.get("CatalystScore", "")),
-                "Validation status": r.get("Status"),
-                "ADV20": r.get("ADV20"),
-                "Discovery price ref": r.get("Price", r.get("DiscoveryPrice", "")),
+                "Industry": r.get("Industry"),
+                "Venue": r.get("Venue"),
+                "Price": _first_available(r, ["Price", "DiscoveryPrice", "Close"]),
+                "MarketCap": _first_available(r, ["MarketCap", "Cap_Musd", "Cap($M)"]),
+                "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
+                "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
+                "DilutionScore": r.get("Dilution", r.get("DilutionScore")),
+                "CatalystScore": r.get("Catalyst", r.get("CatalystScore")),
+                "GovernanceScore": r.get("Governance", r.get("GovernanceScore")),
+                "InsiderScore": r.get("Insider", r.get("InsiderScore")),
+                "BiotechPeerRead": r.get("BiotechPeerRead", r.get("Biotech Peer Read-Through (Y/N + link)")),
+                "SubscoresEvidencedCount": _first_available(
+                    r, ["SubscoresEvidencedCount", "Subscores Evidenced (x/5)"]
+                ),
+                "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
+                "PrimaryCatalystDate": r.get("PrimaryCatalystDate"),
+                "PrimaryCatalystType": r.get("PrimaryCatalystType"),
+                "PrimarySource": primary_links[0] if primary_links else r.get("RunwayEvidencePrimary"),
+                "SecondarySource": secondary_links[0] if secondary_links else r.get("EvidenceSecondary"),
+                "ValidationStatus": r.get("Status"),
             }
         )
 

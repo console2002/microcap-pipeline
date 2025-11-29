@@ -1529,7 +1529,6 @@ def run_weekly_pipeline(
     stop_flag=None,
     progress_fn=None,
     start_stage: str = "universe",
-    skip_fda: bool = False,
 ):
     """Run the weekly pipeline from universe load through validated selections.
 
