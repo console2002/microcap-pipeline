@@ -1,1 +1,1 @@
-Ticker,Company,CIK,Sector,Industry,Price,MarketCap,ADV20,RunwayQuarters,DilutionScore,CatalystScore,GovernanceScore,InsiderScore,BiotechPeerRead,SubscoresEvidencedCount,Materiality,ConvictionScore,EvidencePrimary,EvidenceSecondary,Status,Exchange,Country,Currency,UpdatedAt,BidPrice,AskPrice,BidSize,AskSize,AfterHoursVolume,QuoteTimestamp,Spread,SpreadPct,Close,LatestForm,FiledAt,FilingURL,FilingsSummary,FilingURLsAll,FDA_EventType,FDA_Date,FDA_URL,FDA_Summary,FDA_URLsAll
+Ticker,Company,CIK,Sector,Catalyst rationale,Validation status,ADV20,Discovery price ref
