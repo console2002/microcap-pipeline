@@ -4,7 +4,7 @@ import csv
 import os
 import re
 from pathlib import Path
-from typing import Iterable, List
+from typing import Callable, Iterable, List
 
 import pandas as pd
 
@@ -239,7 +239,75 @@ def _status_from_row(
     return "TBD — exclude"
 
 
-def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
+def _progress_emit(progress_fn: Callable[[str], None] | None, status: str, message: str) -> None:
+    if progress_fn is None:
+        return
+    try:
+        progress_fn(f"dr_forms [{status}] {message}")
+    except Exception:
+        pass
+
+
+def _emit_form_fetch(
+    progress_fn: Callable[[str], None] | None,
+    ticker: str,
+    form: str,
+    filed_at: str | None,
+    url: str | None,
+) -> None:
+    parts = [ticker, "fetching", form]
+    if filed_at:
+        parts.append(f"filed {filed_at}")
+    if url:
+        parts.append(f"url {url}")
+    _progress_emit(progress_fn, "INFO", " ".join(parts))
+
+
+def _emit_form_status(
+    progress_fn: Callable[[str], None] | None,
+    ticker: str,
+    form: str,
+    status: str,
+) -> None:
+    _progress_emit(progress_fn, "OK", f"{ticker} {form} form status {status}")
+
+
+def _emit_form_incomplete(
+    progress_fn: Callable[[str], None] | None,
+    ticker: str,
+    form: str,
+    reason: str,
+) -> None:
+    _progress_emit(progress_fn, "WARN", f"{ticker} {form} incomplete: {reason}")
+
+
+def _iter_filings_for_forms(
+    filings: pd.DataFrame,
+    form_col: str,
+    forms: set[str],
+) -> Iterable[dict]:
+    for _, record in filings.iterrows():
+        form = _normalize_form(record.get(form_col))
+        if not form:
+            continue
+        compact = form.replace(" ", "")
+        if any(
+            form == target
+            or form.startswith(target)
+            or compact == target.replace(" ", "")
+            or compact.startswith(target.replace(" ", ""))
+            for target in forms
+        ):
+            yield {
+                "form": form,
+                "filed_at": record.get("FilingDate") or record.get("Date") or "",
+                "url": record.get("FilingURL") or record.get("URL") or "",
+            }
+
+
+def run_weekly_deep_research(
+    data_dir: str | None = None, progress_fn: Callable[[str], None] | None = None
+) -> pd.DataFrame:
     cfg = load_config()
     data_dir = data_dir or cfg.get("Paths", {}).get("data", "data")
     adapter = get_adapter(cfg)
@@ -281,12 +349,51 @@ def run_weekly_deep_research(data_dir: str | None = None) -> pd.DataFrame:
                 runway_evidence.append(str(runway_link))
 
         dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
+        dilution_forms = list(
+            _iter_filings_for_forms(candidate_filings, form_col, set(DILUTION_FORMS))
+        )
+        for entry in dilution_forms:
+            _emit_form_fetch(progress_fn, str(ticker), entry["form"], entry["filed_at"], entry["url"])
+            if entry["url"]:
+                _emit_form_status(progress_fn, str(ticker), entry["form"], "OK dilution evidence captured")
+            else:
+                _emit_form_incomplete(progress_fn, str(ticker), entry["form"], "missing filing URL")
         ticker_series = events.get("Ticker", pd.Series(dtype=str))
         cik_series = events.get("CIK", pd.Series(dtype=str))
         candidate_events = events[(ticker_series.astype(str) == str(ticker)) | (cik_series.astype(str) == str(cik))]
         catalyst, catalyst_date, catalyst_type, catalyst_url = _catalyst_details(candidate_events)
         governance, going_concern, governance_evidence = _governance_details(candidate_filings, form_col)
+        governance_forms = list(
+            _iter_filings_for_forms(
+                candidate_filings,
+                form_col,
+                {"DEF 14A", "DEF14A", "DEFA14", "DEFM14", "DEFC14"},
+            )
+        )
+        for entry in governance_forms:
+            _emit_form_fetch(progress_fn, str(ticker), entry["form"], entry["filed_at"], entry["url"])
+            if entry["url"]:
+                status_text = "OK governance evidence captured"
+                _emit_form_status(progress_fn, str(ticker), entry["form"], status_text)
+            else:
+                _emit_form_incomplete(progress_fn, str(ticker), entry["form"], "missing filing URL")
+
         insider, last_insider_date, insider_evidence = _insider_details(candidate_filings, form_col)
+        insider_forms = list(
+            _iter_filings_for_forms(candidate_filings, form_col, {"3", "4", "5"})
+        )
+        for entry in insider_forms:
+            _emit_form_fetch(progress_fn, str(ticker), entry["form"], entry["filed_at"], entry["url"])
+            if entry["url"]:
+                strength = "Strong" if entry["form"].startswith("4") else "Weak"
+                _emit_form_status(
+                    progress_fn,
+                    str(ticker),
+                    entry["form"],
+                    f"OK insider evidence captured ({strength})",
+                )
+            else:
+                _emit_form_incomplete(progress_fn, str(ticker), entry["form"], "missing filing URL")
         biotech_flag = _biotech_peer_flag(str(sector), str(industry))
         biotech_peer_field = "N"
         biotech_peer_evidence = ""

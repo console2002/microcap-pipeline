@@ -86,7 +86,10 @@ class ParseProgressTracker:
                 self.reset()
             return
 
-        match = re.match(r"parse_q10\s*\[(?P<status>[^\]]+)\]\s*(?P<body>.*)", detail)
+        match = re.match(
+            r"(?P<prefix>parse_q10|dr_forms)\s*\[(?P<status>[^\]]+)\]\s*(?P<body>.*)",
+            detail,
+        )
         if not match:
             return
 
@@ -101,6 +104,8 @@ class ParseProgressTracker:
             changed = self._handle_compute(body)
         elif " runway status " in body:
             changed = self._handle_status(body)
+        elif " form status " in body:
+            changed = self._handle_form_status(body)
         elif " incomplete:" in body:
             changed = self._handle_incomplete(body)
         elif re.search(r"\brunway\b.*\bqtrs\b", body):
@@ -146,7 +151,11 @@ class ParseProgressTracker:
         parts = message.split("|", 1)
         detail = parts[1].strip() if len(parts) == 2 else message.strip()
         detail = re.sub(r"^(INFO|WARN|ERROR)\s+", "", detail, flags=re.IGNORECASE)
-        if not (detail.startswith("parse_q10") or detail.startswith("eight_k")):
+        if not (
+            detail.startswith("parse_q10")
+            or detail.startswith("eight_k")
+            or detail.startswith("dr_forms")
+        ):
             return None
         return detail
 
@@ -195,6 +204,25 @@ class ParseProgressTracker:
     def _handle_status(self, body: str) -> bool:
         ticker, status_text = body.split(" runway status ", 1)
         return self._record_outcome(ticker.strip(), status_text.strip(), status_text=status_text.strip())
+
+    def _handle_form_status(self, body: str) -> bool:
+        match = re.match(
+            r"(?P<ticker>\S+)\s+(?P<form>[^\s]+)\s+form status\s+(?P<status>.*)",
+            body,
+        )
+        if not match:
+            return False
+
+        ticker = match.group("ticker").strip()
+        form = self._canonical_form(match.group("form"))
+        status_text = match.group("status").strip()
+
+        stats = self.form_stats.setdefault(form, FormCount())
+        stats.note = "" if form != self._unspecified_form_label else self._missing_form_note
+        self.ticker_last_form[ticker] = form
+        self.ticker_last_key.setdefault(ticker, (ticker, form, ""))
+
+        return self._record_outcome(ticker, status_text, status_text=status_text, force_valid=True)
 
     def _handle_ok(self, body: str) -> bool:
         match = re.match(r"(?P<ticker>\S+)\s+runway\s+", body)
@@ -273,6 +301,14 @@ class ParseProgressTracker:
             ("20-F", "20-F"),
             ("40-F", "40-F"),
             ("6-K", "6-K"),
+            ("S-3", "S-3"),
+            ("S-8", "S-8"),
+            ("424B", "424B"),
+            ("DEFA14A", "DEF 14A"),
+            ("DEF 14", "DEF 14A"),
+            ("3", "FORM 3"),
+            ("4", "FORM 4"),
+            ("5", "FORM 5"),
         ):
             if text.startswith(prefix):
                 return mapped

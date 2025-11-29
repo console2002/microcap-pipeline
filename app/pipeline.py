@@ -1671,7 +1671,7 @@ def run_weekly_pipeline(
             if not os.path.exists(weekly_universe) and os.path.exists(legacy_universe):
                 pd.read_csv(legacy_universe).to_csv(weekly_universe, index=False)
 
-            run_weekly_deep_research(data_dir)
+            run_weekly_deep_research(data_dir, progress_fn=progress_fn)
             build_validated_selections(data_dir)
             _emit(progress_fn, "weekly: W3/W4 outputs generated")
         except Exception as exc:  # pragma: no cover - best-effort alignment

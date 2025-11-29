@@ -108,3 +108,34 @@ def test_parse_tracker_handles_placeholders_and_unspecified() -> None:
         "parse_q10 [INFO] SAMPLE fetching S-3 filed 2024-01-02 url https://example.com"
     )
     assert tracker.form_stats["S-3"].note == ""
+
+
+def test_parse_tracker_handles_dr_forms_and_aliases() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    tracker.process_message(
+        "dr_forms [INFO] TICK fetching 424B5 filed 2024-02-01 url https://example.com/424b5.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] TICK 424B5 form status OK dilution evidence captured"
+    )
+
+    assert "424B" in tracker.form_stats
+    assert tracker.form_stats["424B"].valid == 1
+    assert tracker.form_stats["424B"].parsed == 1
+
+    tracker.process_message(
+        "dr_forms [INFO] TICK fetching DEFA14A filed 2024-02-02 url https://example.com/defa14a.htm"
+    )
+    tracker.process_message(
+        "dr_forms [OK] TICK DEFA14A form status OK governance evidence captured"
+    )
+
+    assert tracker.form_stats["DEF 14A"].valid == 1
+
+    tracker.process_message("dr_forms [INFO] TICK fetching 4 filed 2024-02-03")
+    tracker.process_message("dr_forms [WARN] TICK 4 incomplete: missing filing URL")
+
+    assert tracker.form_stats["FORM 4"].missing == 1
+    assert tracker.form_stats["FORM 4"].parsed == 1
