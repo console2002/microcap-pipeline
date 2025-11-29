@@ -88,3 +88,23 @@ def test_parse_tracker_incomplete_counts_for_filings() -> None:
 
     assert tracker.form_stats["6-K"].missing == 2
     assert tracker.form_stats["6-K"].parsed == 2
+
+
+def test_parse_tracker_handles_placeholders_and_unspecified() -> None:
+    tracker = ParseProgressTracker(on_change=None)
+    tracker.reset()
+
+    assert tracker.form_stats["S-3"].note == "NI"
+    assert tracker.form_stats["FORM 4"].note == "NI"
+
+    tracker.process_message(
+        "parse_q10 [INFO] compute_runway: NOFORM cash=0 ocf=0 months=6 scale=1 est=interim date=2024-01-01"
+    )
+
+    assert tracker.form_stats["Unspecified"].parsed == 1
+    assert tracker.form_stats["Unspecified"].note == "Missing form detail"
+
+    tracker.process_message(
+        "parse_q10 [INFO] SAMPLE fetching S-3 filed 2024-01-02 url https://example.com"
+    )
+    assert tracker.form_stats["S-3"].note == ""

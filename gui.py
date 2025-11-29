@@ -85,12 +85,17 @@ class ParseStatsWidget(QtWidgets.QTreeWidget):
     def _apply_balance_indicator(
         self, item: QtWidgets.QTreeWidgetItem, column: int, stats: FormCount
     ) -> None:
-        balanced = stats.totals_match()
-        item.setText(column, "✓" if balanced else "✗")
-        delta = stats.parsed - (stats.valid + stats.missing)
-        tooltip = "Totals match" if balanced else f"Mismatch by {delta:+d}"
-        item.setToolTip(column, tooltip)
-        color = QtGui.QColor("darkgreen") if balanced else QtGui.QColor("red")
+        if getattr(stats, "note", ""):
+            item.setText(column, stats.note)
+            item.setToolTip(column, stats.note)
+            color = QtGui.QColor("gray")
+        else:
+            balanced = stats.totals_match()
+            item.setText(column, "✓" if balanced else "✗")
+            delta = stats.parsed - (stats.valid + stats.missing)
+            tooltip = "Totals match" if balanced else f"Mismatch by {delta:+d}"
+            item.setToolTip(column, tooltip)
+            color = QtGui.QColor("darkgreen") if balanced else QtGui.QColor("red")
         item.setForeground(column, QtGui.QBrush(color))
 
 

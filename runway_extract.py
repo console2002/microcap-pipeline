@@ -39,6 +39,44 @@ def set_progress_callback(callback: Callable[[str, str], None] | None) -> None:
     _PROGRESS_CALLBACK = callback
 
 
+def _apply_source_metadata_defaults(
+    *,
+    source_form: str,
+    source_date: str,
+    source_url: str,
+    source_days_ago: str,
+    info_to_use: Optional[dict],
+    candidate_infos: List[dict],
+    result_to_use: Optional[dict],
+) -> tuple[str, str, str, str]:
+    """Fill in any missing source telemetry using available filing metadata."""
+
+    fallback_info = info_to_use or (candidate_infos[0] if candidate_infos else None)
+
+    def _filed_at_values(info: Optional[dict]) -> tuple[str, str]:
+        filed_at_dt = info.get("filed_at") if info else None
+        if not filed_at_dt:
+            return "", source_days_ago
+        source_date_value = filed_at_dt.date().isoformat()
+        days_delta = datetime.utcnow().date() - filed_at_dt.date()
+        return source_date_value, str(days_delta.days)
+
+    if info_to_use:
+        source_date, source_days_ago = _filed_at_values(info_to_use)
+        source_form = result_to_use.get("form_type") if result_to_use else (info_to_use.get("form") or source_form)
+        source_url = info_to_use.get("filing_url") or source_url
+
+    if fallback_info:
+        if not source_form:
+            source_form = fallback_info.get("form") or fallback_info.get("original_form") or source_form
+        if not source_date:
+            source_date, source_days_ago = _filed_at_values(fallback_info)
+        if not source_url:
+            source_url = fallback_info.get("filing_url") or source_url
+
+    return source_form, source_date, source_url, source_days_ago
+
+
 def progress(status: str, message: str) -> None:
     path = _progress_log_path()
     timestamp = utc_now_iso()
@@ -502,16 +540,15 @@ def run(data_dir: str | None = None, stop_flag: dict | None = None) -> None:
             ocf_raw = None
             units_scale = None
 
-        if info_to_use:
-            filed_at_dt = info_to_use.get("filed_at")
-            if filed_at_dt:
-                source_date = filed_at_dt.date().isoformat()
-                days_delta = datetime.utcnow().date() - filed_at_dt.date()
-                source_days_ago = str(days_delta.days)
-            source_form = result_to_use.get("form_type") if result_to_use else (info_to_use.get("form") or source_form)
-            source_url = info_to_use.get("filing_url") or source_url
-        else:
-            source_days_ago = ""
+        source_form, source_date, source_url, source_days_ago = _apply_source_metadata_defaults(
+            source_form=source_form,
+            source_date=source_date,
+            source_url=source_url,
+            source_days_ago=source_days_ago,
+            info_to_use=info_to_use,
+            candidate_infos=candidate_infos,
+            result_to_use=result_to_use,
+        )
 
         note_parts: List[str] = []
         seen_notes: set[str] = set()
