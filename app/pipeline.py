@@ -1133,6 +1133,17 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         t0,
         "append+purge",
     )
+
+    filings_summary = summarize_filings_for_weekly(df_all)
+    forms_display = ",".join([f"{item['form']}:{item['count']}" for item in filings_summary["forms"]])
+    filings_msg = (
+        "WEEKLY_FILINGS_SUMMARY "
+        f"total={filings_summary['total']} "
+        f"forms=[{forms_display}]"
+    )
+    logger.info(filings_msg)
+    _emit(progress_fn, filings_msg)
+
     _emit(
         progress_fn,
         f"filings: done {rows_added} new rows ({len(df_all)} total) {adapter.stats_string()}",
@@ -1561,6 +1572,38 @@ def _promote_weekly_shortlist(data_dir: str) -> None:
         pd.read_csv(source).to_csv(canonical_shortlist, index=False)
 
 
+def summarize_filings_for_weekly(df_filings: pd.DataFrame, top_n: int = 6) -> dict:
+    """
+    Return a compact summary of filings by form for WEEKLY diagnostics.
+    """
+
+    if df_filings is None or df_filings.empty:
+        return {"total": 0, "forms": []}
+
+    form_col = "FormType" if "FormType" in df_filings.columns else "Form"
+    if form_col not in df_filings.columns:
+        return {"total": len(df_filings), "forms": []}
+
+    counts = (
+        df_filings[form_col]
+        .fillna("")
+        .astype(str)
+        .str.upper()
+        .str.strip()
+        .value_counts()
+    )
+
+    forms: list[dict] = []
+    for form, count in counts.head(top_n).items():
+        forms.append({"form": form, "count": int(count)})
+
+    other = int(counts.iloc[top_n:].sum()) if len(counts) > top_n else 0
+    if other > 0:
+        forms.append({"form": "Other", "count": other})
+
+    return {"total": int(len(df_filings)), "forms": forms}
+
+
 def _weekly_summary(data_dir: str, progress_fn) -> None:
     summary_targets = {
         "universe": "01_universe_gated.csv",
@@ -1584,14 +1627,14 @@ def _weekly_summary(data_dir: str, progress_fn) -> None:
             counts[label] = 0
 
     summary_line = (
-        "WEEKLY_SUMMARY: "
-        f"universe={counts['universe']} "
-        f"filings={counts['filings']} "
-        f"events={counts['events']} "
-        f"shortlist={counts['shortlist']} "
-        f"deep_research={counts['deep_research']} "
-        f"validated={counts['validated']} "
-        f"tbd={counts['tbd']}"
+        "WEEKLY_SUMMARY "
+        f"Universe={counts['universe']} "
+        f"Filings={counts['filings']} "
+        f"Events={counts['events']} "
+        f"Shortlist={counts['shortlist']} "
+        f"Deep={counts['deep_research']} "
+        f"Validated={counts['validated']} "
+        f"TBD={counts['tbd']}"
     )
     logger.info(summary_line)
     _emit(progress_fn, summary_line)
@@ -1742,7 +1785,7 @@ def run_weekly_pipeline(
             _emit(progress_fn, "deep_research: skipped (using cached output)")
 
         if start_idx <= stages.index("validated"):
-            build_validated_selections(data_dir)
+            build_validated_selections(data_dir, progress_fn=progress_fn)
         else:
             val_path = os.path.join(data_dir, "40_validated_selections.csv")
             tbd_path = os.path.join(data_dir, "40_tbd_exclusions.csv")

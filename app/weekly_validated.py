@@ -3,12 +3,12 @@ from __future__ import annotations
 import csv
 import logging
 import os
-from typing import List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import pandas as pd
 
 from app.config import load_config
-from app.utils import ensure_csv
+from app.utils import ensure_csv, utc_now_iso
 
 MANDATORY_FIELDS = ["RunwayQuarters", "Dilution", "Catalyst"]
 
@@ -24,6 +24,16 @@ def _load_csv(path: str) -> pd.DataFrame:
 def _is_biotech(sector: str, industry: str) -> bool:
     text = f"{sector} {industry}".lower()
     return "biotech" in text or "biotechnology" in text
+
+
+def _emit_progress(progress_fn: Callable[[str], None] | None, message: str) -> None:
+    if progress_fn is None:
+        return
+    progress_fn(f"{utc_now_iso()} | {message}")
+
+
+def _has_value(val) -> bool:
+    return pd.notna(val) and str(val).strip() not in {"", "nan", "TBD", "Unknown"}
 
 
 def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bool:
@@ -49,12 +59,7 @@ def _materiality_passed(materiality: str) -> bool:
     return lowered.startswith("pass")
 
 
-def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
-    """Return (status, reason) using W3/W4 gating rules."""
-
-    def _has_value(val) -> bool:
-        return pd.notna(val) and str(val).strip() not in {"", "nan", "TBD", "Unknown"}
-
+def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], int]:
     dilution_ok = _subscore_evidenced(row, ["Dilution", "DilutionScore"], "DilutionEvidencePrimary")
 
     runway_numeric = _has_value(row.get("RunwayQuarters"))
@@ -64,9 +69,9 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     runway_ok = (runway_numeric or runway_display_ok) and runway_evidence_ok
 
     catalyst_ok = _subscore_evidenced(row, ["Catalyst", "CatalystScore"], "CatalystEvidencePrimary")
-    mandatory_ok = dilution_ok and runway_ok and catalyst_ok
 
     subscore_count = int(row.get("Subscores Evidenced (x/5)", row.get("SubscoresEvidencedCount", 0)) or 0)
+
     materiality_field = row.get("Materiality (pass/fail + note)", row.get("Materiality", ""))
     materiality_ok = _materiality_passed(materiality_field)
 
@@ -76,28 +81,94 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     biotech_needs_peer = biotech_peer.upper().startswith("Y") or biotech_peer.upper().startswith("TBD")
     biotech_ok = not (biotech_needs_peer and biotech_peer.upper().startswith("TBD"))
 
-    if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
+    gates = {
+        "C1": runway_ok,
+        "C2": dilution_ok,
+        "C3": catalyst_ok,
+        "C4": subscore_count >= 4,
+        "C5": biotech_ok,
+        "C6": materiality_ok,
+    }
+    return gates, subscore_count
+
+
+def summarize_validation_gates(df_deep: pd.DataFrame) -> dict:
+    """
+    Compute aggregate validation statistics for the WEEKLY W4 step.
+
+    Returns a dict with at least:
+        {
+            "N_rows": int,
+            "C1_pass": int,
+            "C1_fail": int,
+            "C2_pass": int,
+            "C2_fail": int,
+            "C3_pass": int,
+            "C3_fail": int,
+            "C4_pass": int,
+            "C4_fail": int,
+            "C5_pass": int,
+            "C5_fail": int,
+            "C6_pass": int,
+            "C6_fail": int,
+            "N_validated_all_true": int,
+            "N_any_gate_false": int,
+        }
+    """
+
+    gate_labels = ["C1", "C2", "C3", "C4", "C5", "C6"]
+    stats = {"N_rows": len(df_deep), "N_validated_all_true": 0, "N_any_gate_false": 0}
+
+    for label in gate_labels:
+        stats[f"{label}_pass"] = 0
+        stats[f"{label}_fail"] = 0
+
+    for _, row in df_deep.iterrows():
+        gates, _ = _compute_validation_gates(row)
+        all_true = all(gates.values())
+        if all_true:
+            stats["N_validated_all_true"] += 1
+        else:
+            stats["N_any_gate_false"] += 1
+
+        for label in gate_labels:
+            if gates.get(label):
+                stats[f"{label}_pass"] += 1
+            else:
+                stats[f"{label}_fail"] += 1
+
+    return stats
+
+
+def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
+    """Return (status, reason) using W3/W4 gating rules."""
+
+    gates, subscore_count = _compute_validation_gates(row)
+
+    if all(gates.values()):
         return "Validated", ""
 
     missing_reasons = []
-    if not runway_ok:
+    if not gates["C1"]:
         missing_reasons.append("Mandatory subscore missing: Runway")
-    if not dilution_ok:
+    if not gates["C2"]:
         missing_reasons.append("Mandatory subscore missing: Dilution")
-    if not catalyst_ok:
+    if not gates["C3"]:
         missing_reasons.append("Mandatory subscore missing: Catalyst")
-    if subscore_count < 4:
+    if not gates["C4"]:
         missing_reasons.append("Subscores <4/5")
-    if not biotech_ok:
+    if not gates["C5"]:
         missing_reasons.append("Biotech peer missing")
-    if not materiality_ok:
+    if not gates["C6"]:
         missing_reasons.append("Materiality fail")
 
     reason = "; ".join(missing_reasons) if missing_reasons else "Did not meet validation rule"
     return "TBD — exclude", reason
 
 
-def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_validated_selections(
+    data_dir: str | None = None, progress_fn: Callable[[str], None] | None = None
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     cfg = load_config()
     data_dir = data_dir or cfg.get("Paths", {}).get("data", "data")
 
@@ -249,17 +320,21 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
             }
         )
 
-    reason_counts = (
-        pd.Series([r.get("Reason", "") for r in exclusions_output if r.get("Reason")])
-        .value_counts()
-        .to_dict()
+    stats = summarize_validation_gates(merged)
+    msg = (
+        "WEEKLY_VALIDATION "
+        f"N_rows={stats['N_rows']} "
+        f"N_validated_all_true={stats['N_validated_all_true']} "
+        f"N_any_gate_false={stats['N_any_gate_false']} "
+        f"C1={stats['C1_pass']}/{stats['C1_fail']} "
+        f"C2={stats['C2_pass']}/{stats['C2_fail']} "
+        f"C3={stats['C3_pass']}/{stats['C3_fail']} "
+        f"C4={stats['C4_pass']}/{stats['C4_fail']} "
+        f"C5={stats['C5_pass']}/{stats['C5_fail']} "
+        f"C6={stats['C6_pass']}/{stats['C6_fail']}"
     )
-    logger.info(
-        "WEEKLY_VALIDATION: validated=%s tbd=%s reasons=%s",
-        len(validated_output),
-        len(exclusions_output),
-        reason_counts,
-    )
+    logger.info(msg)
+    _emit_progress(progress_fn, msg)
 
     ensure_csv(val_path, validated_fields)
     with open(val_path, "w", newline="", encoding="utf-8") as handle:
@@ -283,4 +358,8 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
     return pd.DataFrame(validated_output), pd.DataFrame(exclusions_output)
 
 
-__all__ = ["build_validated_selections", "evaluate_validation"]
+__all__ = [
+    "build_validated_selections",
+    "evaluate_validation",
+    "summarize_validation_gates",
+]
