@@ -1,5 +1,7 @@
 import pandas as pd
 
+import pandas as pd
+
 from app.weekly_validated import evaluate_validation, summarize_validation_gates
 
 

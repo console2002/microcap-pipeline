@@ -58,6 +58,9 @@ def _select_primary_event(events: pd.DataFrame) -> dict:
         "EventDate": primary.get("event_date", ""),
         "EventTier": primary.get("event_tier", ""),
         "PrimarySource": primary.get("primary_source_url", primary.get("PrimarySource", "")),
+        "PrimaryCatalystURL": primary.get(
+            "primary_source_url", primary.get("PrimarySource", "")
+        ),
         "SecondarySource": primary.get(
             "secondary_source_url", primary.get("SecondarySource", "")
         ),
@@ -154,6 +157,8 @@ def build_candidate_shortlist(data_dir: str) -> pd.DataFrame:
             "PrimaryCatalystDate": event_info.get("EventDate", ""),
             "EventDate": event_info.get("EventDate", ""),
             "EventTier": event_info.get("EventTier", ""),
+            "PrimaryCatalystTier": event_info.get("EventTier", ""),
+            "PrimaryCatalystURL": event_info.get("PrimaryCatalystURL", ""),
             "PrimaryFilingURL": event_info.get("PrimarySource", ""),
             "PrimarySource": event_info.get("PrimarySource", ""),
             "SecondarySource": event_info.get("SecondarySource", ""),

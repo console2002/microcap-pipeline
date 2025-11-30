@@ -84,6 +84,10 @@ def test_build_candidate_shortlist_w2_columns(tmp_path):
         "ADV20(k)",
         "CatalystType",
         "EventDate",
+        "PrimaryCatalystDate",
+        "PrimaryCatalystType",
+        "PrimaryCatalystTier",
+        "PrimaryCatalystURL",
         "PrimarySource",
         "SecondarySource",
         "NotesStatus",
@@ -93,6 +97,10 @@ def test_build_candidate_shortlist_w2_columns(tmp_path):
     aaa_row = shortlist.set_index("Ticker").loc["AAA"]
     assert aaa_row["EventDate"] == "2024-06-02"
     assert aaa_row["EventTier"] == "Tier-1"
+    assert aaa_row["PrimaryCatalystDate"] == "2024-06-02"
+    assert aaa_row["PrimaryCatalystType"] == "ContractAward"
+    assert aaa_row["PrimaryCatalystTier"] == "Tier-1"
+    assert aaa_row["PrimaryCatalystURL"].startswith("https://www.sec.gov")
     assert aaa_row["NotesStatus"] == "Pass"
 
     bbb_row = shortlist.set_index("Ticker").loc["BBB"]
