@@ -26,16 +26,17 @@ def test_weekly_allowed_forms_roles_include_required_and_exclude_ownership():
     dilution_forms = {
         "S-3",
         "S-3/A",
-        "S-8",
-        "S-8/A",
-        "S-4",
-        "S-4/A",
-        "424B1",
-        "424B3",
-        "424B4",
-        "424B5",
-        "424B7",
-        "424B8",
+        "S-8", 
+        "S-8/A", 
+        "S-4", 
+        "S-4/A", 
+        "424B1", 
+        "424B2", 
+        "424B3", 
+        "424B4", 
+        "424B5", 
+        "424B7", 
+        "424B8", 
     }
     assert dilution_forms.issubset(forms)
 
