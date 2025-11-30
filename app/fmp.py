@@ -5,7 +5,7 @@ import re
 from urllib.parse import parse_qs, urlsplit
 from app.http import HttpClient
 from app.cancel import CancelledRun
-from app.config import filings_form_lookbacks, filings_max_lookback
+from app.config import filings_form_lookbacks, filings_max_lookback, weekly_allowed_forms
 from app.universe_filters import load_drop_filters, should_drop_record
 
 FMP_HOST = "https://financialmodelingprep.com"
@@ -383,9 +383,8 @@ def fetch_filings(
     out = []
 
     key = cfg["FMPKey"]
-    whitelist = [str(x).strip().upper() for x in cfg.get("FilingsWhitelist", [])]
-    wl_forms = {form for form in whitelist if form}
-    whitelist_ordered = sorted(wl_forms, key=len, reverse=True)
+    whitelist = weekly_allowed_forms(cfg)
+    whitelist_ordered = sorted(whitelist, key=len, reverse=True)
     form_lookbacks = filings_form_lookbacks(cfg)
     max_lookback = filings_max_lookback(cfg)
     ratelimit = cfg["RateLimitsPerMin"]["FMP"]

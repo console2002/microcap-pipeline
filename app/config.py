@@ -1,6 +1,29 @@
 import json, os
 from typing import Any, Dict
 
+
+def weekly_allowed_forms(cfg: Dict[str, Any] | None = None) -> set[str]:
+    """
+    Return the set of forms allowed for WEEKLY filings, derived from config.
+
+    Priority:
+      1) Use FilingsWhitelistByRole (union of all groups) if present.
+      2) Fallback to flat FilingsWhitelist list if groups missing.
+    """
+
+    if cfg is None:
+        cfg = load_config()
+
+    by_role = cfg.get("FilingsWhitelistByRole") or {}
+    if by_role:
+        forms: set[str] = set()
+        for group in by_role.values():
+            if group:
+                forms.update(group)
+        return {str(form).strip().upper() for form in forms if str(form).strip()}
+
+    return {str(form).strip().upper() for form in cfg.get("FilingsWhitelist", []) if str(form).strip()}
+
 def load_config(path: str = "config.json") -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)

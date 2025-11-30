@@ -15,7 +15,10 @@ def _base_cfg(tmp_path):
     data_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
     return {
-        "FilingsWhitelist": ["10-Q", "8-K"],
+        "FilingsWhitelistByRole": {
+            "RunwayCore": ["10-Q"],
+            "Catalyst": ["8-K"],
+        },
         "FilingsGroups": {
             "Financials_Quarterly": {
                 "forms": ["10-Q"],
