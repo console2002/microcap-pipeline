@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ from app.shortlist import build_shortlist
 from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class RunwayDropDetail:
@@ -1583,6 +1586,7 @@ def _weekly_summary(data_dir: str, progress_fn) -> None:
         f"validated={counts['validated']} "
         f"tbd={counts['tbd']}"
     )
+    logger.info(summary_line)
     _emit(progress_fn, summary_line)
 
 

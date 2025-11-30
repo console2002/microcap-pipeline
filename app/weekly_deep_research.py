@@ -12,7 +12,6 @@ from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.utils import ensure_csv
-
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
 RUNWAY_FORMS = ("10-Q", "10-K", "20-F", "6-K", "40-F")
 
@@ -134,16 +133,31 @@ def _biotech_peer_flag(sector: str, industry: str) -> str:
 
 
 def _materiality(subscore_count: int, catalyst: str, mandatory_ok: bool) -> str:
-    catalyst_lower = str(catalyst).lower()
+    """Return a PASS/FAIL Materiality string.
+
+    Materiality must always start with PASS or FAIL for downstream validation.
+    """
+
+    catalyst_text = str(catalyst or "").strip()
+    catalyst_lower = catalyst_text.lower()
+
     if not mandatory_ok:
-        return "FAIL - Mandatory subscores missing"
-    if catalyst_lower.startswith("tier-1"):
-        return "PASS - Tier1" if subscore_count >= 4 else "FAIL - Tier1 insufficient support"
-    if catalyst_lower.startswith("tier-2"):
-        return "PASS - Tier2" if subscore_count >= 4 else "FAIL - Tier2 insufficient support"
-    if catalyst_lower not in {"", "none", "tbd"} and subscore_count >= 4:
-        return "PASS - Multi"
-    return "FAIL - Weak catalyst"
+        return "FAIL - mandatory subscore missing"
+
+    strong_catalyst = catalyst_lower.startswith("tier-1")
+    has_catalyst = catalyst_lower not in {"", "none", "tbd", "nan"}
+
+    if strong_catalyst and subscore_count >= 4:
+        return "PASS - Tier1 catalyst"
+    if has_catalyst and subscore_count >= 4:
+        tier2_flag = catalyst_lower.startswith("tier-2")
+        return "PASS - Tier2" if tier2_flag else "PASS - catalyst"
+
+    return "FAIL - weak profile"
+
+
+def _materiality_passed(materiality: str) -> bool:
+    return isinstance(materiality, str) and materiality.strip().upper().startswith("PASS")
 
 
 def _aggregate_evidence(primary_links: list[str]) -> str:
@@ -169,10 +183,14 @@ def _classify_evidence(links: list[str]) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(primary)), list(dict.fromkeys(secondary))
 
 
-def _conviction_from_subscores(subscore_count: int, mandatory_ok: bool, materiality: str) -> str:
-    if not mandatory_ok or not str(materiality).startswith("PASS"):
+def _conviction_from_subscores(subscore_count: int, catalyst: str, materiality: str) -> str:
+    if not _materiality_passed(materiality):
         return "Low"
-    if subscore_count >= 5:
+
+    catalyst_lower = str(catalyst or "").lower()
+    strong_catalyst = catalyst_lower.startswith("tier-1")
+
+    if subscore_count >= 4 and strong_catalyst:
         return "High"
     if subscore_count >= 4:
         return "Medium"
@@ -459,7 +477,7 @@ def run_weekly_deep_research(
         materiality_raw = _materiality(subscore_count, catalyst_label, mandatory_ok)
         materiality_label = materiality_raw
 
-        conviction = _conviction_from_subscores(subscore_count, mandatory_ok, materiality_label)
+        conviction = _conviction_from_subscores(subscore_count, catalyst_label, materiality_label)
         biotech_field = biotech_peer_field if biotech_flag == "Y" else "N"
         status = _status_from_row(mandatory_ok, subscore_count, materiality_label, biotech_field)
 
@@ -520,10 +538,20 @@ def run_weekly_deep_research(
         )
 
     runway_missing_with_evidence = len(runway_evidence_only)
+    total_candidates = len(output_rows)
+    with_quarters = sum(1 for row in output_rows if row.get("RunwayQuarters") is not None and pd.notna(row.get("RunwayQuarters")))
+    missing_quarters = total_candidates - with_quarters
+
     logger.info(
         "weekly_w3: runway summary numeric=%s evidence_only=%s",
         runway_numeric_count,
         runway_missing_with_evidence,
+    )
+    logger.info(
+        "WEEKLY_RUNWAY: total=%s with_quarters=%s missing=%s",
+        total_candidates,
+        with_quarters,
+        missing_quarters,
     )
     if runway_evidence_only:
         logger.debug(
@@ -587,4 +615,11 @@ def run_weekly_deep_research(
     return pd.DataFrame(output_rows)
 
 
-__all__ = ["compute_runway_from_html", "compute_runway_quarters", "run_weekly_deep_research"]
+__all__ = [
+    "compute_runway_from_html",
+    "compute_runway_quarters",
+    "run_weekly_deep_research",
+    "_materiality",
+    "_materiality_passed",
+    "_conviction_from_subscores",
+]
