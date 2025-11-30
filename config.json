@@ -143,6 +143,13 @@
       "5/A"
     ]
   },
+  "FilingsPerTickerLimits": {
+    "Runway": 4,
+    "Dilution": 10,
+    "Catalyst": 12,
+    "Insider": 10,
+    "Governance": 4
+  },
   "ShortlistRule": {
     "UseFilingsCatalyst": true
   },

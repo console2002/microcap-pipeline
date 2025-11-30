@@ -33,6 +33,13 @@ from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
 from app.logging_utils import setup_logging
 from app.shortlist import build_shortlist
+from app.filings_filters import (
+    FPI_ANNUAL_FORM_PREFIXES,
+    FPI_INTERIM_FORM_PREFIXES,
+    US_RUNWAY_FORM_PREFIXES,
+    count_filings_by_role,
+    prune_filings_by_role,
+)
 from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
 
@@ -170,29 +177,6 @@ US_COUNTRY_CODES = {
     "UNITED STATES",
     "UNITED STATES OF AMERICA",
 }
-
-US_RUNWAY_FORM_PREFIXES = (
-    "10-Q",
-    "10-Q/A",
-    "10-QT",
-    "10-QT/A",
-    "10-K",
-    "10-K/A",
-    "10-KT",
-    "10-KT/A",
-)
-
-FPI_ANNUAL_FORM_PREFIXES = (
-    "20-F",
-    "20-F/A",
-    "40-F",
-    "40-F/A",
-)
-
-FPI_INTERIM_FORM_PREFIXES = (
-    "6-K",
-    "6-K/A",
-)
 
 
 def _load_cached_dataframe(
@@ -1246,12 +1230,14 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         rows_added += len(df_unique)
         _persist(df_working)
 
+    fetch_start = time.time()
     adapter.fetch_recent_filings(
         ticks,
         progress_fn=progress_fn,
         stop_flag=stop_flag,
         on_batch=_dedupe_and_append,
     )
+    fetch_ms = int((time.time() - fetch_start) * 1000)
 
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during filings")
@@ -1260,9 +1246,33 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         key_cols = ["CIK", "URL", "Form", "FiledAt", "Ticker"]
 
     df_all = _purge_filings_by_lookback(df_working, cfg)
+    pre_gate_counts, pre_gate_tickers = count_filings_by_role(df_all, cfg)
+    if pre_gate_counts:
+        pre_gate_msg = (
+            "WEEKLY_FILINGS_ROLE_COUNTS_BEFORE_GATE: "
+            f"rows={len(df_all)} roles={pre_gate_counts}"
+        )
+        logger.info(pre_gate_msg)
+        _emit(progress_fn, pre_gate_msg)
+
+    runway_gate_start = time.time()
     df_all, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
         df_all, df_prof, progress_fn, log=False
     )
+    runway_ms = int((time.time() - runway_gate_start) * 1000)
+    post_gate_counts, post_gate_tickers = count_filings_by_role(df_all, cfg)
+    runway_lost = len(
+        (pre_gate_tickers.get("Runway", set()) or set())
+        - (post_gate_tickers.get("Runway", set()) or set())
+    )
+    post_gate_msg = (
+        "WEEKLY_FILINGS_AFTER_RUNWAY_GATE: "
+        f"rows={len(df_all)} "
+        f"roles={post_gate_counts} "
+        f"runway_tickers_dropped={runway_lost}"
+    )
+    logger.info(post_gate_msg)
+    _emit(progress_fn, post_gate_msg)
 
     allowed_forms = weekly_allowed_forms(cfg)
     form_col = _form_column(df_all)
@@ -1283,7 +1293,25 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 after_filter,
             )
 
+    prune_start = time.time()
     df_all = prune_weekly_filings(df_all)
+    df_all, applied_caps = prune_filings_by_role(df_all, cfg)
+    prune_ms = int((time.time() - prune_start) * 1000)
+    post_prune_counts, _ = count_filings_by_role(df_all, cfg)
+    applied_count = sum(
+        1
+        for roles in applied_caps.values()
+        for vals in roles.values()
+        if vals.get("available", 0) > vals.get("kept", vals.get("available", 0))
+    )
+    prune_msg = (
+        "WEEKLY_FILINGS_AFTER_PRUNE: "
+        f"rows={len(df_all)} "
+        f"roles={post_prune_counts} "
+        f"caps_applied={applied_count}"
+    )
+    logger.info(prune_msg)
+    _emit(progress_fn, prune_msg)
     log_weekly_filings_stats(df_all, progress_fn, emit_summary=False)
     _persist(df_all)
 
@@ -1292,6 +1320,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         form_counts = df_all[form_col].fillna("").astype(str).str.upper().value_counts().to_dict()
     duration_ms_total = int((time.time() - t0) * 1000)
     raw_stats = getattr(adapter, "last_filings_stats", {}) or {}
+    rl_wait_sec = raw_stats.get("rl_wait_sec", 0)
     summary_line = (
         "WEEKLY_FILINGS_SUMMARY: "
         f"tickers={df_all['Ticker'].nunique() if 'Ticker' in df_all.columns else 0} "
@@ -1299,7 +1328,12 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         f"raw_filings={raw_stats.get('raw_filings', 0)} "
         f"kept_after_fetch={raw_stats.get('kept_filings', len(df_all))} "
         f"duration_ms={duration_ms_total} "
-        f"forms={form_counts}"
+        f"fetch_ms={fetch_ms} "
+        f"runway_ms={runway_ms} "
+        f"prune_ms={prune_ms} "
+        f"rl_wait_sec={rl_wait_sec} "
+        f"forms={form_counts} "
+        f"roles={post_prune_counts}"
     )
     logger.info(summary_line)
     _emit(progress_fn, summary_line)

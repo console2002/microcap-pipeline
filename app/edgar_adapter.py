@@ -5,6 +5,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
+from threading import Lock
 from typing import Callable, Iterable, Optional
 
 from edgar import Company, Financials, Filing, get_by_accession_number_enriched, set_identity
@@ -91,6 +92,9 @@ class EdgarAdapter:
         self.form_lookbacks = filings_form_lookbacks(cfg)
         self.max_lookback = filings_max_lookback(cfg)
 
+        self.rate_limit_wait_secs = 0.0
+        self._rate_limit_lock = Lock()
+
         throttle_per_min = edgar_cfg.get("ThrottlePerMin") or cfg.get(
             "RateLimitsPerMin", {}
         ).get("SEC")
@@ -113,7 +117,12 @@ class EdgarAdapter:
 
     def _rate_limit(self) -> None:
         if self.rate_limiter:
+            start_wait = time.monotonic()
             self.rate_limiter.acquire()
+            waited = time.monotonic() - start_wait
+            if waited > 0:
+                with self._rate_limit_lock:
+                    self.rate_limit_wait_secs += waited
 
     def _filing_fetch_workers(self) -> int:
         workers_cfg = self.cfg.get("Workers", {}) if isinstance(self.cfg, dict) else {}
@@ -213,18 +222,29 @@ class EdgarAdapter:
             progress_fn(f"[edgar filings] starting {ticker_norm} ({idx}/{total})")
 
         start_time = time.monotonic()
+        fetch_duration_ms = 0
         raw_count = 0
         batch: list[dict] = []
+        cik_value = ""
 
         try:
             company = Company(ticker_norm)
+            cik_value = _normalize_cik(getattr(company, "cik", ""))
         except Exception as exc:
             logger.warning("EDGAR company lookup failed for %s: %s", ticker_norm, exc)
             duration_ms = int((time.monotonic() - start_time) * 1000)
-            return [], {"ticker": ticker_norm, "raw_count": 0, "kept_count": 0, "duration_ms": duration_ms}
+            return [], {
+                "ticker": ticker_norm,
+                "raw_count": 0,
+                "kept_count": 0,
+                "duration_ms": duration_ms,
+                "cik": cik_value,
+                "fetch_ms": fetch_duration_ms,
+            }
 
         try:
             # Only rate-limit the outbound filings fetch, not local object creation.
+            call_start = time.monotonic()
             self._rate_limit()
             filings = company.get_filings(
                 form=whitelist or None,
@@ -232,6 +252,7 @@ class EdgarAdapter:
             )
             filings_list = list(filings) if filings is not None else []
             raw_count = len(filings_list)
+            fetch_duration_ms = int((time.monotonic() - call_start) * 1000)
         except Exception as exc:
             logger.warning("EDGAR filings fetch failed for %s: %s", ticker_norm, exc)
             filings_list = []
@@ -269,8 +290,10 @@ class EdgarAdapter:
         log_message = (
             "WEEKLY_FILINGS_TICKER: "
             f"ticker={ticker_norm} "
+            f"cik={cik_value} "
             f"raw_filings={raw_count} "
             f"kept_after_form_filter={len(batch)} "
+            f"fetch_ms={fetch_duration_ms} "
             f"duration_ms={duration_ms}"
         )
         logger.info(log_message)
@@ -282,6 +305,8 @@ class EdgarAdapter:
             "raw_count": raw_count,
             "kept_count": len(batch),
             "duration_ms": duration_ms,
+            "fetch_ms": fetch_duration_ms,
+            "cik": cik_value,
         }
 
     def fetch_recent_filings(
@@ -304,12 +329,17 @@ class EdgarAdapter:
         total = len(ticker_list)
 
         stats = {"tickers": 0, "raw_filings": 0, "kept_filings": 0}
+        per_ticker: list[dict] = []
+
+        with self._rate_limit_lock:
+            self.rate_limit_wait_secs = 0.0
 
         def _handle_batch(batch: list[dict], ticker_norm: str, per_ticker_stats: dict) -> None:
             nonlocal results
             stats["tickers"] += 1
             stats["raw_filings"] += per_ticker_stats.get("raw_count", 0)
             stats["kept_filings"] += per_ticker_stats.get("kept_count", 0)
+            per_ticker.append(per_ticker_stats)
             if batch:
                 results.extend(batch)
                 if on_batch:
@@ -367,6 +397,31 @@ class EdgarAdapter:
                     ticker_norm = futures[future]
                     batch, per_ticker_stats = future.result()
                     _handle_batch(batch, ticker_norm, per_ticker_stats)
+
+        rl_wait = 0.0
+        with self._rate_limit_lock:
+            rl_wait = round(self.rate_limit_wait_secs, 3)
+            stats["rl_wait_sec"] = rl_wait
+
+        if per_ticker:
+            kept_counts = [entry.get("kept_count", 0) for entry in per_ticker]
+            raw_counts = [entry.get("raw_count", 0) for entry in per_ticker]
+            try:
+                stats["kept_min"] = min(kept_counts)
+                stats["kept_max"] = max(kept_counts)
+                stats["kept_median"] = sorted(kept_counts)[len(kept_counts) // 2]
+                stats["raw_max"] = max(raw_counts)
+            except ValueError:
+                pass
+
+        summary_msg = (
+            "EDGAR_FILINGS_SUMMARY: "
+            f"tickers={stats.get('tickers', 0)} "
+            f"raw={stats.get('raw_filings', 0)} "
+            f"kept={stats.get('kept_filings', 0)} "
+            f"rl_wait_sec={rl_wait}"
+        )
+        logger.info(summary_msg)
 
         self.last_filings_stats = stats
         return results
