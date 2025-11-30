@@ -880,7 +880,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 except Exception:
                     work.at[idx, "RunwayQuarters"] = quarters
                 work.at[idx, "HasRunway"] = True
-                if not work.at[idx, "RunwaySourceURL"]:
+                existing_url = work.at[idx, "RunwaySourceURL"]
+                if pd.isna(existing_url) or str(existing_url).strip() == "":
                     work.at[idx, "RunwaySourceURL"] = url
 
         work["HasRunway"] = work.get("HasRunway", pd.Series(dtype=bool)).fillna(False)
