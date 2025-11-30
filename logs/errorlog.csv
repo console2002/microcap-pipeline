@@ -1,3 +1,1 @@
 timestamp,module,message
-2025-11-29T21:00:02.711325+00:00,run_weekly,locked (already running)
-2025-11-29T21:00:13.049526+00:00,run_weekly,"The truth value of a DataFrame is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all()."

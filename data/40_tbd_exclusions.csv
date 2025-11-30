@@ -1,41 +1,41 @@
-Ticker,Company,CIK,Sector,Industry,Reason
-NUKK,Nukkleus Inc.,1592782,,,Mandatory subscore missing: Runway; Subscores <4/5
-PXLW,"Pixelworks, Inc.",1040161,,,Mandatory subscore missing: Runway
-PETS,"PetMed Express, Inc.",1040130,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-DTSQ,DT Cloud Star Acquisition Corporation,2017950,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-HOVR,New Horizon Aircraft Ltd.,1930021,,,Mandatory subscore missing: Runway
-HUSA,Houston American Energy Corp.,1156041,,,Mandatory subscore missing: Runway
-TNXP,Tonix Pharmaceuticals Holding Corp.,1430306,,,Mandatory subscore missing: Runway
-NXXT,NextNRG Inc.,1817004,,,Mandatory subscore missing: Runway
-BLFY,Blue Foundry Bancorp,1846017,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-IVVD,"Invivyd, Inc.",1832038,,,Mandatory subscore missing: Runway
-SCLX,Scilex Holding Company,1820190,,,Mandatory subscore missing: Runway
-BTM,Bitcoin Depot Inc.,1901799,,,Mandatory subscore missing: Runway
-MAIA,"MAIA Biotechnology, Inc.",1878313,,,Mandatory subscore missing: Runway
-BAER,"Bridger Aerospace Group Holdings, Inc. Common Stock",1941536,,,Mandatory subscore missing: Runway
-RILY,"B. Riley Financial, Inc.",1464790,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-LOAN,"Manhattan Bridge Capital, Inc.",1080340,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-SRFM,Surf Air Mobility Inc.,1936224,,,Mandatory subscore missing: Runway
-PZG,Paramount Gold Nevada Corp.,1629210,,,Mandatory subscore missing: Runway
-RDZN,"Roadzen, Inc.",1868640,,,Mandatory subscore missing: Runway
-PLBY,"Playboy, Inc.",1803914,,,Mandatory subscore missing: Runway
-LOVE,The Lovesac Company,1701758,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-ISBA,Isabella Bank Corporation,842517,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-XTIA,"XTI Aerospace, Inc.",1529113,,,Mandatory subscore missing: Runway
-TVRD,"Tvardi Therapeutics, Inc.",1742947,,,Mandatory subscore missing: Runway
-CYPH,Cypherpunk Technologies Inc.,1509745,,,Mandatory subscore missing: Runway
-EARN,Ellington Credit Company,1560672,,,Mandatory subscore missing: Runway
-APACU,StoneBridge Acquisition II Corporation,2043630,,,Mandatory subscore missing: Runway
-VIASP,"Via Renewables, Inc.",1606268,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-VWAV,"VisionWave Holdings, Inc.",1845942,,,Mandatory subscore missing: Runway
-FLUX,"Flux Power Holdings, Inc.",1083743,,,Mandatory subscore missing: Runway
-ZYXI,"Zynex, Inc.",846475,,,Mandatory subscore missing: Runway; Subscores <4/5
-WTGUU,Wintergreen Acquisition Corp.,2053927,,,Mandatory subscore missing: Runway
-AISP,"Airship AI Holdings, Inc.",1842566,,,Mandatory subscore missing: Runway
-ORMP,Oramed Pharmaceuticals Inc.,1176309,,,Mandatory subscore missing: Runway; Subscores <4/5
-PHGE,BiomX Inc.,1739174,,,Mandatory subscore missing: Runway
-FEMY,Femasys Inc.,1339005,,,Mandatory subscore missing: Runway
-BEEM,Beam Global,1398805,,,Mandatory subscore missing: Runway
-FGBI,"First Guaranty Bancshares, Inc.",1408534,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail
-FNGR,"FingerMotion, Inc.",1602409,,,Mandatory subscore missing: Runway
-ELDN,"Eledon Pharmaceuticals, Inc.",1404281,,,Mandatory subscore missing: Runway
+Ticker,Company,CIK,Sector,Industry,Reason,Materiality,Status
+NUKK,Nukkleus Inc.,1592782,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+PXLW,"Pixelworks, Inc.",1040161,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+PETS,"PetMed Express, Inc.",1040130,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+DTSQ,DT Cloud Star Acquisition Corporation,2017950,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+HOVR,New Horizon Aircraft Ltd.,1930021,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+HUSA,Houston American Energy Corp.,1156041,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+TNXP,Tonix Pharmaceuticals Holding Corp.,1430306,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+NXXT,NextNRG Inc.,1817004,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+BLFY,Blue Foundry Bancorp,1846017,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+IVVD,"Invivyd, Inc.",1832038,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+SCLX,Scilex Holding Company,1820190,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+BTM,Bitcoin Depot Inc.,1901799,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+MAIA,"MAIA Biotechnology, Inc.",1878313,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+BAER,"Bridger Aerospace Group Holdings, Inc. Common Stock",1941536,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+RILY,"B. Riley Financial, Inc.",1464790,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+LOAN,"Manhattan Bridge Capital, Inc.",1080340,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+SRFM,Surf Air Mobility Inc.,1936224,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+PZG,Paramount Gold Nevada Corp.,1629210,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+RDZN,"Roadzen, Inc.",1868640,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+PLBY,"Playboy, Inc.",1803914,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+LOVE,The Lovesac Company,1701758,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+ISBA,Isabella Bank Corporation,842517,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+XTIA,"XTI Aerospace, Inc.",1529113,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+TVRD,"Tvardi Therapeutics, Inc.",1742947,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+CYPH,Cypherpunk Technologies Inc.,1509745,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+EARN,Ellington Credit Company,1560672,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+APACU,StoneBridge Acquisition II Corporation,2043630,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+VIASP,"Via Renewables, Inc.",1606268,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+VWAV,"VisionWave Holdings, Inc.",1845942,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+FLUX,"Flux Power Holdings, Inc.",1083743,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+ZYXI,"Zynex, Inc.",846475,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+WTGUU,Wintergreen Acquisition Corp.,2053927,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+AISP,"Airship AI Holdings, Inc.",1842566,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+ORMP,Oramed Pharmaceuticals Inc.,1176309,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+PHGE,BiomX Inc.,1739174,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+FEMY,Femasys Inc.,1339005,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+BEEM,Beam Global,1398805,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+FGBI,"First Guaranty Bancshares, Inc.",1408534,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+FNGR,"FingerMotion, Inc.",1602409,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
+ELDN,"Eledon Pharmaceuticals, Inc.",1404281,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - Mandatory subscores missing,TBD — exclude
