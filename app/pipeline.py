@@ -851,7 +851,10 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 work[col] = pd.NA
 
         if work.empty:
-            work["HasRunway"] = work.get("HasRunway", pd.Series(dtype=bool)).fillna(False)
+            has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
+            has_runway = has_runway.infer_objects(copy=False)
+            has_runway = has_runway.astype("boolean", copy=False)
+            work["HasRunway"] = has_runway.fillna(False)
             return work
 
         form_col = "FormType" if "FormType" in work.columns else "Form"
@@ -884,7 +887,10 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 if pd.isna(existing_url) or str(existing_url).strip() == "":
                     work.at[idx, "RunwaySourceURL"] = url
 
-        work["HasRunway"] = work.get("HasRunway", pd.Series(dtype=bool)).fillna(False)
+        has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
+        has_runway = has_runway.infer_objects(copy=False)
+        has_runway = has_runway.astype("boolean", copy=False)
+        work["HasRunway"] = has_runway.fillna(False)
         return work
 
     def _prepare_filings_for_cache(
