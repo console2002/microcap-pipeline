@@ -258,8 +258,6 @@ class EdgarAdapter:
                     if not self._is_within_lookback(form_value, filed_at):
                         continue
 
-                    self._rate_limit()
-
                     filing_url = (
                         getattr(filing, "filing_url", None)
                         or getattr(filing, "homepage_url", None)
