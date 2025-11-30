@@ -90,42 +90,29 @@
   "Windows": {
     "DaysBack_Prices": 60
   },
+  "_comment_FilingsWhitelistByRole": "Role-based whitelist for WEEKLY only. Ownership (13D/13G/13F) and 8-A12B are intentionally excluded until an Ownership subscore is implemented.",
   "FilingsWhitelistByRole": {
-    "RunwayCore": [
-      "10-Q",
-      "10-Q/A",
-      "10-K",
-      "10-K/A",
-      "20-F",
-      "20-F/A",
-      "40-F",
-      "6-K"
+    "RunwayAndGovernance": [
+      "10-K", "10-K/A", "10-KT", "10-KT/A",
+      "10-Q", "10-Q/A", "10-QT", "10-QT/A",
+      "20-F", "20-F/A",
+      "40-F", "40-F/A",
+      "6-K", "6-K/A"
     ],
     "Dilution": [
-      "S-3",
-      "S-3/A",
-      "S-8",
-      "S-8/A",
-      "424B3",
-      "424B4",
-      "424B5",
-      "424B2",
-      "424B7"
+      "S-3", "S-3/A",
+      "S-8", "S-8/A",
+      "S-4", "S-4/A",
+      "424B1", "424B3", "424B4", "424B5", "424B7", "424B8"
     ],
     "Catalyst": [
-      "8-K",
-      "8-K/A"
-    ],
-    "Governance": [
-      "DEF 14A"
+      "8-K", "8-K/A",
+      "6-K", "6-K/A"
     ],
     "Insider": [
-      "3",
-      "3/A",
-      "4",
-      "4/A",
-      "5",
-      "5/A"
+      "3", "3/A",
+      "4", "4/A",
+      "5", "5/A"
     ]
   },
   "ShortlistRule": {

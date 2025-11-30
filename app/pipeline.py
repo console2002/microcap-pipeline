@@ -1267,6 +1267,11 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     allowed_forms = weekly_allowed_forms(cfg)
     form_col = _form_column(df_all)
     if form_col and allowed_forms:
+        # NOTE: weekly_allowed_forms is built from FilingsWhitelistByRole in config.
+        # We intentionally EXCLUDE ownership (13D/13G/13F) and 8-A12B in the WEEKLY
+        # feed because the WEEKLY path does not yet implement an Ownership subscore.
+        # When Ownership is added, those forms should be added to a new role and
+        # included in weekly_allowed_forms.
         df_all[form_col] = df_all[form_col].fillna("").astype(str).str.upper().str.strip()
         before_filter = len(df_all)
         df_all = df_all[df_all[form_col].isin(allowed_forms)]
