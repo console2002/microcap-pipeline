@@ -9,6 +9,11 @@
     "UserAgent": "console_2002@yahoo.co.uk",
     "ThrottlePerMin": 600
   },
+  "Workers": {
+    "EDGAR": {
+      "Workers": 1
+    }
+  },
   "MaxWorkers": 4,
   "TimeoutSeconds": 30,
   "Retries": 3,

@@ -1286,6 +1286,24 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     df_all = prune_weekly_filings(df_all)
     log_weekly_filings_stats(df_all, progress_fn, emit_summary=False)
     _persist(df_all)
+
+    form_counts = {}
+    if form_col:
+        form_counts = df_all[form_col].fillna("").astype(str).str.upper().value_counts().to_dict()
+    duration_ms_total = int((time.time() - t0) * 1000)
+    raw_stats = getattr(adapter, "last_filings_stats", {}) or {}
+    summary_line = (
+        "WEEKLY_FILINGS_SUMMARY: "
+        f"tickers={df_all['Ticker'].nunique() if 'Ticker' in df_all.columns else 0} "
+        f"total_filings={len(df_all)} "
+        f"raw_filings={raw_stats.get('raw_filings', 0)} "
+        f"kept_after_fetch={raw_stats.get('kept_filings', len(df_all))} "
+        f"duration_ms={duration_ms_total} "
+        f"forms={form_counts}"
+    )
+    logger.info(summary_line)
+    _emit(progress_fn, summary_line)
+
     log_weekly_filings_stats(df_all, progress_fn, emit_per_ticker=False)
 
     total_drop_details = {**drop_details, **gate_drop_details}
