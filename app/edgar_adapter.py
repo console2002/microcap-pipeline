@@ -231,13 +231,13 @@ class EdgarAdapter:
                 progress_fn(f"[edgar filings] starting {ticker_norm} ({idx}/{total})")
 
             try:
-                self._rate_limit()
                 company = Company(ticker_norm)
             except Exception as exc:
                 logger.warning("EDGAR company lookup failed for %s: %s", ticker_norm, exc)
                 continue
 
             try:
+                # Only rate-limit the outbound filings fetch, not local object creation.
                 self._rate_limit()
                 filings = company.get_filings(
                     form=whitelist or None,
