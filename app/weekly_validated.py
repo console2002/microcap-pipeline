@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import csv
+import logging
 import os
 from typing import List, Tuple
 
-import logging
 import pandas as pd
 
 from app.config import load_config
@@ -52,13 +52,18 @@ def _materiality_passed(materiality: str) -> bool:
 def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     """Return (status, reason) using W3/W4 gating rules."""
 
-    dilution_ok = _subscore_evidenced(row, "Dilution", "DilutionEvidencePrimary")
-    runway_value = row.get("RunwayQuarters", row.get("Runway (qtrs)"))
-    runway_numeric = pd.notna(runway_value) and str(runway_value) not in {"", "nan", "TBD", "Unknown"}
-    runway_ok = runway_numeric and _subscore_evidenced(
-        row, ["RunwayQuarters", "Runway (qtrs)"], "RunwayEvidencePrimary"
-    )
-    catalyst_ok = _subscore_evidenced(row, "Catalyst", "CatalystEvidencePrimary")
+    def _has_value(val) -> bool:
+        return pd.notna(val) and str(val).strip() not in {"", "nan", "TBD", "Unknown"}
+
+    dilution_ok = _subscore_evidenced(row, ["Dilution", "DilutionScore"], "DilutionEvidencePrimary")
+
+    runway_numeric = _has_value(row.get("RunwayQuarters"))
+    runway_display = str(row.get("Runway (qtrs)", "")).strip()
+    runway_display_ok = runway_display not in {"", "nan", "TBD", "Unknown"}
+    runway_evidence_ok = _has_value(row.get("RunwayEvidencePrimary"))
+    runway_ok = (runway_numeric or runway_display_ok) and runway_evidence_ok
+
+    catalyst_ok = _subscore_evidenced(row, ["Catalyst", "CatalystScore"], "CatalystEvidencePrimary")
     mandatory_ok = dilution_ok and runway_ok and catalyst_ok
 
     subscore_count = int(row.get("Subscores Evidenced (x/5)", row.get("SubscoresEvidencedCount", 0)) or 0)
@@ -67,26 +72,24 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
 
     biotech_peer = str(
         row.get("BiotechPeerRead", row.get("Biotech Peer Read-Through (Y/N + link)", ""))
-    )
-    biotech_ok = not biotech_peer.startswith("TBD")
+    ).strip()
+    biotech_needs_peer = biotech_peer.upper().startswith("Y") or biotech_peer.upper().startswith("TBD")
+    biotech_ok = not (biotech_needs_peer and biotech_peer.upper().startswith("TBD"))
 
     if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
         return "Validated", ""
 
     missing_reasons = []
-    missing_mandatory = []
     if not runway_ok:
-        missing_mandatory.append("Runway")
+        missing_reasons.append("Mandatory subscore missing: Runway")
     if not dilution_ok:
-        missing_mandatory.append("Dilution")
+        missing_reasons.append("Mandatory subscore missing: Dilution")
     if not catalyst_ok:
-        missing_mandatory.append("Catalyst")
-    if missing_mandatory:
-        missing_reasons.append("Mandatory subscore missing: " + ", ".join(missing_mandatory))
+        missing_reasons.append("Mandatory subscore missing: Catalyst")
     if subscore_count < 4:
         missing_reasons.append("Subscores <4/5")
     if not biotech_ok:
-        missing_reasons.append("Biotech peer read-through missing")
+        missing_reasons.append("Biotech peer missing")
     if not materiality_ok:
         missing_reasons.append("Materiality fail")
 
@@ -155,8 +158,11 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
         "ADV20",
         "Runway (qtrs)",
         "RunwayQuarters",
+        "RunwayEvidencePrimary",
         "DilutionScore",
+        "DilutionEvidencePrimary",
         "CatalystScore",
+        "CatalystEvidencePrimary",
         "GovernanceScore",
         "InsiderScore",
         "BiotechPeerRead",
@@ -208,8 +214,11 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
                 "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
                 "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
                 "RunwayQuarters": r.get("RunwayQuarters"),
+                "RunwayEvidencePrimary": r.get("RunwayEvidencePrimary"),
                 "DilutionScore": r.get("Dilution", r.get("DilutionScore")),
+                "DilutionEvidencePrimary": r.get("DilutionEvidencePrimary"),
                 "CatalystScore": r.get("Catalyst", r.get("CatalystScore")),
+                "CatalystEvidencePrimary": r.get("CatalystEvidencePrimary"),
                 "GovernanceScore": r.get("Governance", r.get("GovernanceScore")),
                 "InsiderScore": r.get("Insider", r.get("InsiderScore")),
                 "BiotechPeerRead": r.get("BiotechPeerRead", r.get("Biotech Peer Read-Through (Y/N + link)")),
@@ -246,7 +255,7 @@ def build_validated_selections(data_dir: str | None = None) -> tuple[pd.DataFram
         .to_dict()
     )
     logger.info(
-        "WEEKLY_VALIDATION: validated=%s tbd=%s by_reason=%s",
+        "WEEKLY_VALIDATION: validated=%s tbd=%s reasons=%s",
         len(validated_output),
         len(exclusions_output),
         reason_counts,
