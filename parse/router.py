@@ -1,4 +1,13 @@
-"""Routing entry point for runway parsing."""
+"""Routing entry point for runway parsing.
+
+`get_runway_from_filing` is the primary pipeline hook used by
+``parser_10q``/``runway_extract`` to populate ``runway_extract_results.csv``.
+The function resolves a filing URL, then delegates to
+``app.edgar_adapter.EdgarAdapter.runway_from_financials`` which pulls
+EDGAR/edgartools financials, normalizes operating cash flow to a
+quarterly value, and finally returns the standardized runway dict used by
+weekly and deep-research stages.
+"""
 from __future__ import annotations
 
 import json

@@ -418,6 +418,14 @@ class EdgarAdapter:
         }
 
     def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
+        """Compute runway using EDGAR/edgartools financial statements.
+
+        This is the canonical runway path: filings are resolved via edgartools
+        and values are sourced from the rendered balance sheet and cash-flow
+        statement. Legacy HTML/iXBRL regex helpers remain available elsewhere
+        but are only used as fallbacks when this primary path cannot produce a
+        result.
+        """
         from parse.units import normalize_ocf_value
         from parse.postproc import finalize_runway_result
 

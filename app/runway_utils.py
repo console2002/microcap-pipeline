@@ -26,6 +26,8 @@ def _extract_numeric(text: str) -> float | None:
 
 
 def compute_runway_from_html(html_text: str) -> float | None:
+    """Legacy regex-based runway fallback for HTML fragments."""
+
     if not html_text:
         return None
     cash_match = re.search(
@@ -66,12 +68,28 @@ def _runway_from_filing(url: str, adapter=None) -> float | None:
 
 
 def compute_runway_quarters(url: str, adapter=None) -> Tuple[float | None, bool]:
-    """Return (runway_quarters, used_primary_parser)."""
+    """Return (runway_quarters, used_primary_parser).
+
+    The primary path uses ``EdgarAdapter.runway_from_financials`` so gating
+    logic aligns with the EDGAR-first pipeline. HTML parsing is only used as a
+    last-resort fallback.
+    """
 
     if not url:
         return None, False
 
     adapter = adapter or get_adapter()
+
+    try:
+        primary_result = adapter.runway_from_financials(url, None)
+    except Exception:
+        primary_result = None
+        logger.debug("runway_utils: runway_from_financials failed", exc_info=True)
+    else:
+        if primary_result:
+            quarters = primary_result.get("runway_quarters")
+            if quarters is not None and quarters > 0:
+                return round(float(quarters), 2), True
 
     try:
         filing = adapter._resolve_filing(url)  # type: ignore[attr-defined]
