@@ -1,4 +1,4 @@
-# LEGACY: retained for archival/reference. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
+# LEGACY: Retained for archival/reference only. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
 """Populate deep-research results with catalyst/dilution/governance insights."""
 from __future__ import annotations
 

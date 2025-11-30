@@ -1,5 +1,4 @@
-# LEGACY: pre-weekly pipeline module kept for compatibility.
-# LEGACY: retained for archival/reference. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
+# LEGACY: Retained for archival/reference only. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
 """Deep research pipeline stub for catalysts, dilution, and runway analysis."""
 from __future__ import annotations
 

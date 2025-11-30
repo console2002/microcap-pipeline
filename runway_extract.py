@@ -1,4 +1,4 @@
-# LEGACY: retained for archival/reference. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
+# LEGACY: Retained for archival/reference only. Not used by the WEEKLY W1–W4 pipeline. Do not extend for new features.
 """Populate cash runway metrics for research results using SEC filings."""
 from __future__ import annotations
 
