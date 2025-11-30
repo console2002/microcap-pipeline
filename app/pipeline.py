@@ -12,7 +12,12 @@ from app import dr_populate
 from app.build_watchlist import generate_eight_k_events, run as build_watchlist_run
 from app.cache import append_antijoin_purge
 from app.cancel import CancelledRun
-from app.config import filings_form_lookbacks, filings_max_lookback, load_config
+from app.config import (
+    filings_form_lookbacks,
+    filings_max_lookback,
+    load_config,
+    weekly_allowed_forms,
+)
 from app.csv_names import csv_filename, csv_path
 from app.fda import fetch_fda_events
 from app.fmp import (
@@ -340,6 +345,139 @@ def _purge_filings_by_lookback(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         columns=["Form_norm", "FiledAt_dt"]
     )
     return df
+
+
+def _form_column(df: pd.DataFrame) -> str | None:
+    if df is None or df.empty:
+        return None
+    if "Form" in df.columns:
+        return "Form"
+    if "FormType" in df.columns:
+        return "FormType"
+    return None
+
+
+def prune_weekly_filings(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keep only the most recent filings per (Ticker, Form) according to limits.
+    """
+
+    if df is None or df.empty:
+        return df
+
+    form_col = _form_column(df)
+    if form_col is None:
+        return df
+
+    filed_col = "FiledAt" if "FiledAt" in df.columns else None
+    if filed_col is None:
+        return df
+
+    work = df.copy()
+    work["_FormKey"] = work[form_col].fillna("").astype(str).str.upper().str.strip()
+    work["_FiledDt"] = pd.to_datetime(work[filed_col], errors="coerce", utc=True)
+
+    group_key = "Ticker" if "Ticker" in work.columns else None
+    if group_key is None and "CIK" in work.columns:
+        group_key = "CIK"
+
+    if group_key is None:
+        return work.drop(columns=["_FormKey", "_FiledDt"], errors="ignore")
+
+    limits = {
+        "10-Q": 3,
+        "10-Q/A": 3,
+        "10-K": 3,
+        "10-K/A": 3,
+        "20-F": 3,
+        "20-F/A": 3,
+        "40-F": 3,
+        "6-K": 5,
+        "S-3": 5,
+        "S-3/A": 5,
+        "S-8": 5,
+        "S-8/A": 5,
+        "424B3": 5,
+        "424B4": 5,
+        "424B5": 5,
+        "424B2": 5,
+        "424B7": 5,
+        "8-K": 10,
+        "8-K/A": 10,
+        "DEF 14A": 3,
+        "3": 5,
+        "3/A": 5,
+        "4": 10,
+        "4/A": 10,
+        "5": 5,
+        "5/A": 5,
+    }
+    default_limit = 3
+
+    trimmed: list[pd.DataFrame] = []
+    for (ticker, form_key), group in work.groupby([group_key, "_FormKey"], dropna=False):
+        limit = limits.get(form_key, default_limit)
+        subset = group.sort_values("_FiledDt", ascending=False, na_position="last").head(limit)
+        trimmed.append(subset)
+
+    result = pd.concat(trimmed, ignore_index=True) if trimmed else work.iloc[0:0]
+    return result.drop(columns=["_FormKey", "_FiledDt"], errors="ignore")
+
+
+def log_weekly_filings_stats(
+    df: pd.DataFrame, progress_fn, *, emit_per_ticker: bool = True, emit_summary: bool = True
+) -> None:
+    if df is None or df.empty:
+        return
+
+    form_col = _form_column(df)
+    group_key = "Ticker" if "Ticker" in df.columns else None
+    if group_key is None and "CIK" in df.columns:
+        group_key = "CIK"
+
+    if form_col is None:
+        return
+
+    work = df.copy()
+    work["_FormKey"] = work[form_col].fillna("").astype(str).str.upper().str.strip()
+
+    if emit_per_ticker and group_key:
+        for ticker, group in work.groupby(group_key, dropna=False):
+            counts = group["_FormKey"].value_counts().to_dict()
+            message = (
+                "WEEKLY_FILINGS_TICKER: "
+                f"ticker={ticker} "
+                f"total={len(group)} "
+                f"forms={counts}"
+            )
+            logger.info(message)
+            _emit(progress_fn, message)
+
+    if emit_summary:
+        total_rows = len(work)
+        distinct_tickers = (
+            work[group_key]
+            .fillna("")
+            .astype(str)
+            .str.upper()
+            .str.strip()
+            .nunique()
+            if group_key
+            else 0
+        )
+        forms_counts = work["_FormKey"].value_counts()
+        forms_top = [f"{form}:{count}" for form, count in forms_counts.head(8).items()]
+        mean_per_ticker = total_rows / distinct_tickers if distinct_tickers else 0
+
+        summary_msg = (
+            "WEEKLY_FILINGS_SUMMARY: "
+            f"rows={total_rows} "
+            f"tickers={distinct_tickers} "
+            f"mean_forms_per_ticker={mean_per_ticker:.2f} "
+            f"forms_top={forms_top}"
+        )
+        logger.info(summary_msg)
+        _emit(progress_fn, summary_msg)
 
 
 def _forms_support_runway(forms: set[str], country: str) -> tuple[bool, str]:
@@ -1035,6 +1173,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     _emit(progress_fn, "filings: start")
     ticks = df_prof["Ticker"].tolist()
 
+    # TODO: consider honoring cfg['Workers'].get('EDGAR', {}).get('Workers', 1) for
+    # concurrent fetches while preserving existing rate limits.
+
     filings_path = csv_path(cfg["Paths"]["data"], "filings")
     df_cached = (
         pd.read_csv(filings_path, encoding="utf-8")
@@ -1122,7 +1263,30 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
     df_all, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
         df_all, df_prof, progress_fn, log=False
     )
+
+    allowed_forms = weekly_allowed_forms(cfg)
+    form_col = _form_column(df_all)
+    if form_col and allowed_forms:
+        # NOTE: weekly_allowed_forms is built from FilingsWhitelistByRole in config.
+        # We intentionally EXCLUDE ownership (13D/13G/13F) and 8-A12B in the WEEKLY
+        # feed because the WEEKLY path does not yet implement an Ownership subscore.
+        # When Ownership is added, those forms should be added to a new role and
+        # included in weekly_allowed_forms.
+        df_all[form_col] = df_all[form_col].fillna("").astype(str).str.upper().str.strip()
+        before_filter = len(df_all)
+        df_all = df_all[df_all[form_col].isin(allowed_forms)]
+        after_filter = len(df_all)
+        if before_filter != after_filter:
+            logger.info(
+                "filings: filtered to weekly whitelist %s -> %s rows",
+                before_filter,
+                after_filter,
+            )
+
+    df_all = prune_weekly_filings(df_all)
+    log_weekly_filings_stats(df_all, progress_fn, emit_summary=False)
     _persist(df_all)
+    log_weekly_filings_stats(df_all, progress_fn, emit_per_ticker=False)
 
     total_drop_details = {**drop_details, **gate_drop_details}
     total_eligible = eligible_tickers | gate_eligible
@@ -1134,16 +1298,6 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         t0,
         "append+purge",
     )
-
-    filings_summary = summarize_filings_for_weekly(df_all)
-    forms_display = ",".join([f"{item['form']}:{item['count']}" for item in filings_summary["forms"]])
-    filings_msg = (
-        "WEEKLY_FILINGS_SUMMARY "
-        f"total={filings_summary['total']} "
-        f"forms=[{forms_display}]"
-    )
-    logger.info(filings_msg)
-    _emit(progress_fn, filings_msg)
 
     _emit(
         progress_fn,

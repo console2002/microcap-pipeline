@@ -10,7 +10,12 @@ from edgar.httprequests import download_text
 from edgar.reference.tickers import get_company_tickers
 
 from app.cancel import CancelledRun
-from app.config import filings_form_lookbacks, filings_max_lookback, load_config
+from app.config import (
+    filings_form_lookbacks,
+    filings_max_lookback,
+    load_config,
+    weekly_allowed_forms,
+)
 from app.rate_limit import RateLimiter
 from app.universe_filters import load_drop_filters, should_drop_record
 
@@ -80,11 +85,7 @@ class EdgarAdapter:
 
         self.cfg = cfg
         edgar_cfg = cfg.get("Edgar", {})
-        self.forms_whitelist = [
-            str(value).strip().upper()
-            for value in cfg.get("FilingsWhitelist", [])
-            if str(value).strip()
-        ]
+        self.forms_whitelist = sorted(weekly_allowed_forms(cfg))
         self.form_lookbacks = filings_form_lookbacks(cfg)
         self.max_lookback = filings_max_lookback(cfg)
 
