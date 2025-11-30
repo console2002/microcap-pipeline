@@ -40,3 +40,15 @@ Set a valid EDGAR user agent in `config.json` under the `Edgar` section (falls b
 ```
 
 This identity is required for all `edgartools` requests. Update the throttle to align with your SEC usage policy.
+
+### Choose filings source (SEC vs FMP)
+
+Weekly filings now support either the SEC feed (default) or your FMP subscription for the ticker → filings listing. Configure the source in `config.json`:
+
+```json
+"Filings": {
+  "Source": "EDGAR"  // or "FMP" to use api/v3/sec_filings
+}
+```
+
+The downstream parsing and runway extraction still rely on EDGAR, so switching to FMP only swaps out the listing step.
