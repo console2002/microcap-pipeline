@@ -69,6 +69,9 @@
     ],
     "NormalizeTicker": true
   },
+  "Filings": {
+    "Source": "EDGAR"
+  },
   "HardGates": {
     "MinPrice": 1.0,
     "CapMin": 25000000,

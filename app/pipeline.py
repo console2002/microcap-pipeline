@@ -24,6 +24,7 @@ from app.fmp import (
     fetch_aftermarket_quotes,
     fetch_prices,
     fetch_profiles,
+    fetch_filings as fetch_filings_fmp,
 )
 from app.edgar_adapter import EdgarAdapter, set_adapter
 from app.runway_utils import compute_runway_quarters
@@ -1154,7 +1155,13 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         return df_fil, key_cols, eligible, drop_map
 
     t0 = time.time()
-    _emit(progress_fn, "filings: start")
+    filings_source = (
+        str(cfg.get("Filings", {}).get("Source", "EDGAR"))
+        .strip()
+        .upper()
+    )
+
+    _emit(progress_fn, f"filings: start (source={filings_source})")
     ticks = df_prof["Ticker"].tolist()
 
     # TODO: consider honoring cfg['Workers'].get('EDGAR', {}).get('Workers', 1) for
@@ -1231,13 +1238,28 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         _persist(df_working)
 
     fetch_start = time.time()
-    adapter.fetch_recent_filings(
-        ticks,
-        progress_fn=progress_fn,
-        stop_flag=stop_flag,
-        on_batch=_dedupe_and_append,
-    )
-    fetch_ms = int((time.time() - fetch_start) * 1000)
+
+    if filings_source == "FMP":
+        client = make_client(cfg)
+        fmp_rows = fetch_filings_fmp(
+            client, cfg, ticks, progress_fn=progress_fn, stop_flag=stop_flag
+        )
+        _dedupe_and_append(fmp_rows)
+        fetch_ms = int((time.time() - fetch_start) * 1000)
+        adapter.last_filings_stats = {
+            "source": "FMP",
+            "raw_filings": len(fmp_rows),
+            "kept_filings": len(fmp_rows),
+            "rl_wait_sec": 0,
+        }
+    else:
+        adapter.fetch_recent_filings(
+            ticks,
+            progress_fn=progress_fn,
+            stop_flag=stop_flag,
+            on_batch=_dedupe_and_append,
+        )
+        fetch_ms = int((time.time() - fetch_start) * 1000)
 
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during filings")
@@ -1320,6 +1342,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         form_counts = df_all[form_col].fillna("").astype(str).str.upper().value_counts().to_dict()
     duration_ms_total = int((time.time() - t0) * 1000)
     raw_stats = getattr(adapter, "last_filings_stats", {}) or {}
+    if "source" not in raw_stats:
+        raw_stats = {"source": filings_source, **raw_stats}
+
     rl_wait_sec = raw_stats.get("rl_wait_sec", 0)
     summary_line = (
         "WEEKLY_FILINGS_SUMMARY: "
@@ -1327,6 +1352,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         f"total_filings={len(df_all)} "
         f"raw_filings={raw_stats.get('raw_filings', 0)} "
         f"kept_after_fetch={raw_stats.get('kept_filings', len(df_all))} "
+        f"source={raw_stats.get('source', filings_source)} "
         f"duration_ms={duration_ms_total} "
         f"fetch_ms={fetch_ms} "
         f"runway_ms={runway_ms} "
