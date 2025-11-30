@@ -26,6 +26,7 @@ from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
+from app.logging_utils import setup_logging
 from app.shortlist import build_shortlist
 from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
@@ -1655,6 +1656,7 @@ def run_weekly_pipeline(
         stop_flag = {"stop": False}
 
     cfg = load_config()
+    setup_logging()
     runlog, errlog = init_logs(cfg)
 
     if cfg["GUI"]["SingleRunLock"] and is_locked(cfg):
@@ -1815,6 +1817,7 @@ def run_daily_pipeline(stop_flag=None, progress_fn=None, start_stage: str = "pri
         stop_flag = {"stop": False}
 
     cfg = load_config()
+    setup_logging()
     runlog, errlog = init_logs(cfg)
 
     if cfg["GUI"]["SingleRunLock"] and is_locked(cfg):

@@ -29,6 +29,8 @@ def test_w3_deep_research_and_w4(tmp_path):
                 "ADV20": 50000,
                 "PrimaryCatalystType": "Earnings",
                 "PrimaryCatalystDate": "2024-05-01",
+                "PrimaryCatalystTier": "Tier-1",
+                "PrimaryCatalystURL": "https://www.sec.gov/abc",
                 "PrimaryFilingURL": "file://" + str((tmp_path / "filing.html")),
             },
             {
@@ -42,6 +44,8 @@ def test_w3_deep_research_and_w4(tmp_path):
                 "ADV20": 80000,
                 "PrimaryCatalystType": "Contract",
                 "PrimaryCatalystDate": "2024-05-02",
+                "PrimaryCatalystTier": "Tier-2",
+                "PrimaryCatalystURL": "https://www.sec.gov/xyz",
                 "PrimaryFilingURL": "",
             },
         ],
@@ -127,4 +131,17 @@ def test_w3_deep_research_and_w4(tmp_path):
     assert validated.iloc[0]["Ticker"] == "ABC"
     assert len(exclusions) == 1
     assert exclusions.iloc[0]["Ticker"] == "XYZ"
-    assert set(validated.columns) >= {"ValidationStatus", "PrimarySource", "SecondarySource"}
+    assert set(validated.columns) >= {
+        "ValidationStatus",
+        "PrimarySource",
+        "SecondarySource",
+        "PrimaryCatalystTier",
+        "PrimaryCatalystURL",
+        "CatalystEvidencePrimary",
+    }
+
+    validated_row = validated.set_index("Ticker").loc["ABC"]
+    deep_row = dr_df.set_index("Ticker").loc["ABC"]
+    assert validated_row["DilutionScore"] == deep_row["Dilution"]
+    assert validated_row["CatalystScore"] == deep_row["Catalyst"]
+    assert validated_row["RunwayEvidencePrimary"] == deep_row["RunwayEvidencePrimary"]

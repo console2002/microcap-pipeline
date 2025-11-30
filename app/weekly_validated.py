@@ -8,17 +8,22 @@ from typing import Callable, Dict, List, Tuple
 import pandas as pd
 
 from app.config import load_config
-from app.utils import ensure_csv, utc_now_iso
+from app.utils import ensure_csv, log_line, utc_now_iso
 
 MANDATORY_FIELDS = ["RunwayQuarters", "Dilution", "Catalyst"]
 
 logger = logging.getLogger(__name__)
 
+_PROGRESS_LOG_PATH: str | None = None
+
 
 def _load_csv(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
         return pd.DataFrame()
-    return pd.read_csv(path, encoding="utf-8")
+    try:
+        return pd.read_csv(path, encoding="utf-8")
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
 
 
 def _is_biotech(sector: str, industry: str) -> bool:
@@ -30,6 +35,26 @@ def _emit_progress(progress_fn: Callable[[str], None] | None, message: str) -> N
     if progress_fn is None:
         return
     progress_fn(f"{utc_now_iso()} | {message}")
+
+
+def _progress_log_path() -> str:
+    global _PROGRESS_LOG_PATH
+    if _PROGRESS_LOG_PATH:
+        return _PROGRESS_LOG_PATH
+
+    cfg = load_config()
+    logs_dir = cfg.get("Paths", {}).get("logs", "./logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    path = os.path.join(logs_dir, "progress.csv")
+    ensure_csv(path, ["timestamp", "status", "message"])
+    _PROGRESS_LOG_PATH = path
+    return path
+
+
+def _log_progress_line(message: str, progress_fn: Callable[[str], None] | None, status: str = "INFO") -> None:
+    path = _progress_log_path()
+    log_line(path, [utc_now_iso(), status, message])
+    _emit_progress(progress_fn, message)
 
 
 def _has_value(val) -> bool:
@@ -166,6 +191,53 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     return "TBD — exclude", reason
 
 
+def _log_weekly_summary(data_dir: str, progress_fn: Callable[[str], None] | None = None) -> None:
+    paths = {
+        "universe": os.path.join(data_dir, "01_universe_gated.csv"),
+        "filings": os.path.join(data_dir, "02_filings.csv"),
+        "events": os.path.join(data_dir, "09_events.csv"),
+        "shortlist": os.path.join(data_dir, "20_candidate_shortlist.csv"),
+        "deep": os.path.join(data_dir, "30_deep_research.csv"),
+        "validated": os.path.join(data_dir, "40_validated_selections.csv"),
+        "tbd": os.path.join(data_dir, "40_tbd_exclusions.csv"),
+    }
+
+    counts = {name: len(_load_csv(path)) for name, path in paths.items()}
+    msg = (
+        "WEEKLY_SUMMARY: "
+        f"universe={counts['universe']} "
+        f"filings={counts['filings']} "
+        f"events={counts['events']} "
+        f"shortlist={counts['shortlist']} "
+        f"deep={counts['deep']} "
+        f"validated={counts['validated']} "
+        f"tbd={counts['tbd']}"
+    )
+    logger.info(msg)
+    _log_progress_line(msg, progress_fn)
+
+
+def _log_weekly_validation_breakdown(
+    stats: Dict[str, int], exclusions: pd.DataFrame, progress_fn: Callable[[str], None] | None = None
+) -> None:
+    reason_counts: Dict[str, int] = {}
+    if not exclusions.empty and "Reason" in exclusions.columns:
+        series = exclusions["Reason"].fillna("").astype(str)
+        counts = series.value_counts()
+        reason_counts = counts.to_dict()
+
+    reason_parts = [f"{reason}={count}" for reason, count in list(reason_counts.items())[:4]]
+    reason_text = ", ".join(reason_parts) if reason_parts else "none"
+    msg = (
+        "WEEKLY_VALIDATION: "
+        f"validated={stats.get('N_validated_all_true', 0)} "
+        f"tbd={stats.get('N_any_gate_false', 0)} "
+        f"reasons=[{reason_text}]"
+    )
+    logger.info(msg)
+    _log_progress_line(msg, progress_fn)
+
+
 def build_validated_selections(
     data_dir: str | None = None, progress_fn: Callable[[str], None] | None = None
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -227,13 +299,10 @@ def build_validated_selections(
         "Price",
         "MarketCap",
         "ADV20",
-        "Runway (qtrs)",
         "RunwayQuarters",
-        "RunwayEvidencePrimary",
+        "Runway (qtrs)",
         "DilutionScore",
-        "DilutionEvidencePrimary",
         "CatalystScore",
-        "CatalystEvidencePrimary",
         "GovernanceScore",
         "InsiderScore",
         "BiotechPeerRead",
@@ -242,6 +311,11 @@ def build_validated_selections(
         "ConvictionScore",
         "PrimaryCatalystDate",
         "PrimaryCatalystType",
+        "PrimaryCatalystTier",
+        "PrimaryCatalystURL",
+        "RunwayEvidencePrimary",
+        "DilutionEvidencePrimary",
+        "CatalystEvidencePrimary",
         "PrimarySource",
         "SecondarySource",
         "Status",
@@ -272,6 +346,9 @@ def build_validated_selections(
             if r.get("Evidence (Secondary links)")
             else []
         )
+        primary_catalyst_url = _first_available(
+            r, ["PrimaryCatalystURL", "PrimarySource", "PrimaryFilingURL"]
+        )
         validated_output.append(
             {
                 "Ticker": r.get("Ticker"),
@@ -285,22 +362,26 @@ def build_validated_selections(
                 "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
                 "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
                 "RunwayQuarters": r.get("RunwayQuarters"),
-                "RunwayEvidencePrimary": r.get("RunwayEvidencePrimary"),
                 "DilutionScore": r.get("Dilution", r.get("DilutionScore")),
-                "DilutionEvidencePrimary": r.get("DilutionEvidencePrimary"),
                 "CatalystScore": r.get("Catalyst", r.get("CatalystScore")),
-                "CatalystEvidencePrimary": r.get("CatalystEvidencePrimary"),
                 "GovernanceScore": r.get("Governance", r.get("GovernanceScore")),
                 "InsiderScore": r.get("Insider", r.get("InsiderScore")),
-                "BiotechPeerRead": r.get("BiotechPeerRead", r.get("Biotech Peer Read-Through (Y/N + link)")),
+                "BiotechPeerRead": r.get(
+                    "BiotechPeerRead", r.get("Biotech Peer Read-Through (Y/N + link)")
+                ),
                 "SubscoresEvidencedCount": _first_available(
                     r, ["SubscoresEvidencedCount", "Subscores Evidenced (x/5)"]
                 ),
                 "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
                 "ConvictionScore": r.get("ConvictionScore"),
-                "PrimaryCatalystDate": r.get("PrimaryCatalystDate"),
-                "PrimaryCatalystType": r.get("PrimaryCatalystType"),
-                "PrimarySource": primary_links[0] if primary_links else r.get("RunwayEvidencePrimary"),
+                "PrimaryCatalystDate": _first_available(r, ["PrimaryCatalystDate", "EventDate"]),
+                "PrimaryCatalystType": _first_available(r, ["PrimaryCatalystType", "CatalystType"]),
+                "PrimaryCatalystTier": _first_available(r, ["PrimaryCatalystTier", "EventTier"]),
+                "PrimaryCatalystURL": primary_catalyst_url,
+                "RunwayEvidencePrimary": r.get("RunwayEvidencePrimary"),
+                "DilutionEvidencePrimary": r.get("DilutionEvidencePrimary"),
+                "CatalystEvidencePrimary": r.get("CatalystEvidencePrimary"),
+                "PrimarySource": primary_catalyst_url or (primary_links[0] if primary_links else r.get("RunwayEvidencePrimary")),
                 "SecondarySource": secondary_links[0] if secondary_links else r.get("EvidenceSecondary"),
                 "Status": r.get("Status", "Validated"),
                 "ValidationStatus": r.get("Status", "Validated"),
@@ -334,7 +415,7 @@ def build_validated_selections(
         f"C6={stats['C6_pass']}/{stats['C6_fail']}"
     )
     logger.info(msg)
-    _emit_progress(progress_fn, msg)
+    _log_progress_line(msg, progress_fn)
 
     ensure_csv(val_path, validated_fields)
     with open(val_path, "w", newline="", encoding="utf-8") as handle:
@@ -354,6 +435,9 @@ def build_validated_selections(
         f"WEEKLY_W3_W4 SUMMARY: 30_deep_research={len(merged)}, "
         f"40_validated={len(validated_output)}, 40_tbd={len(exclusions_output)}"
     )
+
+    _log_weekly_validation_breakdown(stats, exclusions, progress_fn)
+    _log_weekly_summary(data_dir, progress_fn)
 
     return pd.DataFrame(validated_output), pd.DataFrame(exclusions_output)
 

@@ -35,7 +35,7 @@ def test_validation_rules_and_conviction_logic():
     assert status == "TBD — exclude"
     assert reason.startswith("Mandatory subscore missing")
 
-    assert _conviction_from_subscores(4, True, "PASS - Tier1") == "Medium"
-    assert _conviction_from_subscores(5, True, "PASS - Tier1") == "High"
-    assert _conviction_from_subscores(3, True, "PASS - Tier1") == "Low"
-    assert _conviction_from_subscores(4, False, "PASS - Tier1") == "Low"
+    assert _conviction_from_subscores(4, "Tier-1", "PASS - Tier1") == "High"
+    assert _conviction_from_subscores(5, "Tier-1", "PASS - Tier1") == "High"
+    assert _conviction_from_subscores(3, "Tier-1", "PASS - Tier1") == "Low"
+    assert _conviction_from_subscores(4, "Tier-2", "PASS - Tier1") == "Medium"
