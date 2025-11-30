@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
 from typing import Callable, Iterable, Optional
 
@@ -96,6 +98,8 @@ class EdgarAdapter:
 
         self._configure_identity(edgar_cfg.get("UserAgent") or cfg.get("UserAgent"))
 
+        self.last_filings_stats: dict | None = None
+
     def _configure_identity(self, user_agent: Optional[str]) -> None:
         if not user_agent:
             logger.warning("EDGAR identity missing; requests may be rejected")
@@ -110,6 +114,15 @@ class EdgarAdapter:
     def _rate_limit(self) -> None:
         if self.rate_limiter:
             self.rate_limiter.acquire()
+
+    def _filing_fetch_workers(self) -> int:
+        workers_cfg = self.cfg.get("Workers", {}) if isinstance(self.cfg, dict) else {}
+        edgar_cfg = workers_cfg.get("EDGAR") or workers_cfg.get("Edgar") or {}
+        try:
+            workers = int(edgar_cfg.get("Workers"))
+        except (TypeError, ValueError):
+            workers = 1
+        return workers if workers and workers > 0 else 1
 
     def _resolve_filing(self, filing_or_url) -> Optional[Filing]:
         if isinstance(filing_or_url, Filing):
@@ -178,6 +191,99 @@ class EdgarAdapter:
         cutoff = date.today() - timedelta(days=lookback_days)
         return filed_date >= cutoff
 
+    def _fetch_filings_for_ticker(
+        self,
+        ticker: str,
+        *,
+        whitelist: list[str],
+        start_expr: str,
+        progress_fn: Optional[Callable[[str], None]] = None,
+        stop_flag: Optional[dict] = None,
+        idx: int = 0,
+        total: int = 0,
+    ) -> tuple[list[dict], dict]:
+        if stop_flag and stop_flag.get("stop"):
+            raise CancelledRun("cancel requested during EDGAR filings")
+
+        ticker_norm = _normalize_ticker(ticker)
+        if not ticker_norm:
+            return [], {"ticker": ticker, "raw_count": 0, "kept_count": 0, "duration_ms": 0}
+
+        if progress_fn:
+            progress_fn(f"[edgar filings] starting {ticker_norm} ({idx}/{total})")
+
+        start_time = time.monotonic()
+        raw_count = 0
+        batch: list[dict] = []
+
+        try:
+            company = Company(ticker_norm)
+        except Exception as exc:
+            logger.warning("EDGAR company lookup failed for %s: %s", ticker_norm, exc)
+            duration_ms = int((time.monotonic() - start_time) * 1000)
+            return [], {"ticker": ticker_norm, "raw_count": 0, "kept_count": 0, "duration_ms": duration_ms}
+
+        try:
+            # Only rate-limit the outbound filings fetch, not local object creation.
+            self._rate_limit()
+            filings = company.get_filings(
+                form=whitelist or None,
+                filing_date=start_expr,
+            )
+            filings_list = list(filings) if filings is not None else []
+            raw_count = len(filings_list)
+        except Exception as exc:
+            logger.warning("EDGAR filings fetch failed for %s: %s", ticker_norm, exc)
+            filings_list = []
+
+        try:
+            for filing in filings_list:
+                form_value = getattr(filing, "form", "")
+                filed_at = getattr(filing, "filing_date", "")
+                if not self._is_within_lookback(form_value, filed_at):
+                    continue
+
+                filing_url = (
+                    getattr(filing, "filing_url", None)
+                    or getattr(filing, "homepage_url", None)
+                    or getattr(filing, "url", None)
+                    or ""
+                )
+
+                batch.append(
+                    {
+                        "CIK": _normalize_cik(getattr(filing, "cik", "")),
+                        "Ticker": ticker_norm,
+                        "Company": getattr(filing, "company", ""),
+                        "Form": form_value,
+                        "FiledAt": filed_at,
+                        "URL": filing_url,
+                        "Desc": "",
+                    }
+                )
+        except Exception as exc:
+            logger.warning("EDGAR filings iteration failed for %s: %s", ticker_norm, exc)
+            batch = []
+
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+        log_message = (
+            "WEEKLY_FILINGS_TICKER: "
+            f"ticker={ticker_norm} "
+            f"raw_filings={raw_count} "
+            f"kept_after_form_filter={len(batch)} "
+            f"duration_ms={duration_ms}"
+        )
+        logger.info(log_message)
+        if progress_fn:
+            progress_fn(log_message)
+
+        return batch, {
+            "ticker": ticker_norm,
+            "raw_count": raw_count,
+            "kept_count": len(batch),
+            "duration_ms": duration_ms,
+        }
+
     def fetch_recent_filings(
         self,
         tickers: Iterable[str],
@@ -187,23 +293,7 @@ class EdgarAdapter:
         skip_tickers: Optional[set[str]] = None,
         on_batch: Optional[Callable[[list[dict], str], None]] = None,
     ) -> list[dict]:
-        """Fetch filings for tickers filtered by whitelist/lookback rules.
-
-        Parameters
-        ----------
-        tickers:
-            Iterable of ticker strings to query.
-        progress_fn:
-            Optional callback for progress messages.
-        stop_flag:
-            Shared flag to allow cancellation mid-run.
-        skip_tickers:
-            If provided, any ticker already present in this set will be skipped.
-        on_batch:
-            Optional callback invoked with each ticker's filings as soon as they
-            are fetched. Enables streaming writes instead of buffering the
-            entire response.
-        """
+        """Fetch filings for tickers filtered by whitelist/lookback rules."""
 
         start_date = date.today() - timedelta(days=self.max_lookback)
         start_expr = start_date.isoformat() + ":"
@@ -213,87 +303,72 @@ class EdgarAdapter:
         ticker_list = list(tickers)
         total = len(ticker_list)
 
-        for idx, ticker in enumerate(ticker_list, start=1):
-            if stop_flag and stop_flag.get("stop"):
-                raise CancelledRun("cancel requested during EDGAR filings")
+        stats = {"tickers": 0, "raw_filings": 0, "kept_filings": 0}
 
+        def _handle_batch(batch: list[dict], ticker_norm: str, per_ticker_stats: dict) -> None:
+            nonlocal results
+            stats["tickers"] += 1
+            stats["raw_filings"] += per_ticker_stats.get("raw_count", 0)
+            stats["kept_filings"] += per_ticker_stats.get("kept_count", 0)
+            if batch:
+                results.extend(batch)
+                if on_batch:
+                    on_batch(batch, ticker_norm)
+
+        workers = self._filing_fetch_workers()
+        to_process: list[tuple[int, str]] = []
+        for idx, ticker in enumerate(ticker_list, start=1):
             ticker_norm = _normalize_ticker(ticker)
             if not ticker_norm:
                 continue
-
             if skip_tickers and ticker_norm in skip_tickers:
                 if progress_fn:
                     progress_fn(
                         f"[edgar filings] skipping {ticker_norm} (already cached)"
                     )
                 continue
+            to_process.append((idx, ticker_norm))
 
-            if progress_fn:
-                progress_fn(f"[edgar filings] starting {ticker_norm} ({idx}/{total})")
-
-            try:
-                company = Company(ticker_norm)
-            except Exception as exc:
-                logger.warning("EDGAR company lookup failed for %s: %s", ticker_norm, exc)
-                continue
-
-            try:
-                # Only rate-limit the outbound filings fetch, not local object creation.
-                self._rate_limit()
-                filings = company.get_filings(
-                    form=whitelist or None,
-                    filing_date=start_expr,
+        if workers <= 1:
+            for idx, ticker_norm in to_process:
+                batch, per_ticker_stats = self._fetch_filings_for_ticker(
+                    ticker_norm,
+                    whitelist=whitelist,
+                    start_expr=start_expr,
+                    progress_fn=progress_fn,
+                    stop_flag=stop_flag,
+                    idx=idx,
+                    total=total,
                 )
-            except Exception as exc:
-                logger.warning("EDGAR filings fetch failed for %s: %s", ticker_norm, exc)
-                continue
+                _handle_batch(batch, ticker_norm, per_ticker_stats)
 
-            if filings is None:
-                continue
-
-            batch: list[dict] = []
-            try:
-                for filing in filings:
-                    form_value = getattr(filing, "form", "")
-                    filed_at = getattr(filing, "filing_date", "")
-                    if not self._is_within_lookback(form_value, filed_at):
-                        continue
-
-                    filing_url = (
-                        getattr(filing, "filing_url", None)
-                        or getattr(filing, "homepage_url", None)
-                        or getattr(filing, "url", None)
-                        or ""
+                if progress_fn and (idx % 25 == 0 or idx == total):
+                    pct = int((idx / max(total, 1)) * 100)
+                    progress_fn(
+                        f"[edgar filings] {idx}/{total} tickers ({pct}%)"
                     )
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(
+                        self._fetch_filings_for_ticker,
+                        ticker_norm,
+                        whitelist=whitelist,
+                        start_expr=start_expr,
+                        progress_fn=progress_fn,
+                        stop_flag=stop_flag,
+                        idx=idx,
+                        total=total,
+                    ): ticker_norm
+                    for idx, ticker_norm in to_process
+                }
 
-                    batch.append(
-                        {
-                            "CIK": _normalize_cik(getattr(filing, "cik", "")),
-                            "Ticker": ticker_norm,
-                            "Company": getattr(filing, "company", ""),
-                            "Form": form_value,
-                            "FiledAt": filed_at,
-                            "URL": filing_url,
-                            "Desc": "",
-                        }
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "EDGAR filings iteration failed for %s: %s", ticker_norm, exc
-                )
-                batch = []
+                for future in as_completed(futures):
+                    ticker_norm = futures[future]
+                    batch, per_ticker_stats = future.result()
+                    _handle_batch(batch, ticker_norm, per_ticker_stats)
 
-            if batch:
-                results.extend(batch)
-                if on_batch:
-                    on_batch(batch, ticker_norm)
-
-            if progress_fn and (idx % 25 == 0 or idx == total):
-                pct = int((idx / max(total, 1)) * 100)
-                progress_fn(
-                    f"[edgar filings] {idx}/{total} tickers ({pct}%)"
-                )
-
+        self.last_filings_stats = stats
         return results
 
     def download_filing_text(self, url: str) -> str:
