@@ -279,14 +279,15 @@ def normalize_ocf_value(
     if value is None:
         return None, period_months, None
 
-    if period_months in {3, 6, 9, 12}:
-        divisor_map = {3: 1, 6: 2, 9: 3, 12: 4}
-        assumption_map = {3: "", 6: "6m/2", 9: "9m/3", 12: "annual/4"}
-        divisor = divisor_map[period_months]
-        normalized_value = float(value) / float(divisor)
-        return normalized_value, period_months, assumption_map[period_months]
+    ocf_value = float(value)
 
-    return float(value) if value is not None else None, period_months, None
+    if period_months in {3, 6, 9, 12}:
+        factor = float(period_months) / 3.0
+        assumption_map = {3: "", 6: "6m/2", 9: "9m/3", 12: "annual/4"}
+        normalized_value = ocf_value / factor
+        return normalized_value, period_months, assumption_map.get(period_months, "")
+
+    return ocf_value, period_months, None
 
 
 __all__ = [

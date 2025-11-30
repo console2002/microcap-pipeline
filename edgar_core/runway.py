@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from decimal import Decimal
 from typing import Dict, Optional
 
@@ -18,16 +17,25 @@ def _decimal_value(value) -> Optional[Decimal]:
         return None
 
 
-def _first_non_none(*values):
-    for value in values:
-        if value is not None:
-            return value
+def _infer_months_from_label(label: str) -> Optional[int]:
+    lower = label.lower()
+    if lower.startswith("three") or lower.startswith("3"):
+        return 3
+    if lower.startswith("six") or lower.startswith("6"):
+        return 6
+    if lower.startswith("nine") or lower.startswith("9"):
+        return 9
+    if lower.startswith("twelve") or lower.startswith("12") or "year" in lower:
+        return 12
     return None
 
 
-def _extract_cash_and_burn_from_financials(financials) -> tuple[Optional[Decimal], Optional[Decimal]]:
+def _extract_cash_and_burn_from_financials(
+    financials,
+) -> tuple[Optional[Decimal], Optional[Decimal], Optional[int]]:
     cash = None
     burn = None
+    period_months = None
 
     try:
         balance = financials.balance_sheet()
@@ -37,7 +45,10 @@ def _extract_cash_and_burn_from_financials(financials) -> tuple[Optional[Decimal
                 df = rendered.to_dataframe()
                 if not df.empty:
                     for column in df.columns:
-                        if column.lower().startswith("three") or column.lower().startswith("six") or column.lower().startswith("twelve"):
+                        inferred = _infer_months_from_label(str(column))
+                        if inferred:
+                            period_months = period_months or inferred
+                        if inferred in {3, 6, 9, 12}:
                             candidate = df[column].iloc[0]
                             cash = _decimal_value(candidate)
                             break
@@ -52,14 +63,17 @@ def _extract_cash_and_burn_from_financials(financials) -> tuple[Optional[Decimal
                 df = rendered.to_dataframe()
                 if not df.empty:
                     for column in df.columns:
-                        if column.lower().startswith("three") or column.lower().startswith("six") or column.lower().startswith("twelve"):
+                        inferred = _infer_months_from_label(str(column))
+                        if inferred:
+                            period_months = period_months or inferred
+                        if inferred in {3, 6, 9, 12}:
                             candidate = df[column].iloc[0]
                             burn = _decimal_value(candidate)
                             break
     except Exception:
         logger.debug("failed to read cashflow_statement from financials", exc_info=True)
 
-    return cash, burn
+    return cash, burn, period_months
 
 
 def extract_runway_from_filing(filing: Filing) -> Dict:
@@ -77,6 +91,7 @@ def extract_runway_from_filing(filing: Filing) -> Dict:
     burn = None
     parse_status = "no_data"
     note = ""
+    period_months = None
 
     try:
         obj = filing.obj()
@@ -88,36 +103,41 @@ def extract_runway_from_filing(filing: Filing) -> Dict:
         financials = getattr(obj, "financials", None)
         if financials is not None:
             parse_status = "edgar_obj_ok"
-            cash, burn = _extract_cash_and_burn_from_financials(financials)
+            cash, burn, period_months = _extract_cash_and_burn_from_financials(financials)
 
     source_form = getattr(filing, "form", "")
     source_date = getattr(filing, "filing_date", "")
     source_url = getattr(filing, "text_url", "")
 
-    runway_quarters = None
-    runway_days = None
-    quarterly_burn = burn
+    cash_value = float(cash) if cash is not None else None
+    ocf_value = float(burn) if burn is not None else None
 
-    if cash is not None and burn is not None and burn != 0:
-        try:
-            # burn is usually negative for cash outflow
-            normalized_burn = burn.copy_abs()
-            runway_quarters = float(cash / normalized_burn)
-            runway_days = int(runway_quarters * 90)
-        except Exception:
-            logger.debug("failed to compute runway from cash/burn", exc_info=True)
+    from parse.units import normalize_ocf_value
+    from parse.postproc import finalize_runway_result
 
-    result = {
-        "cash": cash,  # expected to align with RunwayCash* columns
-        "quarterly_burn": quarterly_burn,
-        "runway_quarters": runway_quarters,
-        "runway_days": runway_days,
-        "source_form": source_form,
-        "source_date": source_date,
-        "source_url": source_url,
-        "note": note,
-        "parse_status": parse_status,
-    }
+    ocf_quarterly, period_months, assumption = normalize_ocf_value(ocf_value, period_months)
+
+    result = finalize_runway_result(
+        cash=cash_value,
+        ocf_raw=ocf_value,
+        ocf_quarterly=ocf_quarterly,
+        period_months=period_months,
+        assumption=assumption,
+        note="values parsed from edgartools financials (legacy helper)",
+        form_type=source_form,
+        units_scale=1,
+        status=None,
+        source_tags=["XBRL"],
+    )
+
+    result.update(
+        {
+            "source_form": source_form,
+            "source_date": source_date,
+            "source_url": source_url,
+            "parse_status": parse_status,
+        }
+    )
 
     logger.debug(
         "extract_runway_from_filing exit", extra={"form": filing.form, "filing_date": filing.filing_date, "text_url": getattr(filing, "text_url", ""), "parse_status": parse_status}

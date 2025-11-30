@@ -1,4 +1,10 @@
-"""iXBRL helpers for runway parsing."""
+"""iXBRL helpers for runway parsing.
+
+These helpers issue direct ``data.sec.gov`` concept calls and should be
+treated as fallback-only; the primary runway path uses
+``app.edgar_adapter.EdgarAdapter.runway_from_financials`` to consume
+edgartools financial statements.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
