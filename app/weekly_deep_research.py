@@ -80,11 +80,13 @@ def _biotech_peer_read_from_events(
     if not peers:
         return "N:NoPeers", ""
 
-    lookback_start = pd.Timestamp.utcnow().normalize().tz_localize(None) - pd.Timedelta(days=PEER_EVENTS_LOOKBACK_DAYS)
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    lookback_start = now.normalize() - pd.Timedelta(days=PEER_EVENTS_LOOKBACK_DAYS)
     peer_events = events[events.get("Ticker", pd.Series(dtype=str)).isin(peers)].copy()
     if not peer_events.empty:
         peer_events = peer_events[
-            peer_events["event_date_canonical"] >= lookback_start
+            (peer_events["event_date_canonical"] >= lookback_start)
+            & (peer_events["event_date_canonical"] <= now)
         ]
 
     classification: PeerEventClassification = classify_peer_events(peer_events)

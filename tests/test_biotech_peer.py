@@ -87,6 +87,34 @@ def test_biotech_peer_read_integration_positive_and_none():
     assert evidence_none == ""
 
 
+def test_biotech_peer_read_ignores_future_events():
+    future_date = (pd.Timestamp.utcnow().normalize() + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    universe = pd.DataFrame(
+        [
+            {"Ticker": "BIOA", "Sector": "Healthcare", "Industry": "Biotechnology"},
+            {"Ticker": "BIOB", "Sector": "Healthcare", "Industry": "Biotechnology"},
+        ]
+    )
+
+    events = _prepare_events(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "BIOB",
+                    "event_type": "Phase III positive",
+                    "Tier": "Tier-1",
+                    "event_date": future_date,
+                }
+            ]
+        )
+    )
+
+    peer_read, evidence = _biotech_peer_read_from_events("BIOA", "Healthcare", "Biotechnology", events, universe)
+
+    assert peer_read == "N:NoPeerEvent"
+    assert evidence == ""
+
+
 def test_validation_flag_effects():
     # When biotech peer evidence is required, lack of evidence forces exclusion.
     status_excluded = _status_from_row(
