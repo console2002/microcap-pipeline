@@ -32,23 +32,33 @@ def save_config(cfg: Dict[str, Any], path: str = "config.json") -> None:
 
 
 def filings_form_lookbacks(cfg: Dict[str, Any]) -> Dict[str, int]:
-    groups = cfg.get("FilingsGroups", {}) or {}
+    """
+    Return per-form lookback days from ``cfg['FilingsLookbacks']``.
+
+    Expected structure in config.json::
+
+        "FilingsLookbacks": {
+          "10-Q": {"lookback_days": 180},
+          "8-K": {"lookback_days": 400}
+        }
+    """
+    fl = cfg.get("FilingsLookbacks", {}) or {}
     out: Dict[str, int] = {}
-    for group in groups.values():
+
+    for form, entry in fl.items():
+        key = str(form).strip().upper()
+        if not key:
+            continue
+        if isinstance(entry, dict):
+            days = entry.get("lookback_days")
+        else:
+            days = entry
+        if days is None:
+            continue
         try:
-            lookback = int(group.get("lookback_days", 0) or 0)
+            out[key] = int(days)
         except Exception:
             continue
-        forms = group.get("forms") or []
-        for form in forms:
-            if not form:
-                continue
-            key = str(form).strip().upper()
-            if not key:
-                continue
-            current = out.get(key, 0)
-            if lookback > current:
-                out[key] = lookback
     return out
 
 

@@ -153,6 +153,131 @@
     "Insider": 10,
     "Governance": 4
   },
+  "FilingsLookbacks": {
+    "10-Q": {
+      "lookback_days": 180
+    },
+    "10-Q/A": {
+      "lookback_days": 180
+    },
+    "10-QT": {
+      "lookback_days": 180
+    },
+    "10-QT/A": {
+      "lookback_days": 180
+    },
+    "6-K": {
+      "lookback_days": 180
+    },
+    "10-K": {
+      "lookback_days": 400
+    },
+    "10-K/A": {
+      "lookback_days": 400
+    },
+    "10-KT": {
+      "lookback_days": 400
+    },
+    "10-KT/A": {
+      "lookback_days": 400
+    },
+    "20-F": {
+      "lookback_days": 400
+    },
+    "20-F/A": {
+      "lookback_days": 400
+    },
+    "40-F": {
+      "lookback_days": 400
+    },
+    "40-F/A": {
+      "lookback_days": 400
+    },
+    "8-K": {
+      "lookback_days": 400
+    },
+    "8-K/A": {
+      "lookback_days": 180
+    },
+    "S-3": {
+      "lookback_days": 400
+    },
+    "S-3/A": {
+      "lookback_days": 400
+    },
+    "S-8": {
+      "lookback_days": 400
+    },
+    "S-8/A": {
+      "lookback_days": 400
+    },
+    "S-4": {
+      "lookback_days": 400
+    },
+    "S-4/A": {
+      "lookback_days": 400
+    },
+    "424B1": {
+      "lookback_days": 400
+    },
+    "424B2": {
+      "lookback_days": 400
+    },
+    "424B3": {
+      "lookback_days": 400
+    },
+    "424B4": {
+      "lookback_days": 400
+    },
+    "424B5": {
+      "lookback_days": 400
+    },
+    "424B7": {
+      "lookback_days": 400
+    },
+    "424B8": {
+      "lookback_days": 400
+    },
+    "3": {
+      "lookback_days": 400
+    },
+    "3/A": {
+      "lookback_days": 400
+    },
+    "4": {
+      "lookback_days": 400
+    },
+    "4/A": {
+      "lookback_days": 400
+    },
+    "5": {
+      "lookback_days": 400
+    },
+    "5/A": {
+      "lookback_days": 400
+    },
+    "DEF 14A": {
+      "lookback_days": 400
+    },
+    "6-K/A": {
+      "lookback_days": 400
+    },
+    "13D": {
+      "lookback_days": 365
+    },
+    "13D/A": {
+      "lookback_days": 365
+    },
+    "13G": {
+      "lookback_days": 365
+    },
+    "13G/A": {
+      "lookback_days": 365
+    },
+    "13F-HR": {
+      "lookback_days": 365
+    }
+  },
   "ShortlistRule": {
     "UseFilingsCatalyst": true
   },
@@ -174,7 +299,6 @@
         "10-QT/A",
         "6-K"
       ],
-      "lookback_days": 180,
       "notes": "Primary source for Runway; prefer 10-Q; 6-K for foreign issuers' interim updates."
     },
     "Financials_Annual": {
@@ -188,7 +312,6 @@
         "40-F",
         "40-F/A"
       ],
-      "lookback_days": 400,
       "notes": "Fallback for Runway; governance flags in MD&A/auditor report."
     },
     "Catalyst": {
@@ -196,7 +319,6 @@
         "8-K",
         "8-K/A"
       ],
-      "lookback_days": 180,
       "notes": "Material events; combine with PR/FDA for 'Active' catalyst."
     },
     "Dilution_Overhang": {
@@ -215,7 +337,6 @@
         "S-4",
         "8-K"
       ],
-      "lookback_days": 400,
       "notes": "Shelves/ATMs/prospectus; include financing 8-Ks to catch usage."
     },
     "Governance": {
@@ -224,7 +345,6 @@
         "10-K/A",
         "DEF 14A"
       ],
-      "lookback_days": 400,
       "notes": "Going-concern, auditor, board/comp."
     },
     "Ownership": {
@@ -235,7 +355,6 @@
         "13G/A",
         "13F-HR"
       ],
-      "lookback_days": 365,
       "notes": "Large holder changes; 13F is quarterly and often laggy."
     }
   }

@@ -19,11 +19,9 @@ def _base_cfg(tmp_path):
             "RunwayCore": ["10-Q"],
             "Catalyst": ["8-K"],
         },
-        "FilingsGroups": {
-            "Financials_Quarterly": {
-                "forms": ["10-Q"],
-                "lookback_days": 90,
-            }
+        "FilingsLookbacks": {
+            "10-Q": {"lookback_days": 90},
+            "8-K": {"lookback_days": 90},
         },
         "RateLimitsPerMin": {"SEC": 0},
         "Universe": {

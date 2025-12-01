@@ -288,9 +288,9 @@ def _purge_filings_by_lookback(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """
     Drop filings that fall outside the configured lookback window for their form.
 
-    Uses per-form lookbacks from ``FilingsGroups`` with a fallback to the global
-    maximum lookback. Rows with unparseable dates are left intact so they can be
-    inspected and fixed upstream.
+    Uses per-form lookbacks from ``FilingsLookbacks`` with a fallback to the
+    global maximum lookback. Rows with unparseable dates are left intact so they
+    can be inspected and fixed upstream.
     """
 
     if (
