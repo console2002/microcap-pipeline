@@ -155,19 +155,19 @@
   },
   "FilingsLookbacks": {
     "10-Q": {
-      "lookback_days": 180
+      "lookback_days": 240
     },
     "10-Q/A": {
-      "lookback_days": 180
+      "lookback_days": 240
     },
     "10-QT": {
-      "lookback_days": 180
+      "lookback_days": 240
     },
     "10-QT/A": {
-      "lookback_days": 180
+      "lookback_days": 240
     },
     "6-K": {
-      "lookback_days": 180
+      "lookback_days": 240
     },
     "10-K": {
       "lookback_days": 400
@@ -194,7 +194,7 @@
       "lookback_days": 400
     },
     "8-K": {
-      "lookback_days": 400
+      "lookback_days": 180
     },
     "8-K/A": {
       "lookback_days": 180
@@ -245,10 +245,10 @@
       "lookback_days": 400
     },
     "4": {
-      "lookback_days": 400
+      "lookback_days": 270
     },
     "4/A": {
-      "lookback_days": 400
+      "lookback_days": 270
     },
     "5": {
       "lookback_days": 400
@@ -260,7 +260,7 @@
       "lookback_days": 400
     },
     "6-K/A": {
-      "lookback_days": 400
+      "lookback_days": 240
     },
     "13D": {
       "lookback_days": 365
