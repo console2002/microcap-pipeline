@@ -33,6 +33,7 @@ from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
 from app.logging_utils import setup_logging
+from app.pipeline_metrics import dropoff_stats, stage_stats
 from app.shortlist import build_shortlist
 from app.filings_filters import (
     FPI_ANNUAL_FORM_PREFIXES,
@@ -41,11 +42,48 @@ from app.filings_filters import (
     count_filings_by_role,
     prune_filings_by_role,
 )
+from app.settings import PIPELINE_METRICS_ENABLED
 from app.utils import duration_ms, ensure_csv, log_line, utc_now_iso
 from deep_research import run as deep_research_run
 
 
 logger = logging.getLogger(__name__)
+
+
+def _log_stage_metrics(stage: str, records) -> None:
+    if not PIPELINE_METRICS_ENABLED:
+        return
+
+    stats = stage_stats(records)
+    logger.info(
+        "pipeline_metrics: stage=%s row_count=%s distinct_names=%s",
+        stage,
+        stats.get("row_count", 0),
+        stats.get("distinct_count", 0),
+    )
+
+
+def _log_dropoff_metrics(from_stage: str, to_stage: str, from_records, to_records) -> None:
+    if not PIPELINE_METRICS_ENABLED:
+        return
+
+    stats = dropoff_stats(from_records, to_records)
+    logger.info(
+        "pipeline_metrics: from=%s to=%s from_distinct=%s to_distinct=%s dropped=%s dropped_pct=%.2f",
+        from_stage,
+        to_stage,
+        stats.get("from_count", 0),
+        stats.get("to_count", 0),
+        stats.get("dropped_count", 0),
+        stats.get("dropped_pct", 0.0),
+    )
+
+
+def _safe_read_csv(path: str) -> pd.DataFrame:
+    try:
+        return pd.read_csv(path, encoding="utf-8")
+    except Exception:
+        return pd.DataFrame()
 
 @dataclass
 class RunwayDropDetail:
@@ -1397,6 +1435,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         f"filings: done {rows_added} new rows ({len(df_all)} total) {adapter.stats_string()}",
     )
 
+    _log_stage_metrics("02_filings", df_all)
+    _log_dropoff_metrics("01_universe_gated", "02_filings", df_prof, df_all)
+
     return df_all, total_eligible, total_drop_details
 
 
@@ -1784,6 +1825,7 @@ def _write_weekly_universe(data_dir: str, df_prof: pd.DataFrame | None) -> None:
         return
     weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
     df_prof.to_csv(weekly_universe, index=False)
+    _log_stage_metrics("01_universe_gated", df_prof)
 
 
 def _promote_weekly_events(data_dir: str) -> None:
@@ -1934,6 +1976,9 @@ def run_weekly_pipeline(
         df_uni = None
         df_prof = None
         df_fil = None
+        df_events = None
+        df_shortlist = None
+        df_deep = None
 
         start_idx = stages.index(start_stage)
 
@@ -1983,6 +2028,10 @@ def run_weekly_pipeline(
             _emit(progress_fn, "events: skipped (using cached output)")
 
         _promote_weekly_events(data_dir)
+        events_path = os.path.join(data_dir, "09_events.csv")
+        df_events = _safe_read_csv(events_path)
+        _log_stage_metrics("09_events", df_events)
+        _log_dropoff_metrics("02_filings", "09_events", df_fil, df_events)
 
         if start_idx <= stages.index("candidate_shortlist"):
             prices_path = csv_path(cfg["Paths"].get("data", "data"), "prices")
@@ -2019,12 +2068,16 @@ def run_weekly_pipeline(
             _emit(progress_fn, "shortlist: skipped (using cached output)")
 
         _promote_weekly_shortlist(data_dir)
+        short_path = os.path.join(data_dir, "20_candidate_shortlist.csv")
+        df_shortlist = _safe_read_csv(short_path)
+        _log_stage_metrics("20_candidate_shortlist", df_shortlist)
+        _log_dropoff_metrics("09_events", "20_candidate_shortlist", df_events, df_shortlist)
 
         from app.weekly_deep_research import run_weekly_deep_research
         from app.weekly_validated import build_validated_selections
 
         if start_idx <= stages.index("deep_research"):
-            run_weekly_deep_research(data_dir, progress_fn=progress_fn)
+            df_deep = run_weekly_deep_research(data_dir, progress_fn=progress_fn)
         else:
             dr_path = os.path.join(data_dir, "30_deep_research.csv")
             if not os.path.exists(dr_path):
@@ -2032,9 +2085,12 @@ def run_weekly_pipeline(
                     "30_deep_research.csv missing; run deep_research stage first"
                 )
             _emit(progress_fn, "deep_research: skipped (using cached output)")
+            df_deep = _safe_read_csv(dr_path)
 
         if start_idx <= stages.index("validated"):
-            build_validated_selections(data_dir, progress_fn=progress_fn)
+            validated_df, tbd_df = build_validated_selections(
+                data_dir, progress_fn=progress_fn
+            )
         else:
             val_path = os.path.join(data_dir, "40_validated_selections.csv")
             tbd_path = os.path.join(data_dir, "40_tbd_exclusions.csv")
@@ -2043,7 +2099,17 @@ def run_weekly_pipeline(
                     "Validated outputs missing; run validated stage first to produce 40_* CSVs"
                 )
             _emit(progress_fn, "validated: skipped (using cached output)")
-
+            validated_df = _safe_read_csv(val_path)
+            tbd_df = _safe_read_csv(tbd_path)
+        _log_stage_metrics("30_deep_research", df_deep)
+        _log_dropoff_metrics(
+            "20_candidate_shortlist", "30_deep_research", df_shortlist, df_deep
+        )
+        _log_stage_metrics("40_validated_selections", validated_df)
+        _log_stage_metrics("40_tbd_exclusions", tbd_df)
+        _log_dropoff_metrics(
+            "30_deep_research", "40_validated_selections", df_deep, validated_df
+        )
         _weekly_summary(data_dir, progress_fn)
         _emit(progress_fn, "run_weekly: complete")
 
