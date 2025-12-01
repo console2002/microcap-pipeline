@@ -16,6 +16,8 @@ W1.2 Universe Hard Gates (symbol-level)
 - Universe rules:
   - U.S.-listed only (NASDAQ/NYSE/AMEX/ADR). No OTC.
   - Common stock / ordinary shares only (no ETFs, funds, prefs, etc. unless explicitly whitelisted).
+  - Drop shell / blank-check / SPAC issuers using provider metadata:
+    - If FMP Industry == 'Shell Companies', exclude at profiles build (hard gate; do not write to 01_profiles.csv or downstream CSVs).
 - Apply hard gates:
   - Last price >= 1.00 USD.
   - ADV20 (shares) >= 40,000.
