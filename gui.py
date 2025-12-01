@@ -113,10 +113,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # When True we are displaying messages from an active/most recent run
         # and should not overwrite the live log with persisted runlog.csv data.
         self.tail_from_live_run = False
+        self.live_tail_autoscroll = True
+        self.app_log_autoscroll = True
 
         # timer to refresh offline logs (runlog.csv / errorlog.csv)
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.refresh_logs)
+        self.timer.timeout.connect(self._on_timer_tick)
         self.timer.start(self.cfg["GUI"]["LogRefreshSeconds"] * 1000)
 
         tabs = QtWidgets.QTabWidget()
@@ -183,7 +185,16 @@ class MainWindow(QtWidgets.QMainWindow):
         run_layout.addWidget(self.btn_cancel)
         run_layout.addWidget(self.progress_bar)
         run_layout.addWidget(self.status_label)
-        run_layout.addWidget(QtWidgets.QLabel("Live Log Tail"))
+        log_label_row = QtWidgets.QHBoxLayout()
+        log_label_row.addWidget(QtWidgets.QLabel("Live Log Tail"))
+        self.live_tail_autoscroll_checkbox = QtWidgets.QCheckBox("Auto-scroll")
+        self.live_tail_autoscroll_checkbox.setChecked(True)
+        self.live_tail_autoscroll_checkbox.stateChanged.connect(
+            self._toggle_live_tail_autoscroll
+        )
+        log_label_row.addStretch(1)
+        log_label_row.addWidget(self.live_tail_autoscroll_checkbox)
+        run_layout.addLayout(log_label_row)
         log_and_stats_layout = QtWidgets.QHBoxLayout()
         log_and_stats_layout.addWidget(self.log_tail, 3)
 
@@ -220,9 +231,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_load_cfg.clicked.connect(self.load_cfg_into_editor)
         self.btn_save_cfg.clicked.connect(self.save_cfg_from_editor)
 
+        # --- Log tab ---
+        self.log_tab = QtWidgets.QWidget()
+        tabs.addTab(self.log_tab, "Log")
+
+        self.app_log_view = QtWidgets.QPlainTextEdit()
+        self.app_log_view.setReadOnly(True)
+        self.app_log_autoscroll_checkbox = QtWidgets.QCheckBox("Auto-scroll")
+        self.app_log_autoscroll_checkbox.setChecked(True)
+        self.app_log_autoscroll_checkbox.stateChanged.connect(
+            self._toggle_app_log_autoscroll
+        )
+
+        log_tab_layout = QtWidgets.QVBoxLayout()
+        log_header_row = QtWidgets.QHBoxLayout()
+        log_header_row.addWidget(QtWidgets.QLabel("Live app.log"))
+        log_header_row.addStretch(1)
+        log_header_row.addWidget(self.app_log_autoscroll_checkbox)
+        log_tab_layout.addLayout(log_header_row)
+        log_tab_layout.addWidget(self.app_log_view)
+        self.log_tab.setLayout(log_tab_layout)
+
         # init
         self.load_cfg_into_editor()
         self.refresh_logs()
+        self.refresh_app_log()
 
     def start_weekly(self):
         stage = self.weekly_stage_combo.currentData()
@@ -313,14 +346,18 @@ class MainWindow(QtWidgets.QMainWindow):
         super().closeEvent(event)
 
     def _render_live_buffer(self, append_only: bool = False):
+        sb = self.log_tail.verticalScrollBar()
+        prev_value = sb.value()
+
         if append_only and self.live_buffer:
             self.log_tail.appendPlainText(self.live_buffer[-1])
         else:
             self.log_tail.setPlainText("\n".join(self.live_buffer))
 
-        # always keep the viewport scrolled to the newest message
-        sb = self.log_tail.verticalScrollBar()
-        sb.setValue(sb.maximum())
+        if self.live_tail_autoscroll:
+            sb.setValue(sb.maximum())
+        else:
+            sb.setValue(min(prev_value, sb.maximum()))
 
     def _update_progress_bar_from_msg(self, msg: str):
         # Extract the pipeline message without the timestamp prefix so we can
@@ -471,6 +508,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tail_from_live_run = False
         self._render_live_buffer()
 
+    def refresh_app_log(self):
+        paths = load_config()["Paths"]
+        logs_dir = paths.get("logs", "")
+        app_log_path = os.path.join(logs_dir, "app.log")
+        content = self._read_file(app_log_path)
+
+        if not content:
+            self._render_app_log("")
+            return
+
+        lines = content.splitlines()[-1000:]
+        self._render_app_log("\n".join(lines))
+
     def _read_file(self, path: str) -> str:
         if not os.path.exists(path):
             return ""
@@ -532,6 +582,33 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status_label.setText("Config saved.")
         except Exception as e:
             self.status_label.setText(f"Config save error: {e}")
+
+    def _render_app_log(self, text: str) -> None:
+        sb = self.app_log_view.verticalScrollBar()
+        prev_value = sb.value()
+        self.app_log_view.setPlainText(text)
+        if self.app_log_autoscroll:
+            sb.setValue(sb.maximum())
+        else:
+            sb.setValue(min(prev_value, sb.maximum()))
+
+    def _toggle_live_tail_autoscroll(self, state: int) -> None:
+        self.live_tail_autoscroll = state == QtCore.Qt.Checked
+        if self.live_tail_autoscroll:
+            self.log_tail.verticalScrollBar().setValue(
+                self.log_tail.verticalScrollBar().maximum()
+            )
+
+    def _toggle_app_log_autoscroll(self, state: int) -> None:
+        self.app_log_autoscroll = state == QtCore.Qt.Checked
+        if self.app_log_autoscroll:
+            self.app_log_view.verticalScrollBar().setValue(
+                self.app_log_view.verticalScrollBar().maximum()
+            )
+
+    def _on_timer_tick(self) -> None:
+        self.refresh_logs()
+        self.refresh_app_log()
 
 
 if __name__ == "__main__":
