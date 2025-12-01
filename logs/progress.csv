@@ -1,481 +1,716 @@
 timestamp,status,message
-2025-12-01T15:34:48.256559+00:00,INFO,eight_k: loading filings from ./data\02_filings.csv
-2025-12-01T15:34:48.388632+00:00,INFO,eight_k: 152 unique 8-K filings queued
-2025-12-01T15:34:48.409901+00:00,INFO,eight_k: (0.0%) processing 152 filings
-2025-12-01T15:34:48.449120+00:00,INFO,eight_k: start
-2025-12-01T15:34:50.042319+00:00,INFO,eight_k: (0.7%) processed 1/152 filings
-2025-12-01T15:34:50.053720+00:00,INFO,eight_k: fetching 1/152 https://www.sec.gov/Archives/edgar/data/2057030/000121390025057243/ea0246675-8k_axiom1.htm
-2025-12-01T15:34:50.069350+00:00,INFO,eight_k: AXIN parsed url https://www.sec.gov/Archives/edgar/data/2057030/000121390025057243/ea0246675-8k_axiom1.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:50.073001+00:00,INFO,eight_k: parsed 1
-2025-12-01T15:34:50.223211+00:00,INFO,eight_k: (1.3%) processed 2/152 filings
-2025-12-01T15:34:50.229230+00:00,INFO,eight_k: fetching 2/152 https://www.sec.gov/Archives/edgar/data/2057030/000121390025069646/ea0250578-8k_axiom1.htm
-2025-12-01T15:34:50.233318+00:00,INFO,eight_k: AXIN parsed url https://www.sec.gov/Archives/edgar/data/2057030/000121390025069646/ea0250578-8k_axiom1.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:50.238206+00:00,INFO,eight_k: parsed 2
-2025-12-01T15:34:50.386591+00:00,INFO,eight_k: (2.0%) processed 3/152 filings
-2025-12-01T15:34:50.390916+00:00,INFO,eight_k: fetching 3/152 https://www.sec.gov/Archives/edgar/data/2058359/000121390025055207/ea0245915-8k_calred.htm
-2025-12-01T15:34:50.395385+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025055207/ea0245915-8k_calred.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:50.405967+00:00,INFO,eight_k: parsed 3
-2025-12-01T15:34:50.569062+00:00,INFO,eight_k: (2.6%) processed 4/152 filings
-2025-12-01T15:34:50.577468+00:00,INFO,eight_k: AXIN parsed url https://www.sec.gov/Archives/edgar/data/2057030/000121390025058439/ea0247081-8k_axiom1.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:50.582185+00:00,INFO,eight_k: parsed 4
-2025-12-01T15:34:50.852169+00:00,INFO,eight_k: (3.3%) processed 5/152 filings
-2025-12-01T15:34:50.856854+00:00,INFO,eight_k: BDCI parsed url https://www.sec.gov/Archives/edgar/data/2042292/000121390025097023/ea0260340-8k_btcdevelop.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:50.861106+00:00,INFO,eight_k: parsed 5
-2025-12-01T15:34:51.018873+00:00,INFO,eight_k: (3.9%) processed 6/152 filings
-2025-12-01T15:34:51.024079+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025050126/ea0243885-8k_calred.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.027951+00:00,INFO,eight_k: parsed 6
-2025-12-01T15:34:51.131427+00:00,INFO,eight_k: (4.6%) processed 7/152 filings
-2025-12-01T15:34:51.145215+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025047867/ea0243417-8k_calredwood.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.148386+00:00,INFO,eight_k: parsed 7
-2025-12-01T15:34:51.249926+00:00,INFO,eight_k: (5.3%) processed 8/152 filings
-2025-12-01T15:34:51.255915+00:00,INFO,eight_k: BDCI parsed url https://www.sec.gov/Archives/edgar/data/2042292/000121390025096131/ea0259285-8k_btc.htm items Item 1.01; Item 3.02; Item 3.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 3.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;subscription_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.262663+00:00,INFO,eight_k: parsed 8
-2025-12-01T15:34:51.419973+00:00,INFO,eight_k: (5.9%) processed 9/152 filings
-2025-12-01T15:34:51.426549+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525258780/d82861d8k.htm items Item 5.02; Item 7.01; Item 9.01 items_norm Item 5.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.434644+00:00,INFO,eight_k: parsed 9
-2025-12-01T15:34:51.715820+00:00,INFO,eight_k: (6.6%) processed 10/152 filings
-2025-12-01T15:34:51.721526+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525207507/d934130d8k.htm items Item 5.02; Item 7.01; Item 9.01 items_norm Item 5.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.734913+00:00,INFO,eight_k: parsed 10
-2025-12-01T15:34:51.846360+00:00,INFO,eight_k: (7.2%) processed 11/152 filings
-2025-12-01T15:34:51.849217+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525197277/d17585d8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:51.851926+00:00,INFO,eight_k: parsed 11
-2025-12-01T15:34:52.024767+00:00,INFO,eight_k: (7.9%) processed 12/152 filings
-2025-12-01T15:34:52.033878+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525253968/d53703d8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:52.035738+00:00,INFO,eight_k: parsed 12
-2025-12-01T15:34:52.305245+00:00,INFO,eight_k: (8.6%) processed 13/152 filings
-2025-12-01T15:34:52.308048+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525146994/d51953d8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:52.311226+00:00,INFO,eight_k: parsed 13
-2025-12-01T15:34:52.916970+00:00,INFO,eight_k: (9.2%) processed 14/152 filings
-2025-12-01T15:34:52.921191+00:00,INFO,eight_k: fetching 14/152 https://www.sec.gov/Archives/edgar/data/1613780/000119312525168148/d945712d8k.htm
-2025-12-01T15:34:52.925690+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525168148/d945712d8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
-2025-12-01T15:34:52.929631+00:00,INFO,eight_k: parsed 14
-2025-12-01T15:34:53.232514+00:00,INFO,eight_k: (9.9%) processed 15/152 filings
-2025-12-01T15:34:53.236594+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525107505/d947872d8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:53.240770+00:00,INFO,eight_k: parsed 15
-2025-12-01T15:34:54.151776+00:00,INFO,eight_k: (10.5%) processed 16/152 filings
-2025-12-01T15:34:54.158835+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525068727/d944342d8k.htm items Item 1.01; Item 3.02; Item 7.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;subscription_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:54.163482+00:00,INFO,eight_k: parsed 16
-2025-12-01T15:34:54.469060+00:00,INFO,eight_k: (11.2%) processed 17/152 filings
-2025-12-01T15:34:54.481501+00:00,INFO,eight_k: DBVT skipped url https://www.sec.gov/Archives/edgar/data/1613780/000119312525139137/d55409d8k.htm reason non_actionable
-2025-12-01T15:34:54.487815+00:00,INFO,eight_k: failed 1
-2025-12-01T15:34:54.738261+00:00,INFO,eight_k: (11.8%) processed 18/152 filings
-2025-12-01T15:34:54.747098+00:00,INFO,eight_k: DBVT parsed url https://www.sec.gov/Archives/edgar/data/1613780/000119312525060850/d932759d8k.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:54.751575+00:00,INFO,eight_k: parsed 17
-2025-12-01T15:34:55.287477+00:00,INFO,eight_k: (12.5%) processed 19/152 filings
-2025-12-01T15:34:55.295349+00:00,INFO,eight_k: DSP skipped url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000034/dsp-20250605.htm reason non_actionable
-2025-12-01T15:34:55.303440+00:00,INFO,eight_k: failed 2
-2025-12-01T15:34:55.392561+00:00,INFO,eight_k: (13.2%) processed 20/152 filings
-2025-12-01T15:34:55.403412+00:00,INFO,eight_k: DSP skipped url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000024/dsp-20250510.htm reason non_actionable
-2025-12-01T15:34:55.408536+00:00,INFO,eight_k: failed 3
-2025-12-01T15:34:56.098137+00:00,INFO,eight_k: (13.8%) processed 21/152 filings
-2025-12-01T15:34:56.107843+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000077/dsp-20251110.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:56.111802+00:00,INFO,eight_k: parsed 18
-2025-12-01T15:34:56.718214+00:00,INFO,eight_k: (14.5%) processed 22/152 filings
-2025-12-01T15:34:56.723200+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000054/dsp-20250811.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:56.725942+00:00,INFO,eight_k: parsed 19
-2025-12-01T15:34:57.227951+00:00,INFO,eight_k: (15.1%) processed 23/152 filings
-2025-12-01T15:34:57.237309+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525248776/giwwu-20251023.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:57.243346+00:00,INFO,eight_k: parsed 20
-2025-12-01T15:34:58.231865+00:00,INFO,eight_k: (15.8%) processed 24/152 filings
-2025-12-01T15:34:58.242857+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000018/dsp-20250506.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:58.248854+00:00,INFO,eight_k: parsed 21
-2025-12-01T15:34:58.628030+00:00,INFO,eight_k: (16.4%) processed 25/152 filings
-2025-12-01T15:34:58.636553+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525239036/d71695d8k.htm items Item 5.02; Item 8.01; Item 9.01 items_norm Item 5.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:58.646808+00:00,INFO,eight_k: parsed 22
-2025-12-01T15:34:59.212300+00:00,INFO,eight_k: (17.1%) processed 26/152 filings
-2025-12-01T15:34:59.221986+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000009/dsp-20250303.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:59.251184+00:00,INFO,eight_k: parsed 23
-2025-12-01T15:34:59.356660+00:00,INFO,eight_k: (17.8%) processed 27/152 filings
-2025-12-01T15:34:59.375556+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525235847/d87287d8k.htm items Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;subscription_agreement;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:34:59.377872+00:00,INFO,eight_k: parsed 24
-2025-12-01T15:34:59.770660+00:00,INFO,eight_k: (18.4%) processed 28/152 filings
-2025-12-01T15:34:59.775584+00:00,INFO,eight_k: fetching 28/152 https://www.sec.gov/Archives/edgar/data/1970509/000110465925101287/tm2529208d1_8k.htm
-2025-12-01T15:34:59.778431+00:00,INFO,eight_k: HYAC parsed url https://www.sec.gov/Archives/edgar/data/1970509/000110465925101287/tm2529208d1_8k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:34:59.780960+00:00,INFO,eight_k: parsed 25
-2025-12-01T15:35:00.324850+00:00,INFO,eight_k: (19.1%) processed 29/152 filings
-2025-12-01T15:35:00.331268+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879124000053/dsp-20241112.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:00.333218+00:00,INFO,eight_k: parsed 26
-2025-12-01T15:35:00.539317+00:00,INFO,eight_k: (19.7%) processed 30/152 filings
-2025-12-01T15:35:00.548459+00:00,INFO,eight_k: HYAC skipped url https://www.sec.gov/Archives/edgar/data/1970509/000110465925070472/tm2521582d1_8k.htm reason non_actionable
-2025-12-01T15:35:00.553191+00:00,INFO,eight_k: failed 4
-2025-12-01T15:35:00.752059+00:00,INFO,eight_k: (20.4%) processed 31/152 filings
-2025-12-01T15:35:00.775392+00:00,INFO,eight_k: HYAC skipped url https://www.sec.gov/Archives/edgar/data/1970509/000110465925068090/tm2520966d1_8k.htm reason non_actionable
-2025-12-01T15:35:00.782156+00:00,INFO,eight_k: failed 5
-2025-12-01T15:35:00.926921+00:00,INFO,eight_k: (21.1%) processed 32/152 filings
-2025-12-01T15:35:00.934413+00:00,INFO,eight_k: HYAC skipped url https://www.sec.gov/Archives/edgar/data/1970509/000110465924115859/tm2427868d1_8k.htm reason non_actionable
-2025-12-01T15:35:00.943480+00:00,INFO,eight_k: failed 6
-2025-12-01T15:35:01.074404+00:00,INFO,eight_k: (21.7%) processed 33/152 filings
-2025-12-01T15:35:01.109292+00:00,INFO,eight_k: HYAC parsed url https://www.sec.gov/Archives/edgar/data/1970509/000110465925098545/tm2528499d1_8k.htm items Item 1.01; Item 7.01; Item 9.01 items_norm Item 1.01; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags subscription_agreement;warrant ignore_reason none press_release True exhibits True
-2025-12-01T15:35:01.116462+00:00,INFO,eight_k: parsed 27
-2025-12-01T15:35:01.571682+00:00,INFO,eight_k: (22.4%) processed 34/152 filings
-2025-12-01T15:35:01.578136+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000133/imrx-20251112.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:01.583299+00:00,INFO,eight_k: parsed 28
-2025-12-01T15:35:01.588063+00:00,INFO,eight_k: (23.0%) processed 35/152 filings
-2025-12-01T15:35:01.596050+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925093436/tm2526946d1_8k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;atm;warrant;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:01.621599+00:00,INFO,eight_k: parsed 29
-2025-12-01T15:35:01.800653+00:00,INFO,eight_k: (23.7%) processed 36/152 filings
-2025-12-01T15:35:01.839367+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925092957/tm2526843d1_8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:01.850898+00:00,INFO,eight_k: parsed 30
-2025-12-01T15:35:01.880789+00:00,INFO,eight_k: (24.3%) processed 37/152 filings
-2025-12-01T15:35:01.882262+00:00,INFO,eight_k: HYAC parsed url https://www.sec.gov/Archives/edgar/data/1970509/000110465925099332/tm2528611d1_8ka.htm items Item 1.01; Item 3.02; Item 9.01 items_norm Item 1.01; Item 3.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags subscription_agreement ignore_reason none press_release False exhibits True
-2025-12-01T15:35:01.884372+00:00,INFO,eight_k: parsed 31
-2025-12-01T15:35:02.145274+00:00,INFO,eight_k: (25.0%) processed 38/152 filings
-2025-12-01T15:35:02.153954+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925081995/tm2524079d1_8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:02.156238+00:00,INFO,eight_k: parsed 32
-2025-12-01T15:35:02.410802+00:00,INFO,eight_k: (25.7%) processed 39/152 filings
-2025-12-01T15:35:02.418549+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000102/imrx-20250813.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:02.423933+00:00,INFO,eight_k: parsed 33
-2025-12-01T15:35:02.603642+00:00,INFO,eight_k: (26.3%) processed 40/152 filings
-2025-12-01T15:35:02.610123+00:00,INFO,eight_k: IMRX skipped url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000077/imrx-20250617.htm reason non_actionable
-2025-12-01T15:35:02.613519+00:00,INFO,eight_k: failed 7
-2025-12-01T15:35:02.753973+00:00,INFO,eight_k: (27.0%) processed 41/152 filings
-2025-12-01T15:35:02.763404+00:00,INFO,eight_k: IMRX skipped url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000063/imrx-20250613.htm reason non_actionable
-2025-12-01T15:35:02.767375+00:00,INFO,eight_k: failed 8
-2025-12-01T15:35:03.094828+00:00,INFO,eight_k: (27.6%) processed 42/152 filings
-2025-12-01T15:35:03.105357+00:00,INFO,eight_k: fetching 42/152 https://www.sec.gov/Archives/edgar/data/1790340/000179034025000059/imrx-20250505.htm
-2025-12-01T15:35:03.109301+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000059/imrx-20250505.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:03.112997+00:00,INFO,eight_k: parsed 34
-2025-12-01T15:35:03.403913+00:00,INFO,eight_k: (28.3%) processed 43/152 filings
-2025-12-01T15:35:03.410007+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000039/imrx-20250320.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:03.413040+00:00,INFO,eight_k: parsed 35
-2025-12-01T15:35:03.587966+00:00,INFO,eight_k: (28.9%) processed 44/152 filings
-2025-12-01T15:35:03.740589+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000014/imrx-20250113.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:03.755435+00:00,INFO,eight_k: parsed 36
-2025-12-01T15:35:03.816105+00:00,INFO,eight_k: (29.6%) processed 45/152 filings
-2025-12-01T15:35:03.826180+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525291992/ivvd-20251124.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:03.843664+00:00,INFO,eight_k: parsed 37
-2025-12-01T15:35:04.072695+00:00,INFO,eight_k: (30.3%) processed 46/152 filings
-2025-12-01T15:35:04.128360+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525288347/ivvd-20251117.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:04.154435+00:00,INFO,eight_k: parsed 38
-2025-12-01T15:35:04.703400+00:00,INFO,eight_k: (30.9%) processed 47/152 filings
-2025-12-01T15:35:04.712468+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525268057/d81968d8k.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:04.718606+00:00,INFO,eight_k: parsed 39
-2025-12-01T15:35:04.879796+00:00,INFO,eight_k: (31.6%) processed 48/152 filings
-2025-12-01T15:35:04.889393+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525230898/ivvd-20251006.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:04.939073+00:00,INFO,eight_k: parsed 40
-2025-12-01T15:35:05.250189+00:00,INFO,eight_k: (32.2%) processed 49/152 filings
-2025-12-01T15:35:05.259246+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525258526/d24723d8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:05.265014+00:00,INFO,eight_k: parsed 41
-2025-12-01T15:35:05.334096+00:00,INFO,eight_k: (32.9%) processed 50/152 filings
-2025-12-01T15:35:05.342011+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525215541/ivvd-20250922.htm items Item 5.02; Item 7.01; Item 8.01 items_norm Item 5.02; Item 7.01; Item 8.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:05.344451+00:00,INFO,eight_k: parsed 42
-2025-12-01T15:35:05.414951+00:00,INFO,eight_k: (33.6%) processed 51/152 filings
-2025-12-01T15:35:05.461483+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000095017025110952/ivvd-20250820.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:05.463169+00:00,INFO,eight_k: parsed 43
-2025-12-01T15:35:06.078547+00:00,INFO,eight_k: (34.2%) processed 52/152 filings
-2025-12-01T15:35:06.083644+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000119312525180890/d936404d8k.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:06.087057+00:00,INFO,eight_k: parsed 44
-2025-12-01T15:35:06.253205+00:00,INFO,eight_k: (34.9%) processed 53/152 filings
-2025-12-01T15:35:06.262509+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000095014225002818/eh250692721_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:06.281007+00:00,INFO,eight_k: parsed 45
-2025-12-01T15:35:06.419861+00:00,INFO,eight_k: (35.5%) processed 54/152 filings
-2025-12-01T15:35:06.429875+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000095017025092528/ivvd-20250702.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:06.453852+00:00,INFO,eight_k: parsed 46
-2025-12-01T15:35:06.478793+00:00,INFO,eight_k: (36.2%) processed 55/152 filings
-2025-12-01T15:35:06.494877+00:00,INFO,eight_k: IVVD parsed url https://www.sec.gov/Archives/edgar/data/1832038/000095017025090172/ivvd-20250626.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:06.499831+00:00,INFO,eight_k: parsed 47
-2025-12-01T15:35:06.821416+00:00,INFO,eight_k: (36.8%) processed 56/152 filings
-2025-12-01T15:35:06.839608+00:00,INFO,eight_k: fetching 56/152 https://www.sec.gov/Archives/edgar/data/2073928/000121390025083405/ea0255430-8k_m3brig6.htm
-2025-12-01T15:35:06.959035+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000121390025083405/ea0255430-8k_m3brig6.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:06.998507+00:00,INFO,eight_k: parsed 48
-2025-12-01T15:35:07.009797+00:00,INFO,eight_k: (37.5%) processed 57/152 filings
-2025-12-01T15:35:07.036917+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000121390025084538/ea0255547-8k_m3brigade6.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:07.059713+00:00,INFO,eight_k: parsed 49
-2025-12-01T15:35:07.569909+00:00,INFO,eight_k: (38.2%) processed 58/152 filings
-2025-12-01T15:35:07.575627+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014225001659/eh250644960_8k.htm reason non_actionable
-2025-12-01T15:35:07.578494+00:00,INFO,eight_k: failed 9
-2025-12-01T15:35:08.056284+00:00,INFO,eight_k: (38.8%) processed 59/152 filings
-2025-12-01T15:35:08.074537+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225003060/eh250709295_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:08.079533+00:00,INFO,eight_k: parsed 50
-2025-12-01T15:35:08.411107+00:00,INFO,eight_k: (39.5%) processed 60/152 filings
-2025-12-01T15:35:08.422784+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225002299/eh250672037_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:08.427892+00:00,INFO,eight_k: parsed 51
-2025-12-01T15:35:09.288319+00:00,INFO,eight_k: (40.1%) processed 61/152 filings
-2025-12-01T15:35:09.294243+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014225001035/eh250615018_8k.htm reason non_actionable
-2025-12-01T15:35:09.299288+00:00,INFO,eight_k: failed 10
-2025-12-01T15:35:09.676130+00:00,INFO,eight_k: (40.8%) processed 62/152 filings
-2025-12-01T15:35:09.687721+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225001488/eh250634214_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:09.690893+00:00,INFO,eight_k: parsed 52
-2025-12-01T15:35:10.030018+00:00,INFO,eight_k: (41.4%) processed 63/152 filings
-2025-12-01T15:35:10.037156+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025053893/ea0245277-8k_newpro3.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:10.040954+00:00,INFO,eight_k: parsed 53
-2025-12-01T15:35:10.509993+00:00,INFO,eight_k: (42.1%) processed 64/152 filings
-2025-12-01T15:35:10.522871+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225001084/eh250616699_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:10.530600+00:00,INFO,eight_k: parsed 54
-2025-12-01T15:35:10.541422+00:00,INFO,eight_k: (42.8%) processed 65/152 filings
-2025-12-01T15:35:10.546374+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014224002790/eh240555997_8k.htm reason non_actionable
-2025-12-01T15:35:10.558491+00:00,INFO,eight_k: failed 11
-2025-12-01T15:35:11.690141+00:00,INFO,eight_k: (43.4%) processed 66/152 filings
-2025-12-01T15:35:11.700868+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025035680/ea0239499-8k_newpro3.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:11.704244+00:00,INFO,eight_k: parsed 55
-2025-12-01T15:35:12.111025+00:00,INFO,eight_k: (44.1%) processed 67/152 filings
-2025-12-01T15:35:12.122652+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014224002890/eh240564665_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:12.131243+00:00,INFO,eight_k: parsed 56
-2025-12-01T15:35:12.295355+00:00,INFO,eight_k: (44.7%) processed 68/152 filings
-2025-12-01T15:35:12.306014+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025038566/ea0240290-8k_newpro3.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:12.316890+00:00,INFO,eight_k: parsed 57
-2025-12-01T15:35:12.745456+00:00,INFO,eight_k: (45.4%) processed 69/152 filings
-2025-12-01T15:35:12.751347+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025035949/npb-20250723.htm reason non_actionable
-2025-12-01T15:35:12.754101+00:00,INFO,eight_k: failed 12
-2025-12-01T15:35:12.968030+00:00,INFO,eight_k: (46.1%) processed 70/152 filings
-2025-12-01T15:35:12.975792+00:00,INFO,eight_k: fetching 70/152 https://www.sec.gov/Archives/edgar/data/1336706/000162828025039628/npb-20250811.htm
-2025-12-01T15:35:12.978500+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025039628/npb-20250811.htm items Item 5.02; Item 9.01 items_norm Item 5.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:12.984017+00:00,INFO,eight_k: parsed 58
-2025-12-01T15:35:13.370997+00:00,INFO,eight_k: (46.7%) processed 71/152 filings
-2025-12-01T15:35:13.576911+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000110465925064656/tm2519615d1_8k.htm reason non_actionable
-2025-12-01T15:35:13.814887+00:00,INFO,eight_k: failed 13
-2025-12-01T15:35:14.097059+00:00,INFO,eight_k: (47.4%) processed 72/152 filings
-2025-12-01T15:35:14.107655+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000133670625000006/npb-20251021.htm items Item 2.02; Item 7.01 items_norm Item 2.02; Item 7.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:14.113300+00:00,INFO,eight_k: parsed 59
-2025-12-01T15:35:14.216984+00:00,INFO,eight_k: (48.0%) processed 73/152 filings
-2025-12-01T15:35:14.226428+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025032630/npb-20250328.htm reason non_actionable
-2025-12-01T15:35:14.229044+00:00,INFO,eight_k: failed 14
-2025-12-01T15:35:15.354289+00:00,INFO,eight_k: (48.7%) processed 74/152 filings
-2025-12-01T15:35:15.362630+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025035578/npb-20250722.htm items Item 2.02; Item 7.01 items_norm Item 2.02; Item 7.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:15.367705+00:00,INFO,eight_k: parsed 60
-2025-12-01T15:35:15.706216+00:00,INFO,eight_k: (49.3%) processed 75/152 filings
-2025-12-01T15:35:15.727909+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025027283/npb-20250516.htm reason non_actionable
-2025-12-01T15:35:15.754480+00:00,INFO,eight_k: failed 15
-2025-12-01T15:35:15.769381+00:00,INFO,eight_k: (50.0%) processed 76/152 filings
-2025-12-01T15:35:15.784479+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025025922/npb-20250515.htm reason non_actionable
-2025-12-01T15:35:15.797694+00:00,INFO,eight_k: failed 16
-2025-12-01T15:35:16.926046+00:00,INFO,eight_k: (50.7%) processed 77/152 filings
-2025-12-01T15:35:16.936378+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025018893/npb-20250422.htm items Item 2.02 items_norm Item 2.02 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:16.938764+00:00,INFO,eight_k: parsed 61
-2025-12-01T15:35:17.182216+00:00,INFO,eight_k: (51.3%) processed 78/152 filings
-2025-12-01T15:35:17.189488+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025017013/npb-20250408.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:17.194641+00:00,INFO,eight_k: parsed 62
-2025-12-01T15:35:17.249840+00:00,INFO,eight_k: (52.0%) processed 79/152 filings
-2025-12-01T15:35:17.272832+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025046759/opal-20251028.htm items Item 9.01 items_norm Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:17.302827+00:00,INFO,eight_k: parsed 63
-2025-12-01T15:35:17.571983+00:00,INFO,eight_k: (52.6%) processed 80/152 filings
-2025-12-01T15:35:17.582869+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000184227925000061/opal-20251022.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:17.597894+00:00,INFO,eight_k: parsed 64
-2025-12-01T15:35:18.773778+00:00,INFO,eight_k: (53.3%) processed 81/152 filings
-2025-12-01T15:35:18.778253+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025050443/opal-20251106.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:18.780487+00:00,INFO,eight_k: parsed 65
-2025-12-01T15:35:18.807142+00:00,INFO,eight_k: heartbeat processed 81/152 (parsed 65 failed 16)
-2025-12-01T15:35:18.951895+00:00,INFO,eight_k: (53.9%) processed 82/152 filings
-2025-12-01T15:35:18.967312+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025043107/opal-20250929.htm items Item 9.01 items_norm Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:19.005053+00:00,INFO,eight_k: parsed 66
-2025-12-01T15:35:19.143156+00:00,INFO,eight_k: (54.6%) processed 83/152 filings
-2025-12-01T15:35:19.162185+00:00,INFO,eight_k: OPAL skipped url https://www.sec.gov/Archives/edgar/data/1842279/000162828025032166/opal-20250618.htm reason non_actionable
-2025-12-01T15:35:19.214263+00:00,INFO,eight_k: failed 17
-2025-12-01T15:35:19.948725+00:00,INFO,eight_k: (55.3%) processed 84/152 filings
-2025-12-01T15:35:19.960759+00:00,INFO,eight_k: fetching 84/152 https://www.sec.gov/Archives/edgar/data/1842279/000162828025020006/opal-20250421.htm
-2025-12-01T15:35:19.995037+00:00,INFO,eight_k: OPAL skipped url https://www.sec.gov/Archives/edgar/data/1842279/000162828025020006/opal-20250421.htm reason non_actionable
-2025-12-01T15:35:20.014261+00:00,INFO,eight_k: failed 18
-2025-12-01T15:35:20.210572+00:00,INFO,eight_k: (55.9%) processed 85/152 filings
-2025-12-01T15:35:20.266447+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025019747/opal-20250424.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:20.323288+00:00,INFO,eight_k: parsed 67
-2025-12-01T15:35:20.999102+00:00,INFO,eight_k: (56.6%) processed 86/152 filings
-2025-12-01T15:35:21.088974+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025023886/opal-20250508.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:21.190141+00:00,INFO,eight_k: parsed 68
-2025-12-01T15:35:21.665028+00:00,INFO,eight_k: (57.2%) processed 87/152 filings
-2025-12-01T15:35:21.669247+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025038987/opal-20250807.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:21.681167+00:00,INFO,eight_k: parsed 69
-2025-12-01T15:35:21.855193+00:00,INFO,eight_k: (57.9%) processed 88/152 filings
-2025-12-01T15:35:21.862636+00:00,INFO,eight_k: OPAL parsed url https://www.sec.gov/Archives/edgar/data/1842279/000162828025019374/opal-20250422.htm items Item 9.01 items_norm Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:21.904362+00:00,INFO,eight_k: parsed 70
-2025-12-01T15:35:22.381828+00:00,INFO,eight_k: (58.6%) processed 89/152 filings
-2025-12-01T15:35:22.388559+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000060/owlt-20251113.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:22.390762+00:00,INFO,eight_k: parsed 71
-2025-12-01T15:35:22.470140+00:00,INFO,eight_k: (59.2%) processed 90/152 filings
-2025-12-01T15:35:22.482719+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000162828025045943/owlt-20251021.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:22.490558+00:00,INFO,eight_k: parsed 72
-2025-12-01T15:35:22.663315+00:00,INFO,eight_k: (59.9%) processed 91/152 filings
-2025-12-01T15:35:22.672710+00:00,INFO,eight_k: OWLT skipped url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000040/owlt-20250930.htm reason non_actionable
-2025-12-01T15:35:22.683021+00:00,INFO,eight_k: failed 19
-2025-12-01T15:35:23.255855+00:00,INFO,eight_k: (60.5%) processed 92/152 filings
-2025-12-01T15:35:23.340255+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000044/owlt-20251008.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release False exhibits True
-2025-12-01T15:35:23.366901+00:00,INFO,eight_k: parsed 73
-2025-12-01T15:35:23.952246+00:00,INFO,eight_k: (61.2%) processed 93/152 filings
-2025-12-01T15:35:23.960402+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000020/owlt-20250805.htm items Item 2.02; Item 5.02 items_norm Item 2.02; Item 5.02 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:23.971036+00:00,INFO,eight_k: parsed 74
-2025-12-01T15:35:24.086141+00:00,INFO,eight_k: (61.8%) processed 94/152 filings
-2025-12-01T15:35:24.096307+00:00,INFO,eight_k: OWLT skipped url https://www.sec.gov/Archives/edgar/data/1816708/000162828025031614/a20250611creditagreementam.htm reason non_actionable
-2025-12-01T15:35:24.126985+00:00,INFO,eight_k: failed 20
-2025-12-01T15:35:24.189863+00:00,INFO,eight_k: (62.5%) processed 95/152 filings
-2025-12-01T15:35:24.245793+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000019/owlt-20250807.htm items Item 1.01; Item 3.02 items_norm Item 1.01; Item 3.02 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release False exhibits True
-2025-12-01T15:35:24.262287+00:00,INFO,eight_k: parsed 75
-2025-12-01T15:35:24.418210+00:00,INFO,eight_k: (63.2%) processed 96/152 filings
-2025-12-01T15:35:24.438079+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000036/owlt-20250911.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:24.448257+00:00,INFO,eight_k: parsed 76
-2025-12-01T15:35:24.954788+00:00,INFO,eight_k: (63.8%) processed 97/152 filings
-2025-12-01T15:35:24.964972+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000162828025023770/owlt-20250508.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
-2025-12-01T15:35:24.975673+00:00,INFO,eight_k: parsed 77
-2025-12-01T15:35:25.460002+00:00,INFO,eight_k: (64.5%) processed 98/152 filings
-2025-12-01T15:35:25.465706+00:00,INFO,eight_k: fetching 98/152 https://www.sec.gov/Archives/edgar/data/1816708/000162828025009814/owlt-20250304.htm
-2025-12-01T15:35:25.467836+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000162828025009814/owlt-20250304.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
-2025-12-01T15:35:25.515635+00:00,INFO,eight_k: parsed 78
-2025-12-01T15:35:25.584134+00:00,INFO,eight_k: (65.1%) processed 99/152 filings
-2025-12-01T15:35:25.594787+00:00,INFO,eight_k: OWLT parsed url https://www.sec.gov/Archives/edgar/data/1816708/000181670825000032/owlt-20250807.htm items Item 3.02; Item 9.01 items_norm Item 3.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
-2025-12-01T15:35:25.601730+00:00,INFO,eight_k: parsed 79
-2025-12-01T15:35:25.738408+00:00,INFO,eight_k: (65.8%) processed 100/152 filings
-2025-12-01T15:35:25.758137+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000094337425000363/form8k_080525.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:25.763135+00:00,INFO,eight_k: parsed 80
-2025-12-01T15:35:26.483546+00:00,INFO,eight_k: (66.4%) processed 101/152 filings
-2025-12-01T15:35:26.493720+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000110465925104486/pbfs-20251030x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:26.504258+00:00,INFO,eight_k: parsed 81
-2025-12-01T15:35:26.881843+00:00,INFO,eight_k: (67.1%) processed 102/152 filings
-2025-12-01T15:35:26.891541+00:00,INFO,eight_k: PBFS skipped url https://www.sec.gov/Archives/edgar/data/1769663/000094337425000226/form8k_052025.htm reason non_actionable
-2025-12-01T15:35:26.919541+00:00,INFO,eight_k: failed 21
-2025-12-01T15:35:27.307465+00:00,INFO,eight_k: (67.8%) processed 103/152 filings
-2025-12-01T15:35:27.315931+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000155837025009799/pbfs-20250730x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:27.405988+00:00,INFO,eight_k: parsed 82
-2025-12-01T15:35:27.465619+00:00,INFO,eight_k: (68.4%) processed 104/152 filings
-2025-12-01T15:35:27.471802+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000155837025006003/pbfs-20250430x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:27.505611+00:00,INFO,eight_k: parsed 83
-2025-12-01T15:35:27.624140+00:00,INFO,eight_k: (69.1%) processed 105/152 filings
-2025-12-01T15:35:27.632589+00:00,INFO,eight_k: PBFS skipped url https://www.sec.gov/Archives/edgar/data/1769663/000094337424000467/form8k.htm reason non_actionable
-2025-12-01T15:35:27.649588+00:00,INFO,eight_k: failed 22
-2025-12-01T15:35:27.919191+00:00,INFO,eight_k: (69.7%) processed 106/152 filings
-2025-12-01T15:35:27.926271+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000155837025000542/pbfs-20250130x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:27.928277+00:00,INFO,eight_k: parsed 84
-2025-12-01T15:35:28.292405+00:00,INFO,eight_k: (70.4%) processed 107/152 filings
-2025-12-01T15:35:28.317810+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125021431/ef20050145_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:28.338373+00:00,INFO,eight_k: parsed 85
-2025-12-01T15:35:28.710831+00:00,INFO,eight_k: (71.1%) processed 108/152 filings
-2025-12-01T15:35:28.752391+00:00,INFO,eight_k: PBFS parsed url https://www.sec.gov/Archives/edgar/data/1769663/000155837024013952/pbfs-20241030x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:28.773656+00:00,INFO,eight_k: parsed 86
-2025-12-01T15:35:28.844840+00:00,INFO,eight_k: (71.7%) processed 109/152 filings
-2025-12-01T15:35:28.854658+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:28.868698+00:00,INFO,eight_k: parsed 87
-2025-12-01T15:35:29.103843+00:00,INFO,eight_k: (72.4%) processed 110/152 filings
-2025-12-01T15:35:29.107290+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125020174/ef20049531_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:29.109250+00:00,INFO,eight_k: parsed 88
-2025-12-01T15:35:29.275424+00:00,INFO,eight_k: (73.0%) processed 111/152 filings
-2025-12-01T15:35:29.304405+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125019627/ny20045296x17_8k.htm items Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:29.313830+00:00,INFO,eight_k: parsed 89
-2025-12-01T15:35:29.368163+00:00,INFO,eight_k: (73.7%) processed 112/152 filings
-2025-12-01T15:35:29.416592+00:00,INFO,eight_k: fetching 112/152 https://www.sec.gov/Archives/edgar/data/1551901/000110465925093911/tm2526928d1_8k.htm
-2025-12-01T15:35:29.441664+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925093911/tm2526928d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:29.474558+00:00,INFO,eight_k: parsed 90
-2025-12-01T15:35:29.482561+00:00,INFO,eight_k: (74.3%) processed 113/152 filings
-2025-12-01T15:35:29.489091+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465925090030/tm2526011d1_8k.htm reason non_actionable
-2025-12-01T15:35:29.498518+00:00,INFO,eight_k: failed 23
-2025-12-01T15:35:29.559705+00:00,INFO,eight_k: (75.0%) processed 114/152 filings
-2025-12-01T15:35:29.567421+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925088902/tm2525669d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:29.617193+00:00,INFO,eight_k: parsed 91
-2025-12-01T15:35:29.889687+00:00,INFO,eight_k: (75.7%) processed 115/152 filings
-2025-12-01T15:35:29.897797+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925084789/tm2524446d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:29.919957+00:00,INFO,eight_k: parsed 92
-2025-12-01T15:35:30.053812+00:00,INFO,eight_k: (76.3%) processed 116/152 filings
-2025-12-01T15:35:30.069666+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465925061187/tm2518314d1_8k.htm reason non_actionable
-2025-12-01T15:35:30.106010+00:00,INFO,eight_k: failed 24
-2025-12-01T15:35:30.194267+00:00,INFO,eight_k: (77.0%) processed 117/152 filings
-2025-12-01T15:35:30.211544+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925029412/tm2510626d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:30.214281+00:00,INFO,eight_k: parsed 93
-2025-12-01T15:35:30.236583+00:00,INFO,eight_k: (77.6%) processed 118/152 filings
-2025-12-01T15:35:30.238409+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925031208/tm2510985d1_8k.htm items Item 1.01; Item 2.03; Item 9.01 items_norm Item 1.01; Item 2.03; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:30.273331+00:00,INFO,eight_k: parsed 94
-2025-12-01T15:35:30.325174+00:00,INFO,eight_k: (78.3%) processed 119/152 filings
-2025-12-01T15:35:30.327225+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465924113515/tm2427269d1_8k.htm reason non_actionable
-2025-12-01T15:35:30.354265+00:00,INFO,eight_k: failed 25
-2025-12-01T15:35:31.480371+00:00,INFO,eight_k: (78.9%) processed 120/152 filings
-2025-12-01T15:35:31.489728+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225022652/form8-k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:31.491443+00:00,INFO,eight_k: parsed 95
-2025-12-01T15:35:31.551679+00:00,INFO,eight_k: (79.6%) processed 121/152 filings
-2025-12-01T15:35:31.624560+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225021084/form8-k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:31.651125+00:00,INFO,eight_k: parsed 96
-2025-12-01T15:35:32.233517+00:00,INFO,eight_k: (80.3%) processed 122/152 filings
-2025-12-01T15:35:32.327118+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225021082/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:32.377941+00:00,INFO,eight_k: parsed 97
-2025-12-01T15:35:32.390122+00:00,INFO,eight_k: (80.9%) processed 123/152 filings
-2025-12-01T15:35:32.395097+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225022654/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
-2025-12-01T15:35:32.403568+00:00,INFO,eight_k: parsed 98
-2025-12-01T15:35:32.598578+00:00,INFO,eight_k: (81.6%) processed 124/152 filings
-2025-12-01T15:35:32.607646+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225016353/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:32.609482+00:00,INFO,eight_k: parsed 99
-2025-12-01T15:35:32.611849+00:00,INFO,eight_k: (82.2%) processed 125/152 filings
-2025-12-01T15:35:32.615225+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225017440/form8-k.htm items Item 2.01; Item 8.01; Item 9.01 items_norm Item 2.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
-2025-12-01T15:35:32.616997+00:00,INFO,eight_k: parsed 100
-2025-12-01T15:35:33.688087+00:00,INFO,eight_k: (82.9%) processed 126/152 filings
-2025-12-01T15:35:33.716718+00:00,INFO,eight_k: fetching 126/152 https://www.sec.gov/Archives/edgar/data/1782430/000164117225012610/form8-k.htm
-2025-12-01T15:35:33.836032+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225012610/form8-k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
-2025-12-01T15:35:33.890909+00:00,INFO,eight_k: parsed 101
-2025-12-01T15:35:34.771475+00:00,INFO,eight_k: (83.6%) processed 127/152 filings
-2025-12-01T15:35:34.806799+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225013546/form8-k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:34.856143+00:00,INFO,eight_k: parsed 102
-2025-12-01T15:35:34.876459+00:00,INFO,eight_k: (84.2%) processed 128/152 filings
-2025-12-01T15:35:34.880900+00:00,INFO,eight_k: STRW skipped url https://www.sec.gov/Archives/edgar/data/1782430/000164117225009567/form8-k.htm reason non_actionable
-2025-12-01T15:35:34.923545+00:00,INFO,eight_k: failed 26
-2025-12-01T15:35:35.081140+00:00,INFO,eight_k: (84.9%) processed 129/152 filings
-2025-12-01T15:35:35.087848+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225012849/form8-ka.htm items Item 9.01 items_norm Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
-2025-12-01T15:35:35.090410+00:00,INFO,eight_k: parsed 103
-2025-12-01T15:35:35.516682+00:00,INFO,eight_k: (85.5%) processed 130/152 filings
-2025-12-01T15:35:35.527378+00:00,INFO,eight_k: TLNC parsed url https://www.sec.gov/Archives/edgar/data/2073340/000121390025087276/ea0256900-8k_talon.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:35.535493+00:00,INFO,eight_k: parsed 104
-2025-12-01T15:35:35.678310+00:00,INFO,eight_k: (86.2%) processed 131/152 filings
-2025-12-01T15:35:35.685270+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225009375/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:35.696930+00:00,INFO,eight_k: parsed 105
-2025-12-01T15:35:35.886126+00:00,INFO,eight_k: (86.8%) processed 132/152 filings
-2025-12-01T15:35:35.903899+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000149315225021757/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:35.909162+00:00,INFO,eight_k: parsed 106
-2025-12-01T15:35:36.008662+00:00,INFO,eight_k: (87.5%) processed 133/152 filings
-2025-12-01T15:35:36.010549+00:00,INFO,eight_k: TLNC parsed url https://www.sec.gov/Archives/edgar/data/2073340/000121390025088251/ea0257330-8k_talon.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:36.038307+00:00,INFO,eight_k: parsed 107
-2025-12-01T15:35:36.124032+00:00,INFO,eight_k: (88.2%) processed 134/152 filings
-2025-12-01T15:35:36.127801+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225026144/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant ignore_reason none press_release True exhibits True
-2025-12-01T15:35:36.129138+00:00,INFO,eight_k: parsed 108
-2025-12-01T15:35:36.493016+00:00,INFO,eight_k: (88.8%) processed 135/152 filings
-2025-12-01T15:35:36.519273+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225026127/form8-k.htm items Item 3.02; Item 5.01; Item 9.01 items_norm Item 3.02; Item 5.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
-2025-12-01T15:35:36.524986+00:00,INFO,eight_k: parsed 109
-2025-12-01T15:35:36.733638+00:00,INFO,eight_k: (89.5%) processed 136/152 filings
-2025-12-01T15:35:36.750582+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225026036/form8-k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
-2025-12-01T15:35:36.762222+00:00,INFO,eight_k: parsed 110
-2025-12-01T15:35:36.949912+00:00,INFO,eight_k: (90.1%) processed 137/152 filings
-2025-12-01T15:35:37.094497+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225022909/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:37.130805+00:00,INFO,eight_k: parsed 111
-2025-12-01T15:35:37.151483+00:00,INFO,eight_k: (90.8%) processed 138/152 filings
-2025-12-01T15:35:37.189600+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225020664/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:37.214760+00:00,INFO,eight_k: parsed 112
-2025-12-01T15:35:37.308448+00:00,INFO,eight_k: (91.4%) processed 139/152 filings
-2025-12-01T15:35:37.313178+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225019987/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:37.314993+00:00,INFO,eight_k: parsed 113
-2025-12-01T15:35:37.726994+00:00,INFO,eight_k: (92.1%) processed 140/152 filings
-2025-12-01T15:35:37.752891+00:00,INFO,eight_k: fetching 140/152 https://www.sec.gov/Archives/edgar/data/1956744/000164117225017055/form8-k.htm
-2025-12-01T15:35:37.762340+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225017055/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:37.790171+00:00,INFO,eight_k: parsed 114
-2025-12-01T15:35:37.926088+00:00,INFO,eight_k: (92.8%) processed 141/152 filings
-2025-12-01T15:35:37.935730+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000161516525000031/veri-20251110.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:37.939407+00:00,INFO,eight_k: parsed 115
-2025-12-01T15:35:38.075647+00:00,INFO,eight_k: (93.4%) processed 142/152 filings
-2025-12-01T15:35:38.088426+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225015738/form8-k.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:38.096112+00:00,INFO,eight_k: parsed 116
-2025-12-01T15:35:38.156717+00:00,INFO,eight_k: (94.1%) processed 143/152 filings
-2025-12-01T15:35:38.181300+00:00,INFO,eight_k: TRON parsed url https://www.sec.gov/Archives/edgar/data/1956744/000164117225019830/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
-2025-12-01T15:35:38.186271+00:00,INFO,eight_k: parsed 117
-2025-12-01T15:35:38.413192+00:00,INFO,eight_k: (94.7%) processed 144/152 filings
-2025-12-01T15:35:38.421499+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000161516525000024/veri-20251106.htm items Item 1.02; Item 8.01 items_norm Item 1.02; Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;convertible;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:38.430526+00:00,INFO,eight_k: parsed 118
-2025-12-01T15:35:38.630015+00:00,INFO,eight_k: (95.4%) processed 145/152 filings
-2025-12-01T15:35:38.638692+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000119312525241997/d33523d8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;spa;purchase_agreement;offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:38.645353+00:00,INFO,eight_k: parsed 119
-2025-12-01T15:35:38.851516+00:00,INFO,eight_k: (96.1%) processed 146/152 filings
-2025-12-01T15:35:38.870908+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000119312525240869/d48526d8k.htm items Item 1.01; Item 7.01; Item 9.01 items_norm Item 1.01; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:38.881820+00:00,INFO,eight_k: parsed 120
-2025-12-01T15:35:39.070506+00:00,INFO,eight_k: (96.7%) processed 147/152 filings
-2025-12-01T15:35:39.080830+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000119312525240645/d68192d8k.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
-2025-12-01T15:35:39.086108+00:00,INFO,eight_k: parsed 121
-2025-12-01T15:35:39.234847+00:00,INFO,eight_k: (97.4%) processed 148/152 filings
-2025-12-01T15:35:39.238980+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000161516525000016/veri-20251014.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:39.242069+00:00,INFO,eight_k: parsed 122
-2025-12-01T15:35:39.641109+00:00,INFO,eight_k: (98.0%) processed 149/152 filings
-2025-12-01T15:35:39.667263+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000161516525000022/veri-20251106.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;atm;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:39.688504+00:00,INFO,eight_k: parsed 123
-2025-12-01T15:35:39.816315+00:00,INFO,eight_k: (98.7%) processed 150/152 filings
-2025-12-01T15:35:39.842317+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000119312525202294/d43084d8k.htm items Item 1.01; Item 7.01; Item 9.01 items_norm Item 1.01; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:39.851151+00:00,INFO,eight_k: parsed 124
-2025-12-01T15:35:39.930991+00:00,INFO,eight_k: (99.3%) processed 151/152 filings
-2025-12-01T15:35:39.980941+00:00,INFO,eight_k: VERI skipped url https://www.sec.gov/Archives/edgar/data/1615165/000119312525195046/d85076d8k.htm reason non_actionable
-2025-12-01T15:35:39.985538+00:00,INFO,eight_k: failed 27
-2025-12-01T15:35:41.366610+00:00,INFO,eight_k: (100.0%) processed 152/152 filings
-2025-12-01T15:35:41.369509+00:00,INFO,eight_k: VERI parsed url https://www.sec.gov/Archives/edgar/data/1615165/000161516525000009/veri-20250807.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;atm;convertible;warrant;offering ignore_reason none press_release True exhibits True
-2025-12-01T15:35:41.370794+00:00,INFO,eight_k: parsed 125
-2025-12-01T15:35:41.442023+00:00,INFO,eight_k: parsed 125
-2025-12-01T15:35:41.444343+00:00,INFO,eight_k: failed 27
-2025-12-01T15:35:41.449263+00:00,INFO,eight_k: complete – wrote 125 rows
-2025-12-01T15:35:48.341222+00:00,INFO,WEEKLY_VALIDATION N_rows=22 N_validated_all_true=11 N_any_gate_false=11 C1=13/9 C2=22/0 C3=22/0 C4=19/3 C5=22/0 C6=11/11
-2025-12-01T15:35:48.370222+00:00,INFO,"WEEKLY_VALIDATION: validated=11 tbd=11 reasons=[Mandatory subscore missing: Runway; Materiality fail=7, Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail=2, Materiality fail=1, Subscores <4/5; Materiality fail=1]"
-2025-12-01T15:35:48.584571+00:00,INFO,WEEKLY_SUMMARY: universe=28 filings=447 events=125 shortlist=22 deep=22 validated=11 tbd=11
+2025-12-01T17:46:25.673130+00:00,INFO,eight_k: loading filings from ./data\02_filings.csv
+2025-12-01T17:46:25.805146+00:00,INFO,eight_k: 230 unique 8-K filings queued
+2025-12-01T17:46:25.859994+00:00,INFO,eight_k: (0.0%) processing 230 filings
+2025-12-01T17:46:25.867720+00:00,INFO,eight_k: start
+2025-12-01T17:46:27.337754+00:00,INFO,eight_k: (0.4%) processed 1/230 filings
+2025-12-01T17:46:27.343168+00:00,INFO,eight_k: fetching 1/230 https://www.sec.gov/Archives/edgar/data/2031561/000110465925104853/tm2529654d1_8k.htm
+2025-12-01T17:46:27.346585+00:00,INFO,eight_k: ALDF skipped url https://www.sec.gov/Archives/edgar/data/2031561/000110465925104853/tm2529654d1_8k.htm reason non_actionable
+2025-12-01T17:46:27.363021+00:00,INFO,eight_k: failed 1
+2025-12-01T17:46:27.469077+00:00,INFO,eight_k: (0.9%) processed 2/230 filings
+2025-12-01T17:46:27.471071+00:00,INFO,eight_k: fetching 2/230 https://www.sec.gov/Archives/edgar/data/2031561/000110465924112204/tm2426986d1_8k.htm
+2025-12-01T17:46:27.473243+00:00,INFO,eight_k: ALDF parsed url https://www.sec.gov/Archives/edgar/data/2031561/000110465924112204/tm2426986d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:27.475403+00:00,INFO,eight_k: parsed 1
+2025-12-01T17:46:27.787082+00:00,INFO,eight_k: (1.3%) processed 3/230 filings
+2025-12-01T17:46:27.791687+00:00,INFO,eight_k: fetching 3/230 https://www.sec.gov/Archives/edgar/data/1426800/000119312525178092/d442009d8k.htm
+2025-12-01T17:46:27.794388+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000119312525178092/d442009d8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:27.797936+00:00,INFO,eight_k: parsed 2
+2025-12-01T17:46:28.150706+00:00,INFO,eight_k: (1.7%) processed 4/230 filings
+2025-12-01T17:46:28.160688+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000119312525176138/d802767d8k.htm items Item 7.01; Item 8.01; Item 9.01 items_norm Item 7.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:28.167299+00:00,INFO,eight_k: parsed 3
+2025-12-01T17:46:28.362535+00:00,INFO,eight_k: (2.2%) processed 5/230 filings
+2025-12-01T17:46:28.368053+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000119312525274235/asmb-20251110.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:28.371012+00:00,INFO,eight_k: parsed 4
+2025-12-01T17:46:28.534033+00:00,INFO,eight_k: (2.6%) processed 6/230 filings
+2025-12-01T17:46:28.541816+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000095017025089949/asmb-20250625.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:28.544526+00:00,INFO,eight_k: parsed 5
+2025-12-01T17:46:28.776682+00:00,INFO,eight_k: (3.0%) processed 7/230 filings
+2025-12-01T17:46:28.780637+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000095017025104020/asmb-20250806.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:28.782545+00:00,INFO,eight_k: parsed 6
+2025-12-01T17:46:29.168065+00:00,INFO,eight_k: (3.5%) processed 8/230 filings
+2025-12-01T17:46:29.210676+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000095017025066946/asmb-20250508.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:29.216507+00:00,INFO,eight_k: parsed 7
+2025-12-01T17:46:29.370609+00:00,INFO,eight_k: (3.9%) processed 9/230 filings
+2025-12-01T17:46:29.387576+00:00,INFO,eight_k: ASMB skipped url https://www.sec.gov/Archives/edgar/data/1426800/000095017025083830/asmb-20250605.htm reason non_actionable
+2025-12-01T17:46:29.411610+00:00,INFO,eight_k: failed 2
+2025-12-01T17:46:29.610227+00:00,INFO,eight_k: (4.3%) processed 10/230 filings
+2025-12-01T17:46:29.619822+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000095017025024134/asmb-20250220.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:29.624271+00:00,INFO,eight_k: parsed 8
+2025-12-01T17:46:29.969899+00:00,INFO,eight_k: (4.8%) processed 11/230 filings
+2025-12-01T17:46:29.978584+00:00,INFO,eight_k: ASMB parsed url https://www.sec.gov/Archives/edgar/data/1426800/000095017025042660/asmb-20250320.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:29.985721+00:00,INFO,eight_k: parsed 9
+2025-12-01T17:46:30.116491+00:00,INFO,eight_k: (5.2%) processed 12/230 filings
+2025-12-01T17:46:30.122532+00:00,INFO,eight_k: BDCI parsed url https://www.sec.gov/Archives/edgar/data/2042292/000121390025097023/ea0260340-8k_btcdevelop.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:30.126714+00:00,INFO,eight_k: parsed 10
+2025-12-01T17:46:30.218467+00:00,INFO,eight_k: (5.7%) processed 13/230 filings
+2025-12-01T17:46:30.238870+00:00,INFO,eight_k: ASMB skipped url https://www.sec.gov/Archives/edgar/data/1426800/000095017025001141/asmb-20241230.htm reason non_actionable
+2025-12-01T17:46:30.263125+00:00,INFO,eight_k: failed 3
+2025-12-01T17:46:30.537831+00:00,INFO,eight_k: (6.1%) processed 14/230 filings
+2025-12-01T17:46:30.545903+00:00,INFO,eight_k: BDCI parsed url https://www.sec.gov/Archives/edgar/data/2042292/000121390025096131/ea0259285-8k_btc.htm items Item 1.01; Item 3.02; Item 3.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 3.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;subscription_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:30.550405+00:00,INFO,eight_k: parsed 11
+2025-12-01T17:46:30.641615+00:00,INFO,eight_k: (6.5%) processed 15/230 filings
+2025-12-01T17:46:30.647233+00:00,INFO,eight_k: BKKT parsed url https://www.sec.gov/Archives/edgar/data/1820302/000162828025053695/bakkt-20251121.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
+2025-12-01T17:46:30.651571+00:00,INFO,eight_k: parsed 12
+2025-12-01T17:46:30.875245+00:00,INFO,eight_k: (7.0%) processed 16/230 filings
+2025-12-01T17:46:30.943051+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000162828025052422/bakkt-20251107.htm reason non_actionable
+2025-12-01T17:46:30.971581+00:00,INFO,eight_k: failed 4
+2025-12-01T17:46:30.977837+00:00,INFO,eight_k: (7.4%) processed 17/230 filings
+2025-12-01T17:46:31.045298+00:00,INFO,eight_k: BKKT parsed url https://www.sec.gov/Archives/edgar/data/1820302/000119312525275602/d17320d8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:31.062370+00:00,INFO,eight_k: parsed 13
+2025-12-01T17:46:31.289407+00:00,INFO,eight_k: (7.8%) processed 18/230 filings
+2025-12-01T17:46:31.319835+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000119312525262474/d98917d8k.htm reason non_actionable
+2025-12-01T17:46:31.323688+00:00,INFO,eight_k: failed 5
+2025-12-01T17:46:31.808842+00:00,INFO,eight_k: (8.3%) processed 19/230 filings
+2025-12-01T17:46:31.836939+00:00,INFO,eight_k: BKKT parsed url https://www.sec.gov/Archives/edgar/data/1820302/000162828025051201/bakkt-20251110.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:31.861143+00:00,INFO,eight_k: parsed 14
+2025-12-01T17:46:32.003608+00:00,INFO,eight_k: (8.7%) processed 20/230 filings
+2025-12-01T17:46:32.020282+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000162828025045560/bakkt-20251019.htm reason non_actionable
+2025-12-01T17:46:32.025501+00:00,INFO,eight_k: failed 6
+2025-12-01T17:46:32.184765+00:00,INFO,eight_k: (9.1%) processed 21/230 filings
+2025-12-01T17:46:32.192872+00:00,INFO,eight_k: BKKT parsed url https://www.sec.gov/Archives/edgar/data/1820302/000162828025047840/bakkt-20251031.htm items Item 5.02; Item 7.01; Item 9.01 items_norm Item 5.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:32.195941+00:00,INFO,eight_k: parsed 15
+2025-12-01T17:46:32.366397+00:00,INFO,eight_k: (9.6%) processed 22/230 filings
+2025-12-01T17:46:32.376593+00:00,INFO,eight_k: fetching 22/230 https://www.sec.gov/Archives/edgar/data/1820302/000119312525245822/d36779d8k.htm
+2025-12-01T17:46:32.400445+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000119312525245822/d36779d8k.htm reason non_actionable
+2025-12-01T17:46:32.425664+00:00,INFO,eight_k: failed 7
+2025-12-01T17:46:32.428847+00:00,INFO,eight_k: (10.0%) processed 23/230 filings
+2025-12-01T17:46:32.464930+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000119312525237364/d32118d8k.htm reason non_actionable
+2025-12-01T17:46:32.489802+00:00,INFO,eight_k: failed 8
+2025-12-01T17:46:32.605264+00:00,INFO,eight_k: (10.4%) processed 24/230 filings
+2025-12-01T17:46:32.619168+00:00,INFO,eight_k: BKKT parsed url https://www.sec.gov/Archives/edgar/data/1820302/000119312525242750/d74254d8k.htm items Item 1.01; Item 3.02; Item 7.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags registered_direct;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:32.620986+00:00,INFO,eight_k: parsed 16
+2025-12-01T17:46:32.623308+00:00,INFO,eight_k: (10.9%) processed 25/230 filings
+2025-12-01T17:46:32.625016+00:00,INFO,eight_k: BKKT skipped url https://www.sec.gov/Archives/edgar/data/1820302/000119312525272524/d70742d8ka.htm reason non_actionable
+2025-12-01T17:46:32.626673+00:00,INFO,eight_k: failed 9
+2025-12-01T17:46:33.038551+00:00,INFO,eight_k: (11.3%) processed 26/230 filings
+2025-12-01T17:46:33.058962+00:00,INFO,eight_k: CCRN skipped url https://www.sec.gov/Archives/edgar/data/1141103/000162828025043262/ccrn-20250925.htm reason non_actionable
+2025-12-01T17:46:33.060841+00:00,INFO,eight_k: failed 10
+2025-12-01T17:46:33.306014+00:00,INFO,eight_k: (11.7%) processed 27/230 filings
+2025-12-01T17:46:33.317480+00:00,INFO,eight_k: CCRN skipped url https://www.sec.gov/Archives/edgar/data/1141103/000095010325011190/dp233920_8k.htm reason non_actionable
+2025-12-01T17:46:33.322547+00:00,INFO,eight_k: failed 11
+2025-12-01T17:46:34.007343+00:00,INFO,eight_k: (12.2%) processed 28/230 filings
+2025-12-01T17:46:34.027793+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000162828025051671/ccrn-20251112.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:34.040324+00:00,INFO,eight_k: parsed 17
+2025-12-01T17:46:34.759090+00:00,INFO,eight_k: (12.6%) processed 29/230 filings
+2025-12-01T17:46:34.782229+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000162828025038369/ccrn-20250806.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:34.789902+00:00,INFO,eight_k: parsed 18
+2025-12-01T17:46:35.083335+00:00,INFO,eight_k: (13.0%) processed 30/230 filings
+2025-12-01T17:46:35.089390+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000095010325002748/dp225602_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:35.092261+00:00,INFO,eight_k: parsed 19
+2025-12-01T17:46:35.541314+00:00,INFO,eight_k: (13.5%) processed 31/230 filings
+2025-12-01T17:46:35.556152+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000162828025023205/ccrn-20250507.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:35.574177+00:00,INFO,eight_k: parsed 20
+2025-12-01T17:46:35.670740+00:00,INFO,eight_k: (13.9%) processed 32/230 filings
+2025-12-01T17:46:35.675088+00:00,INFO,eight_k: CCRN skipped url https://www.sec.gov/Archives/edgar/data/1141103/000095010325002303/dp225185_8k.htm reason non_actionable
+2025-12-01T17:46:35.677762+00:00,INFO,eight_k: failed 12
+2025-12-01T17:46:36.092548+00:00,INFO,eight_k: (14.3%) processed 33/230 filings
+2025-12-01T17:46:36.103117+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000095010324017244/dp221634_8k.htm items Item 1.01; Item 7.01; Item 9.01 items_norm Item 1.01; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:36.120042+00:00,INFO,eight_k: parsed 21
+2025-12-01T17:46:36.812853+00:00,INFO,eight_k: (14.8%) processed 34/230 filings
+2025-12-01T17:46:36.820480+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000162828025010495/ccrn-20250305.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:36.824354+00:00,INFO,eight_k: parsed 22
+2025-12-01T17:46:37.061706+00:00,INFO,eight_k: (15.2%) processed 35/230 filings
+2025-12-01T17:46:37.068861+00:00,INFO,eight_k: CGC skipped url https://www.sec.gov/Archives/edgar/data/1737927/000110465925098884/tm2528659d1_8k.htm reason non_actionable
+2025-12-01T17:46:37.074569+00:00,INFO,eight_k: failed 13
+2025-12-01T17:46:37.323074+00:00,INFO,eight_k: (15.7%) processed 36/230 filings
+2025-12-01T17:46:37.335096+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000110465925090861/tm2526282d1_8k.htm items Item 5.02; Item 7.01; Item 9.01 items_norm Item 5.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm ignore_reason none press_release True exhibits True
+2025-12-01T17:46:37.349169+00:00,INFO,eight_k: parsed 23
+2025-12-01T17:46:37.610130+00:00,INFO,eight_k: (16.1%) processed 37/230 filings
+2025-12-01T17:46:37.622065+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000110465925085779/tm2524672d1_8k.htm items Item 7.01; Item 8.01; Item 9.01 items_norm Item 7.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:37.624616+00:00,INFO,eight_k: parsed 24
+2025-12-01T17:46:38.320835+00:00,INFO,eight_k: (16.5%) processed 38/230 filings
+2025-12-01T17:46:38.336392+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000119312525270995/cgc-20251107.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:38.365671+00:00,INFO,eight_k: parsed 25
+2025-12-01T17:46:38.461065+00:00,INFO,eight_k: (17.0%) processed 39/230 filings
+2025-12-01T17:46:38.478073+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000110465925071781/tm2521930d1_8k.htm items Item 1.01; Item 7.01; Item 9.01 items_norm Item 1.01; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:38.487668+00:00,INFO,eight_k: parsed 26
+2025-12-01T17:46:39.057158+00:00,INFO,eight_k: (17.4%) processed 40/230 filings
+2025-12-01T17:46:39.063389+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000110465925066600/tm2520113d1_8k.htm items Item 5.02; Item 7.01; Item 9.01 items_norm Item 5.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:39.087610+00:00,INFO,eight_k: parsed 27
+2025-12-01T17:46:39.461527+00:00,INFO,eight_k: (17.8%) processed 41/230 filings
+2025-12-01T17:46:39.472689+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000110465925030245/tm257897d4_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:39.477529+00:00,INFO,eight_k: parsed 28
+2025-12-01T17:46:40.041291+00:00,INFO,eight_k: (18.3%) processed 42/230 filings
+2025-12-01T17:46:40.259431+00:00,INFO,eight_k: CGC skipped url https://www.sec.gov/Archives/edgar/data/1737927/000110465925019244/tm257897d2_8k.htm reason non_actionable
+2025-12-01T17:46:40.354611+00:00,INFO,eight_k: failed 14
+2025-12-01T17:46:40.363414+00:00,INFO,eight_k: (18.7%) processed 43/230 filings
+2025-12-01T17:46:40.366520+00:00,INFO,eight_k: CCRN parsed url https://www.sec.gov/Archives/edgar/data/1141103/000162828024045750/ccrn-20241106.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:40.377547+00:00,INFO,eight_k: parsed 29
+2025-12-01T17:46:40.557238+00:00,INFO,eight_k: (19.1%) processed 44/230 filings
+2025-12-01T17:46:40.564383+00:00,INFO,eight_k: fetching 44/230 https://www.sec.gov/Archives/edgar/data/2058359/000121390025055207/ea0245915-8k_calred.htm
+2025-12-01T17:46:40.566251+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025055207/ea0245915-8k_calred.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:40.598021+00:00,INFO,eight_k: parsed 30
+2025-12-01T17:46:41.196669+00:00,INFO,eight_k: (19.6%) processed 45/230 filings
+2025-12-01T17:46:41.212176+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025047867/ea0243417-8k_calredwood.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:41.221001+00:00,INFO,eight_k: parsed 31
+2025-12-01T17:46:41.227828+00:00,INFO,eight_k: (20.0%) processed 46/230 filings
+2025-12-01T17:46:41.235779+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000119312525176020/cgc-20250806.htm items Item 2.02; Item 5.02; Item 9.01 items_norm Item 2.02; Item 5.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:41.238781+00:00,INFO,eight_k: parsed 32
+2025-12-01T17:46:41.419057+00:00,INFO,eight_k: (20.4%) processed 47/230 filings
+2025-12-01T17:46:41.428247+00:00,INFO,eight_k: CRAQ parsed url https://www.sec.gov/Archives/edgar/data/2058359/000121390025050126/ea0243885-8k_calred.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:41.429989+00:00,INFO,eight_k: parsed 33
+2025-12-01T17:46:42.465870+00:00,INFO,eight_k: (20.9%) processed 48/230 filings
+2025-12-01T17:46:42.474928+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000119312525291648/ctgo-20251119.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:42.478534+00:00,INFO,eight_k: parsed 34
+2025-12-01T17:46:42.613041+00:00,INFO,eight_k: (21.3%) processed 49/230 filings
+2025-12-01T17:46:42.617917+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000119312525228609/ctgo-20251002.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:42.620480+00:00,INFO,eight_k: parsed 35
+2025-12-01T17:46:44.046738+00:00,INFO,eight_k: (21.7%) processed 50/230 filings
+2025-12-01T17:46:44.056015+00:00,INFO,eight_k: CGC parsed url https://www.sec.gov/Archives/edgar/data/1737927/000095017025079321/cgc-20250530.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:44.065707+00:00,INFO,eight_k: parsed 36
+2025-12-01T17:46:44.283844+00:00,INFO,eight_k: (22.2%) processed 51/230 filings
+2025-12-01T17:46:44.288913+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000119312525220431/d911539d8k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:44.291914+00:00,INFO,eight_k: parsed 37
+2025-12-01T17:46:44.411019+00:00,INFO,eight_k: (22.6%) processed 52/230 filings
+2025-12-01T17:46:44.417997+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000119312525280652/ctgo-20251113.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:44.419732+00:00,INFO,eight_k: parsed 38
+2025-12-01T17:46:44.736345+00:00,INFO,eight_k: (23.0%) processed 53/230 filings
+2025-12-01T17:46:44.741089+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000095017025108206/ctgo-20250813.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:44.744141+00:00,INFO,eight_k: parsed 39
+2025-12-01T17:46:44.821903+00:00,INFO,eight_k: (23.5%) processed 54/230 filings
+2025-12-01T17:46:44.827250+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000095017025100447/ctgo-20250730.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:44.836498+00:00,INFO,eight_k: parsed 40
+2025-12-01T17:46:45.057417+00:00,INFO,eight_k: (23.9%) processed 55/230 filings
+2025-12-01T17:46:45.067480+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000095017025086551/ctgo-20250616.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:45.069199+00:00,INFO,eight_k: parsed 41
+2025-12-01T17:46:45.071114+00:00,INFO,eight_k: (24.3%) processed 56/230 filings
+2025-12-01T17:46:45.072784+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000095017025091058/ctgo-20250625.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:45.074635+00:00,INFO,eight_k: parsed 42
+2025-12-01T17:46:45.415500+00:00,INFO,eight_k: (24.8%) processed 57/230 filings
+2025-12-01T17:46:45.429660+00:00,INFO,eight_k: CTGO parsed url https://www.sec.gov/Archives/edgar/data/1502377/000095017025084513/ctgo-20250610.htm items Item 5.07; Item 7.01; Item 9.01 items_norm Item 5.07; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:45.432012+00:00,INFO,eight_k: parsed 43
+2025-12-01T17:46:45.705362+00:00,INFO,eight_k: (25.2%) processed 58/230 filings
+2025-12-01T17:46:45.708205+00:00,INFO,eight_k: CTGO skipped url https://www.sec.gov/Archives/edgar/data/1502377/000095017025082392/ctgo-20250603.htm reason non_actionable
+2025-12-01T17:46:45.709580+00:00,INFO,eight_k: failed 15
+2025-12-01T17:46:45.902189+00:00,INFO,eight_k: (25.7%) processed 59/230 filings
+2025-12-01T17:46:45.910992+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925035860/ctnm20251117_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:45.914732+00:00,INFO,eight_k: parsed 44
+2025-12-01T17:46:46.074402+00:00,INFO,eight_k: (26.1%) processed 60/230 filings
+2025-12-01T17:46:46.093437+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925032422/ctnm20251015_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:46.095570+00:00,INFO,eight_k: parsed 45
+2025-12-01T17:46:46.200856+00:00,INFO,eight_k: (26.5%) processed 61/230 filings
+2025-12-01T17:46:46.204309+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925029349/ctnm20250910_8k.htm items Item 7.01; Item 8.01; Item 9.01 items_norm Item 7.01; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:46.206148+00:00,INFO,eight_k: parsed 46
+2025-12-01T17:46:46.706544+00:00,INFO,eight_k: (27.0%) processed 62/230 filings
+2025-12-01T17:46:46.715069+00:00,INFO,eight_k: CTNM skipped url https://www.sec.gov/Archives/edgar/data/1855175/000143774925021343/ctnm20250616c_8k.htm reason non_actionable
+2025-12-01T17:46:46.716739+00:00,INFO,eight_k: failed 16
+2025-12-01T17:46:46.974141+00:00,INFO,eight_k: (27.4%) processed 63/230 filings
+2025-12-01T17:46:46.983498+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925013334/cont20250422_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:46.989446+00:00,INFO,eight_k: parsed 47
+2025-12-01T17:46:47.186464+00:00,INFO,eight_k: (27.8%) processed 64/230 filings
+2025-12-01T17:46:47.196131+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925024849/ctnm20250616_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:47.203483+00:00,INFO,eight_k: parsed 48
+2025-12-01T17:46:47.440702+00:00,INFO,eight_k: (28.3%) processed 65/230 filings
+2025-12-01T17:46:47.443881+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925016877/cont20250321_8k.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:47.445732+00:00,INFO,eight_k: parsed 49
+2025-12-01T17:46:47.832442+00:00,INFO,eight_k: (28.7%) processed 66/230 filings
+2025-12-01T17:46:47.859073+00:00,INFO,eight_k: fetching 66/230 https://www.sec.gov/Archives/edgar/data/1855175/000143774925007998/cont20250304_8k.htm
+2025-12-01T17:46:47.874061+00:00,INFO,eight_k: CTNM skipped url https://www.sec.gov/Archives/edgar/data/1855175/000143774925007998/cont20250304_8k.htm reason non_actionable
+2025-12-01T17:46:47.876055+00:00,INFO,eight_k: failed 17
+2025-12-01T17:46:48.327135+00:00,INFO,eight_k: (29.1%) processed 67/230 filings
+2025-12-01T17:46:48.341733+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774925006457/cont20250214_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:48.359295+00:00,INFO,eight_k: parsed 50
+2025-12-01T17:46:48.793320+00:00,INFO,eight_k: (29.6%) processed 68/230 filings
+2025-12-01T17:46:48.801961+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000110465925108359/cznc-20251107x8k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:46:48.820058+00:00,INFO,eight_k: parsed 51
+2025-12-01T17:46:48.969702+00:00,INFO,eight_k: (30.0%) processed 69/230 filings
+2025-12-01T17:46:48.975840+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000110465925095389/cznc-20251001x8k.htm items Item 2.01; Item 5.02; Item 8.01; Item 9.01 items_norm Item 2.01; Item 5.02; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:48.994922+00:00,INFO,eight_k: parsed 52
+2025-12-01T17:46:49.231056+00:00,INFO,eight_k: (30.4%) processed 70/230 filings
+2025-12-01T17:46:49.252939+00:00,INFO,eight_k: CTNM parsed url https://www.sec.gov/Archives/edgar/data/1855175/000143774924033614/cont20241029_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:46:49.257306+00:00,INFO,eight_k: parsed 53
+2025-12-01T17:46:49.433594+00:00,INFO,eight_k: (30.9%) processed 71/230 filings
+2025-12-01T17:46:49.448422+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000110465925092067/cznc-20250922x8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:49.456191+00:00,INFO,eight_k: parsed 54
+2025-12-01T17:46:49.509458+00:00,INFO,eight_k: (31.3%) processed 72/230 filings
+2025-12-01T17:46:49.529970+00:00,INFO,eight_k: CZNC skipped url https://www.sec.gov/Archives/edgar/data/810958/000110465925088983/cznc-20250908x8k.htm reason non_actionable
+2025-12-01T17:46:49.533111+00:00,INFO,eight_k: failed 18
+2025-12-01T17:46:49.841345+00:00,INFO,eight_k: (31.7%) processed 73/230 filings
+2025-12-01T17:46:49.854004+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000155837025009537/cznc-20250724x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:46:49.859726+00:00,INFO,eight_k: parsed 55
+2025-12-01T17:46:50.061377+00:00,INFO,eight_k: (32.2%) processed 74/230 filings
+2025-12-01T17:46:50.074522+00:00,INFO,eight_k: CZNC skipped url https://www.sec.gov/Archives/edgar/data/810958/000155837025005706/cznc-20250424x8k.htm reason non_actionable
+2025-12-01T17:46:50.099113+00:00,INFO,eight_k: failed 19
+2025-12-01T17:46:50.511984+00:00,INFO,eight_k: (32.6%) processed 75/230 filings
+2025-12-01T17:46:50.521740+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000155837025005276/cznc-20250423x8k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:50.526202+00:00,INFO,eight_k: parsed 56
+2025-12-01T17:46:50.584403+00:00,INFO,eight_k: (33.0%) processed 76/230 filings
+2025-12-01T17:46:50.615641+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000155837025005252/cznc-20250423x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:46:50.623753+00:00,INFO,eight_k: parsed 57
+2025-12-01T17:46:50.861615+00:00,INFO,eight_k: (33.5%) processed 77/230 filings
+2025-12-01T17:46:50.889097+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000155837025000359/cznc-20250123x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:46:50.891857+00:00,INFO,eight_k: parsed 58
+2025-12-01T17:46:51.227185+00:00,INFO,eight_k: (33.9%) processed 78/230 filings
+2025-12-01T17:46:51.231516+00:00,INFO,eight_k: DENN parsed url https://www.sec.gov/Archives/edgar/data/852772/000119312525263393/d17512d8k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:51.233913+00:00,INFO,eight_k: parsed 59
+2025-12-01T17:46:51.339729+00:00,INFO,eight_k: (34.3%) processed 79/230 filings
+2025-12-01T17:46:51.345312+00:00,INFO,eight_k: DENN skipped url https://www.sec.gov/Archives/edgar/data/852772/000119312525262835/d40219d8k.htm reason non_actionable
+2025-12-01T17:46:51.347526+00:00,INFO,eight_k: failed 20
+2025-12-01T17:46:52.761641+00:00,INFO,eight_k: (34.8%) processed 80/230 filings
+2025-12-01T17:46:52.774838+00:00,INFO,eight_k: DENN skipped url https://www.sec.gov/Archives/edgar/data/852772/000085277225000098/denn-20250725.htm reason non_actionable
+2025-12-01T17:46:52.799172+00:00,INFO,eight_k: failed 21
+2025-12-01T17:46:53.611256+00:00,INFO,eight_k: (35.2%) processed 81/230 filings
+2025-12-01T17:46:53.623711+00:00,INFO,eight_k: DENN parsed url https://www.sec.gov/Archives/edgar/data/852772/000085277225000119/denn-20251103.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:53.633788+00:00,INFO,eight_k: parsed 60
+2025-12-01T17:46:54.024063+00:00,INFO,eight_k: (35.7%) processed 82/230 filings
+2025-12-01T17:46:54.036854+00:00,INFO,eight_k: DENN skipped url https://www.sec.gov/Archives/edgar/data/852772/000085277225000087/denn-20250514.htm reason non_actionable
+2025-12-01T17:46:54.043560+00:00,INFO,eight_k: failed 22
+2025-12-01T17:46:55.082516+00:00,INFO,eight_k: (36.1%) processed 83/230 filings
+2025-12-01T17:46:55.096940+00:00,INFO,eight_k: DENN parsed url https://www.sec.gov/Archives/edgar/data/852772/000085277225000106/denn-20250804.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:55.104189+00:00,INFO,eight_k: parsed 61
+2025-12-01T17:46:55.295394+00:00,INFO,eight_k: (36.5%) processed 84/230 filings
+2025-12-01T17:46:55.301480+00:00,INFO,eight_k: DENN skipped url https://www.sec.gov/Archives/edgar/data/852772/000085277225000073/denn-20250303.htm reason non_actionable
+2025-12-01T17:46:55.305120+00:00,INFO,eight_k: failed 23
+2025-12-01T17:46:55.723823+00:00,INFO,eight_k: (37.0%) processed 85/230 filings
+2025-12-01T17:46:55.737317+00:00,INFO,eight_k: DENN skipped url https://www.sec.gov/Archives/edgar/data/852772/000085277225000064/denn-20250218.htm reason non_actionable
+2025-12-01T17:46:55.742534+00:00,INFO,eight_k: failed 24
+2025-12-01T17:46:57.020029+00:00,INFO,eight_k: (37.4%) processed 86/230 filings
+2025-12-01T17:46:57.029663+00:00,INFO,eight_k: CZNC parsed url https://www.sec.gov/Archives/edgar/data/810958/000110465925101823/cznc-20251023x8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:57.034068+00:00,INFO,eight_k: parsed 62
+2025-12-01T17:46:57.044301+00:00,INFO,eight_k: heartbeat processed 86/230 (parsed 62 failed 24)
+2025-12-01T17:46:57.484655+00:00,INFO,eight_k: (37.8%) processed 87/230 filings
+2025-12-01T17:46:57.492942+00:00,INFO,eight_k: DENN parsed url https://www.sec.gov/Archives/edgar/data/852772/000085277225000081/denn-20250505.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:46:57.497590+00:00,INFO,eight_k: parsed 63
+2025-12-01T17:46:57.644050+00:00,INFO,eight_k: (38.3%) processed 88/230 filings
+2025-12-01T17:46:57.668813+00:00,INFO,eight_k: fetching 88/230 https://www.sec.gov/Archives/edgar/data/909108/000119312525264643/dhil-20251104.htm
+2025-12-01T17:46:57.684232+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000119312525264643/dhil-20251104.htm reason non_actionable
+2025-12-01T17:46:57.704295+00:00,INFO,eight_k: failed 25
+2025-12-01T17:46:58.085474+00:00,INFO,eight_k: (38.7%) processed 89/230 filings
+2025-12-01T17:46:58.097112+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000119312525228371/dhil-20251002.htm reason non_actionable
+2025-12-01T17:46:58.103100+00:00,INFO,eight_k: failed 26
+2025-12-01T17:46:58.262893+00:00,INFO,eight_k: (39.1%) processed 90/230 filings
+2025-12-01T17:46:58.274412+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000119312525208339/dhil-20250919.htm reason non_actionable
+2025-12-01T17:46:58.279615+00:00,INFO,eight_k: failed 27
+2025-12-01T17:46:58.625986+00:00,INFO,eight_k: (39.6%) processed 91/230 filings
+2025-12-01T17:46:58.639208+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000090910825000046/dhil-20250903.htm reason non_actionable
+2025-12-01T17:46:58.651138+00:00,INFO,eight_k: failed 28
+2025-12-01T17:46:58.873746+00:00,INFO,eight_k: (40.0%) processed 92/230 filings
+2025-12-01T17:46:58.885676+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000090910825000043/dhil-20250804.htm reason non_actionable
+2025-12-01T17:46:58.896669+00:00,INFO,eight_k: failed 29
+2025-12-01T17:46:59.397362+00:00,INFO,eight_k: (40.4%) processed 93/230 filings
+2025-12-01T17:46:59.413616+00:00,INFO,eight_k: DENN parsed url https://www.sec.gov/Archives/edgar/data/852772/000085277225000044/denn-20250212.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:46:59.419342+00:00,INFO,eight_k: parsed 64
+2025-12-01T17:47:00.208394+00:00,INFO,eight_k: (40.9%) processed 94/230 filings
+2025-12-01T17:47:00.253497+00:00,INFO,eight_k: DHIL parsed url https://www.sec.gov/Archives/edgar/data/909108/000119312525257505/dhil-20251030.htm items Item 2.02; Item 5.02; Item 9.01 items_norm Item 2.02; Item 5.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:00.417852+00:00,INFO,eight_k: parsed 65
+2025-12-01T17:47:00.430493+00:00,INFO,eight_k: (41.3%) processed 95/230 filings
+2025-12-01T17:47:00.468081+00:00,INFO,eight_k: DHIL parsed url https://www.sec.gov/Archives/edgar/data/909108/000090910825000039/dhil-20250729.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:00.483527+00:00,INFO,eight_k: parsed 66
+2025-12-01T17:47:00.598556+00:00,INFO,eight_k: (41.7%) processed 96/230 filings
+2025-12-01T17:47:00.613080+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000090910825000036/dhil-20250702.htm reason non_actionable
+2025-12-01T17:47:00.617842+00:00,INFO,eight_k: failed 30
+2025-12-01T17:47:00.646824+00:00,INFO,eight_k: (42.2%) processed 97/230 filings
+2025-12-01T17:47:00.648196+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000090910825000034/dhil-20250612.htm reason non_actionable
+2025-12-01T17:47:00.649488+00:00,INFO,eight_k: failed 31
+2025-12-01T17:47:00.909381+00:00,INFO,eight_k: (42.6%) processed 98/230 filings
+2025-12-01T17:47:00.918127+00:00,INFO,eight_k: DMAA parsed url https://www.sec.gov/Archives/edgar/data/2028614/000121390025016702/ea0231936-8k_drugs.htm items Item 3.02; Item 8.01; Item 9.01 items_norm Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:00.922166+00:00,INFO,eight_k: parsed 67
+2025-12-01T17:47:01.002368+00:00,INFO,eight_k: (43.0%) processed 99/230 filings
+2025-12-01T17:47:01.008351+00:00,INFO,eight_k: DMAA parsed url https://www.sec.gov/Archives/edgar/data/2028614/000121390025016602/ea0231980-8k_drugs.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:01.012716+00:00,INFO,eight_k: parsed 68
+2025-12-01T17:47:01.108865+00:00,INFO,eight_k: (43.5%) processed 100/230 filings
+2025-12-01T17:47:01.116901+00:00,INFO,eight_k: DMAA parsed url https://www.sec.gov/Archives/edgar/data/2028614/000121390025111704/ea0265998-8k_drugs.htm items Item 5.02 items_norm Item 5.02 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:01.120114+00:00,INFO,eight_k: parsed 69
+2025-12-01T17:47:01.388992+00:00,INFO,eight_k: (43.9%) processed 101/230 filings
+2025-12-01T17:47:01.396658+00:00,INFO,eight_k: DMAA parsed url https://www.sec.gov/Archives/edgar/data/2028614/000121390025008377/ea0229135-8k_drugs.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:01.411146+00:00,INFO,eight_k: parsed 70
+2025-12-01T17:47:01.433258+00:00,INFO,eight_k: (44.3%) processed 102/230 filings
+2025-12-01T17:47:01.444571+00:00,INFO,eight_k: DHIL skipped url https://www.sec.gov/Archives/edgar/data/909108/000090910825000032/dhil-20250603.htm reason non_actionable
+2025-12-01T17:47:01.486216+00:00,INFO,eight_k: failed 32
+2025-12-01T17:47:01.557511+00:00,INFO,eight_k: (44.8%) processed 103/230 filings
+2025-12-01T17:47:01.577426+00:00,INFO,eight_k: DRDB skipped url https://www.sec.gov/Archives/edgar/data/2032528/000110465925096645/tm2527764d1_8k.htm reason non_actionable
+2025-12-01T17:47:01.581119+00:00,INFO,eight_k: failed 33
+2025-12-01T17:47:01.675231+00:00,INFO,eight_k: (45.2%) processed 104/230 filings
+2025-12-01T17:47:01.698962+00:00,INFO,eight_k: DMAA parsed url https://www.sec.gov/Archives/edgar/data/2028614/000121390025010079/ea0229853-8k_drugs.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:01.707720+00:00,INFO,eight_k: parsed 71
+2025-12-01T17:47:01.942899+00:00,INFO,eight_k: (45.7%) processed 105/230 filings
+2025-12-01T17:47:01.981320+00:00,INFO,eight_k: DRDB parsed url https://www.sec.gov/Archives/edgar/data/2032528/000110465925091346/tm2526462d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:01.992199+00:00,INFO,eight_k: parsed 72
+2025-12-01T17:47:01.996991+00:00,INFO,eight_k: (46.1%) processed 106/230 filings
+2025-12-01T17:47:02.002969+00:00,INFO,eight_k: DRDB skipped url https://www.sec.gov/Archives/edgar/data/2032528/000110465925032650/tm2511717d1_8k.htm reason non_actionable
+2025-12-01T17:47:02.023107+00:00,INFO,eight_k: failed 34
+2025-12-01T17:47:02.243962+00:00,INFO,eight_k: (46.5%) processed 107/230 filings
+2025-12-01T17:47:02.252360+00:00,INFO,eight_k: DRDB parsed url https://www.sec.gov/Archives/edgar/data/2032528/000110465925007788/tm254957d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:02.266415+00:00,INFO,eight_k: parsed 73
+2025-12-01T17:47:02.290400+00:00,INFO,eight_k: (47.0%) processed 108/230 filings
+2025-12-01T17:47:02.301566+00:00,INFO,eight_k: DRDB parsed url https://www.sec.gov/Archives/edgar/data/2032528/000110465925006550/tm254523d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:02.331733+00:00,INFO,eight_k: parsed 74
+2025-12-01T17:47:02.707853+00:00,INFO,eight_k: (47.4%) processed 109/230 filings
+2025-12-01T17:47:02.712808+00:00,INFO,eight_k: DRDB parsed url https://www.sec.gov/Archives/edgar/data/2032528/000110465925000823/tm251744d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:02.722915+00:00,INFO,eight_k: parsed 75
+2025-12-01T17:47:02.832547+00:00,INFO,eight_k: (47.8%) processed 110/230 filings
+2025-12-01T17:47:02.846470+00:00,INFO,eight_k: fetching 110/230 https://www.sec.gov/Archives/edgar/data/2032528/000110465924129432/tm2431164d1_8k.htm
+2025-12-01T17:47:02.849293+00:00,INFO,eight_k: DRDB parsed url https://www.sec.gov/Archives/edgar/data/2032528/000110465924129432/tm2431164d1_8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:02.852554+00:00,INFO,eight_k: parsed 76
+2025-12-01T17:47:03.429608+00:00,INFO,eight_k: (48.3%) processed 111/230 filings
+2025-12-01T17:47:03.444501+00:00,INFO,eight_k: DSP skipped url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000024/dsp-20250510.htm reason non_actionable
+2025-12-01T17:47:03.449237+00:00,INFO,eight_k: failed 35
+2025-12-01T17:47:03.749090+00:00,INFO,eight_k: (48.7%) processed 112/230 filings
+2025-12-01T17:47:03.775237+00:00,INFO,eight_k: DSP skipped url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000034/dsp-20250605.htm reason non_actionable
+2025-12-01T17:47:03.786047+00:00,INFO,eight_k: failed 36
+2025-12-01T17:47:04.530422+00:00,INFO,eight_k: (49.1%) processed 113/230 filings
+2025-12-01T17:47:04.546737+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000077/dsp-20251110.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:04.667510+00:00,INFO,eight_k: parsed 77
+2025-12-01T17:47:05.006961+00:00,INFO,eight_k: (49.6%) processed 114/230 filings
+2025-12-01T17:47:05.021359+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000054/dsp-20250811.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:05.027385+00:00,INFO,eight_k: parsed 78
+2025-12-01T17:47:05.538971+00:00,INFO,eight_k: (50.0%) processed 115/230 filings
+2025-12-01T17:47:05.544486+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525248776/giwwu-20251023.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:05.569212+00:00,INFO,eight_k: parsed 79
+2025-12-01T17:47:06.201929+00:00,INFO,eight_k: (50.4%) processed 116/230 filings
+2025-12-01T17:47:06.208674+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000018/dsp-20250506.htm items Item 2.02; Item 8.01; Item 9.01 items_norm Item 2.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:06.213720+00:00,INFO,eight_k: parsed 80
+2025-12-01T17:47:06.692759+00:00,INFO,eight_k: (50.9%) processed 117/230 filings
+2025-12-01T17:47:06.707048+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525239036/d71695d8k.htm items Item 5.02; Item 8.01; Item 9.01 items_norm Item 5.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:06.723368+00:00,INFO,eight_k: parsed 81
+2025-12-01T17:47:06.858105+00:00,INFO,eight_k: (51.3%) processed 118/230 filings
+2025-12-01T17:47:06.864427+00:00,INFO,eight_k: GIW parsed url https://www.sec.gov/Archives/edgar/data/2080019/000119312525235847/d87287d8k.htm items Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;subscription_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:06.870242+00:00,INFO,eight_k: parsed 82
+2025-12-01T17:47:07.393231+00:00,INFO,eight_k: (51.7%) processed 119/230 filings
+2025-12-01T17:47:07.403584+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879125000009/dsp-20250303.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:07.408797+00:00,INFO,eight_k: parsed 83
+2025-12-01T17:47:07.941689+00:00,INFO,eight_k: (52.2%) processed 120/230 filings
+2025-12-01T17:47:07.946908+00:00,INFO,eight_k: DSP parsed url https://www.sec.gov/Archives/edgar/data/1828791/000182879124000053/dsp-20241112.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:07.950030+00:00,INFO,eight_k: parsed 84
+2025-12-01T17:47:08.096422+00:00,INFO,eight_k: (52.6%) processed 121/230 filings
+2025-12-01T17:47:08.122540+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925093436/tm2526946d1_8k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;atm;warrant;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:08.142358+00:00,INFO,eight_k: parsed 85
+2025-12-01T17:47:08.264701+00:00,INFO,eight_k: (53.0%) processed 122/230 filings
+2025-12-01T17:47:08.270160+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925092957/tm2526843d1_8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:08.274344+00:00,INFO,eight_k: parsed 86
+2025-12-01T17:47:08.412682+00:00,INFO,eight_k: (53.5%) processed 123/230 filings
+2025-12-01T17:47:08.429504+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000133/imrx-20251112.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:08.438843+00:00,INFO,eight_k: parsed 87
+2025-12-01T17:47:08.549822+00:00,INFO,eight_k: (53.9%) processed 124/230 filings
+2025-12-01T17:47:08.554540+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000110465925081995/tm2524079d1_8k.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags spa;purchase_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:08.557941+00:00,INFO,eight_k: parsed 88
+2025-12-01T17:47:08.867337+00:00,INFO,eight_k: (54.3%) processed 125/230 filings
+2025-12-01T17:47:08.871948+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000102/imrx-20250813.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:08.876026+00:00,INFO,eight_k: parsed 89
+2025-12-01T17:47:08.940871+00:00,INFO,eight_k: (54.8%) processed 126/230 filings
+2025-12-01T17:47:08.959279+00:00,INFO,eight_k: IMRX skipped url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000077/imrx-20250617.htm reason non_actionable
+2025-12-01T17:47:08.995793+00:00,INFO,eight_k: failed 37
+2025-12-01T17:47:09.129482+00:00,INFO,eight_k: (55.2%) processed 127/230 filings
+2025-12-01T17:47:09.136804+00:00,INFO,eight_k: IMRX skipped url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000063/imrx-20250613.htm reason non_actionable
+2025-12-01T17:47:09.144626+00:00,INFO,eight_k: failed 38
+2025-12-01T17:47:09.357038+00:00,INFO,eight_k: (55.7%) processed 128/230 filings
+2025-12-01T17:47:09.364467+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000059/imrx-20250505.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:09.368211+00:00,INFO,eight_k: parsed 90
+2025-12-01T17:47:09.532344+00:00,INFO,eight_k: (56.1%) processed 129/230 filings
+2025-12-01T17:47:09.536550+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000095014225002818/eh250692721_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:09.539985+00:00,INFO,eight_k: parsed 91
+2025-12-01T17:47:09.641671+00:00,INFO,eight_k: (56.5%) processed 130/230 filings
+2025-12-01T17:47:09.664199+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000014/imrx-20250113.htm items Item 8.01 items_norm Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:09.675381+00:00,INFO,eight_k: parsed 92
+2025-12-01T17:47:10.026261+00:00,INFO,eight_k: (57.0%) processed 131/230 filings
+2025-12-01T17:47:10.038905+00:00,INFO,eight_k: IMRX parsed url https://www.sec.gov/Archives/edgar/data/1790340/000179034025000039/imrx-20250320.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:10.060248+00:00,INFO,eight_k: parsed 93
+2025-12-01T17:47:10.276317+00:00,INFO,eight_k: (57.4%) processed 132/230 filings
+2025-12-01T17:47:10.282746+00:00,INFO,eight_k: fetching 132/230 https://www.sec.gov/Archives/edgar/data/2073928/000121390025084538/ea0255547-8k_m3brigade6.htm
+2025-12-01T17:47:10.288732+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000121390025084538/ea0255547-8k_m3brigade6.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:10.293578+00:00,INFO,eight_k: parsed 94
+2025-12-01T17:47:10.572668+00:00,INFO,eight_k: (57.8%) processed 133/230 filings
+2025-12-01T17:47:10.583893+00:00,INFO,eight_k: MBVI parsed url https://www.sec.gov/Archives/edgar/data/2073928/000121390025083405/ea0255430-8k_m3brig6.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:10.591942+00:00,INFO,eight_k: parsed 95
+2025-12-01T17:47:10.664295+00:00,INFO,eight_k: (58.3%) processed 134/230 filings
+2025-12-01T17:47:10.669110+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014225001659/eh250644960_8k.htm reason non_actionable
+2025-12-01T17:47:10.671418+00:00,INFO,eight_k: failed 39
+2025-12-01T17:47:11.226355+00:00,INFO,eight_k: (58.7%) processed 135/230 filings
+2025-12-01T17:47:11.251321+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225003060/eh250709295_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:11.265344+00:00,INFO,eight_k: parsed 96
+2025-12-01T17:47:11.802116+00:00,INFO,eight_k: (59.1%) processed 136/230 filings
+2025-12-01T17:47:11.809036+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014225001035/eh250615018_8k.htm reason non_actionable
+2025-12-01T17:47:11.814366+00:00,INFO,eight_k: failed 40
+2025-12-01T17:47:12.204475+00:00,INFO,eight_k: (59.6%) processed 137/230 filings
+2025-12-01T17:47:12.220451+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225002299/eh250672037_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:12.232234+00:00,INFO,eight_k: parsed 97
+2025-12-01T17:47:12.471272+00:00,INFO,eight_k: (60.0%) processed 138/230 filings
+2025-12-01T17:47:12.608782+00:00,INFO,eight_k: MOV skipped url https://www.sec.gov/Archives/edgar/data/72573/000095014224002790/eh240555997_8k.htm reason non_actionable
+2025-12-01T17:47:12.622921+00:00,INFO,eight_k: failed 41
+2025-12-01T17:47:12.626962+00:00,INFO,eight_k: (60.4%) processed 139/230 filings
+2025-12-01T17:47:12.755598+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225001488/eh250634214_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:12.762253+00:00,INFO,eight_k: parsed 98
+2025-12-01T17:47:13.238449+00:00,INFO,eight_k: (60.9%) processed 140/230 filings
+2025-12-01T17:47:13.250517+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014225001084/eh250616699_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:13.253883+00:00,INFO,eight_k: parsed 99
+2025-12-01T17:47:13.947351+00:00,INFO,eight_k: (61.3%) processed 141/230 filings
+2025-12-01T17:47:13.952008+00:00,INFO,eight_k: MOV parsed url https://www.sec.gov/Archives/edgar/data/72573/000095014224002890/eh240564665_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:13.954070+00:00,INFO,eight_k: parsed 100
+2025-12-01T17:47:14.201669+00:00,INFO,eight_k: (61.7%) processed 142/230 filings
+2025-12-01T17:47:14.214986+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000098/ngne-20251112.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:14.226748+00:00,INFO,eight_k: parsed 101
+2025-12-01T17:47:14.846072+00:00,INFO,eight_k: (62.2%) processed 143/230 filings
+2025-12-01T17:47:14.854500+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000091/ngne-20251106.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:14.883393+00:00,INFO,eight_k: parsed 102
+2025-12-01T17:47:14.888075+00:00,INFO,eight_k: (62.6%) processed 144/230 filings
+2025-12-01T17:47:14.892380+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000103/ngne-20251113.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:14.914891+00:00,INFO,eight_k: parsed 103
+2025-12-01T17:47:15.747279+00:00,INFO,eight_k: (63.0%) processed 145/230 filings
+2025-12-01T17:47:15.753324+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000088/ngne-20251009.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:15.757161+00:00,INFO,eight_k: parsed 104
+2025-12-01T17:47:15.795098+00:00,INFO,eight_k: (63.5%) processed 146/230 filings
+2025-12-01T17:47:15.797792+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000082/ngne-20250811.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:15.800391+00:00,INFO,eight_k: parsed 105
+2025-12-01T17:47:16.141455+00:00,INFO,eight_k: (63.9%) processed 147/230 filings
+2025-12-01T17:47:16.145844+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000053/ngne-20250612.htm items Item 5.02; Item 5.07; Item 9.01 items_norm Item 5.02; Item 5.07; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
+2025-12-01T17:47:16.166423+00:00,INFO,eight_k: parsed 106
+2025-12-01T17:47:16.232410+00:00,INFO,eight_k: (64.3%) processed 148/230 filings
+2025-12-01T17:47:16.234968+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000070/ngne-20250630.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:16.249082+00:00,INFO,eight_k: parsed 107
+2025-12-01T17:47:16.560493+00:00,INFO,eight_k: (64.8%) processed 149/230 filings
+2025-12-01T17:47:16.573716+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000049/ngne-20250609.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:16.578231+00:00,INFO,eight_k: parsed 108
+2025-12-01T17:47:16.701116+00:00,INFO,eight_k: (65.2%) processed 150/230 filings
+2025-12-01T17:47:16.705425+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025053893/ea0245277-8k_newpro3.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:16.707532+00:00,INFO,eight_k: parsed 109
+2025-12-01T17:47:16.936084+00:00,INFO,eight_k: (65.7%) processed 151/230 filings
+2025-12-01T17:47:16.956020+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000044/ngne-20250509.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:16.962193+00:00,INFO,eight_k: parsed 110
+2025-12-01T17:47:17.322129+00:00,INFO,eight_k: (66.1%) processed 152/230 filings
+2025-12-01T17:47:17.327872+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025038566/ea0240290-8k_newpro3.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:17.332328+00:00,INFO,eight_k: parsed 111
+2025-12-01T17:47:17.470316+00:00,INFO,eight_k: (66.5%) processed 153/230 filings
+2025-12-01T17:47:17.476320+00:00,INFO,eight_k: NGNE parsed url https://www.sec.gov/Archives/edgar/data/1404644/000140464425000029/ngne-20250414.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant ignore_reason none press_release False exhibits True
+2025-12-01T17:47:17.493186+00:00,INFO,eight_k: parsed 112
+2025-12-01T17:47:17.522713+00:00,INFO,eight_k: (67.0%) processed 154/230 filings
+2025-12-01T17:47:17.531000+00:00,INFO,eight_k: fetching 154/230 https://www.sec.gov/Archives/edgar/data/2048948/000121390025035680/ea0239499-8k_newpro3.htm
+2025-12-01T17:47:17.536384+00:00,INFO,eight_k: NPAC parsed url https://www.sec.gov/Archives/edgar/data/2048948/000121390025035680/ea0239499-8k_newpro3.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:17.540338+00:00,INFO,eight_k: parsed 113
+2025-12-01T17:47:18.117088+00:00,INFO,eight_k: (67.4%) processed 155/230 filings
+2025-12-01T17:47:18.125135+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025039628/npb-20250811.htm items Item 5.02; Item 9.01 items_norm Item 5.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:18.131836+00:00,INFO,eight_k: parsed 114
+2025-12-01T17:47:18.288166+00:00,INFO,eight_k: (67.8%) processed 156/230 filings
+2025-12-01T17:47:18.303113+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025035949/npb-20250723.htm reason non_actionable
+2025-12-01T17:47:18.360715+00:00,INFO,eight_k: failed 42
+2025-12-01T17:47:18.470358+00:00,INFO,eight_k: (68.3%) processed 157/230 filings
+2025-12-01T17:47:18.480948+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000110465925064656/tm2519615d1_8k.htm reason non_actionable
+2025-12-01T17:47:18.489186+00:00,INFO,eight_k: failed 43
+2025-12-01T17:47:18.922208+00:00,INFO,eight_k: (68.7%) processed 158/230 filings
+2025-12-01T17:47:18.932856+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025032630/npb-20250328.htm reason non_actionable
+2025-12-01T17:47:18.941653+00:00,INFO,eight_k: failed 44
+2025-12-01T17:47:19.617380+00:00,INFO,eight_k: (69.1%) processed 159/230 filings
+2025-12-01T17:47:19.627267+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000133670625000006/npb-20251021.htm items Item 2.02; Item 7.01 items_norm Item 2.02; Item 7.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:19.634051+00:00,INFO,eight_k: parsed 115
+2025-12-01T17:47:19.798241+00:00,INFO,eight_k: (69.6%) processed 160/230 filings
+2025-12-01T17:47:19.810268+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025027283/npb-20250516.htm reason non_actionable
+2025-12-01T17:47:19.817335+00:00,INFO,eight_k: failed 45
+2025-12-01T17:47:20.121622+00:00,INFO,eight_k: (70.0%) processed 161/230 filings
+2025-12-01T17:47:20.129837+00:00,INFO,eight_k: NPB skipped url https://www.sec.gov/Archives/edgar/data/1336706/000162828025025922/npb-20250515.htm reason non_actionable
+2025-12-01T17:47:20.134448+00:00,INFO,eight_k: failed 46
+2025-12-01T17:47:20.897785+00:00,INFO,eight_k: (70.4%) processed 162/230 filings
+2025-12-01T17:47:20.905932+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025035578/npb-20250722.htm items Item 2.02; Item 7.01 items_norm Item 2.02; Item 7.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:20.910696+00:00,INFO,eight_k: parsed 116
+2025-12-01T17:47:21.089292+00:00,INFO,eight_k: (70.9%) processed 163/230 filings
+2025-12-01T17:47:21.123638+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025017013/npb-20250408.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:21.131479+00:00,INFO,eight_k: parsed 117
+2025-12-01T17:47:21.300926+00:00,INFO,eight_k: (71.3%) processed 164/230 filings
+2025-12-01T17:47:21.307713+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925033072/nref20251101_8k.htm items Item 1.01; Item 3.03; Item 9.01; Item 8.01 items_norm Item 1.01; Item 3.03; Item 9.01; Item 8.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags subscription_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:21.339741+00:00,INFO,eight_k: parsed 118
+2025-12-01T17:47:21.673873+00:00,INFO,eight_k: (71.7%) processed 165/230 filings
+2025-12-01T17:47:21.698511+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925030861/nref20251010_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;subscription_agreement;warrant ignore_reason none press_release False exhibits True
+2025-12-01T17:47:21.713127+00:00,INFO,eight_k: parsed 119
+2025-12-01T17:47:21.810361+00:00,INFO,eight_k: (72.2%) processed 166/230 filings
+2025-12-01T17:47:21.818828+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925030194/nref20250930_8k.htm items Item 1.01; Item 3.03; Item 5.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.03; Item 5.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:21.823672+00:00,INFO,eight_k: parsed 120
+2025-12-01T17:47:22.108966+00:00,INFO,eight_k: (72.6%) processed 167/230 filings
+2025-12-01T17:47:22.120045+00:00,INFO,eight_k: NREF skipped url https://www.sec.gov/Archives/edgar/data/1786248/000143774925027863/nref20250827_8k.htm reason non_actionable
+2025-12-01T17:47:22.127573+00:00,INFO,eight_k: failed 47
+2025-12-01T17:47:22.936521+00:00,INFO,eight_k: (73.0%) processed 168/230 filings
+2025-12-01T17:47:23.003016+00:00,INFO,eight_k: NPB parsed url https://www.sec.gov/Archives/edgar/data/1336706/000162828025018893/npb-20250422.htm items Item 2.02 items_norm Item 2.02 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags equity_line;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:23.008966+00:00,INFO,eight_k: parsed 121
+2025-12-01T17:47:23.032936+00:00,INFO,eight_k: (73.5%) processed 169/230 filings
+2025-12-01T17:47:23.059308+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925032287/nref20251030_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:23.148882+00:00,INFO,eight_k: parsed 122
+2025-12-01T17:47:23.509545+00:00,INFO,eight_k: (73.9%) processed 170/230 filings
+2025-12-01T17:47:23.513803+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925024038/nref20250731_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:47:23.517993+00:00,INFO,eight_k: parsed 123
+2025-12-01T17:47:23.707365+00:00,INFO,eight_k: (74.3%) processed 171/230 filings
+2025-12-01T17:47:23.731976+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925023653/nref20250727_8k.htm items Item 1.01; Item 2.01; Item 9.01 items_norm Item 1.01; Item 2.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release False exhibits True
+2025-12-01T17:47:23.735298+00:00,INFO,eight_k: parsed 124
+2025-12-01T17:47:23.738444+00:00,INFO,eight_k: (74.8%) processed 172/230 filings
+2025-12-01T17:47:23.741488+00:00,INFO,eight_k: NREF skipped url https://www.sec.gov/Archives/edgar/data/1786248/000143774925017824/nref20250520_8k.htm reason non_actionable
+2025-12-01T17:47:23.744592+00:00,INFO,eight_k: failed 48
+2025-12-01T17:47:24.091824+00:00,INFO,eight_k: (75.2%) processed 173/230 filings
+2025-12-01T17:47:24.098966+00:00,INFO,eight_k: NREF skipped url https://www.sec.gov/Archives/edgar/data/1786248/000143774925009866/nref20250328_8k.htm reason non_actionable
+2025-12-01T17:47:24.101977+00:00,INFO,eight_k: failed 49
+2025-12-01T17:47:24.351381+00:00,INFO,eight_k: (75.7%) processed 174/230 filings
+2025-12-01T17:47:24.365374+00:00,INFO,eight_k: NREF parsed url https://www.sec.gov/Archives/edgar/data/1786248/000143774925013974/nref20250501_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags convertible;warrant ignore_reason none press_release True exhibits True
+2025-12-01T17:47:24.368037+00:00,INFO,eight_k: parsed 125
+2025-12-01T17:47:25.097471+00:00,INFO,eight_k: (76.1%) processed 175/230 filings
+2025-12-01T17:47:25.105238+00:00,INFO,eight_k: RBB skipped url https://www.sec.gov/Archives/edgar/data/1499422/000143774925018206/rbb20250520_8k.htm reason non_actionable
+2025-12-01T17:47:25.113530+00:00,INFO,eight_k: failed 50
+2025-12-01T17:47:25.116982+00:00,INFO,eight_k: (76.5%) processed 176/230 filings
+2025-12-01T17:47:25.142404+00:00,INFO,eight_k: fetching 176/230 https://www.sec.gov/Archives/edgar/data/1499422/000143774925018802/rbb20250527_8k.htm
+2025-12-01T17:47:25.155014+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925018802/rbb20250527_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:25.175502+00:00,INFO,eight_k: parsed 126
+2025-12-01T17:47:25.682418+00:00,INFO,eight_k: (77.0%) processed 177/230 filings
+2025-12-01T17:47:25.694182+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925012352/rbb20250418_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:25.747469+00:00,INFO,eight_k: parsed 127
+2025-12-01T17:47:26.028115+00:00,INFO,eight_k: (77.4%) processed 178/230 filings
+2025-12-01T17:47:26.037931+00:00,INFO,eight_k: RBB skipped url https://www.sec.gov/Archives/edgar/data/1499422/000143774925011698/rbb20250410_8k.htm reason non_actionable
+2025-12-01T17:47:26.042786+00:00,INFO,eight_k: failed 51
+2025-12-01T17:47:26.737194+00:00,INFO,eight_k: (77.8%) processed 179/230 filings
+2025-12-01T17:47:26.752482+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925006844/rbb20250310_8k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:26.758477+00:00,INFO,eight_k: parsed 128
+2025-12-01T17:47:28.809314+00:00,INFO,eight_k: (78.3%) processed 180/230 filings
+2025-12-01T17:47:28.818344+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925023134/rbb20250519_8k.htm items Item 2.02; Item 7.01; Item 8.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:28.835323+00:00,INFO,eight_k: parsed 129
+2025-12-01T17:47:28.852391+00:00,INFO,eight_k: heartbeat processed 180/230 (parsed 129 failed 51)
+2025-12-01T17:47:29.941489+00:00,INFO,eight_k: (78.7%) processed 181/230 filings
+2025-12-01T17:47:29.956632+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925031363/rbb20250912_8k.htm items Item 2.02; Item 7.01; Item 8.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:29.962502+00:00,INFO,eight_k: parsed 130
+2025-12-01T17:47:30.097893+00:00,INFO,eight_k: (79.1%) processed 182/230 filings
+2025-12-01T17:47:30.103880+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925001293/rbb20250116_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:30.107554+00:00,INFO,eight_k: parsed 131
+2025-12-01T17:47:30.955566+00:00,INFO,eight_k: (79.6%) processed 183/230 filings
+2025-12-01T17:47:30.970801+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925013395/rbb20250307_8k.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:30.989171+00:00,INFO,eight_k: parsed 132
+2025-12-01T17:47:31.208224+00:00,INFO,eight_k: (80.0%) processed 184/230 filings
+2025-12-01T17:47:31.213697+00:00,INFO,eight_k: RMAX skipped url https://www.sec.gov/Archives/edgar/data/1581091/000110465925095681/tm2527693d1_8k.htm reason non_actionable
+2025-12-01T17:47:31.222082+00:00,INFO,eight_k: failed 52
+2025-12-01T17:47:31.894967+00:00,INFO,eight_k: (80.4%) processed 185/230 filings
+2025-12-01T17:47:31.906118+00:00,INFO,eight_k: RMAX skipped url https://www.sec.gov/Archives/edgar/data/1581091/000110465925060102/tm2518139d1_8k.htm reason non_actionable
+2025-12-01T17:47:31.914803+00:00,INFO,eight_k: failed 53
+2025-12-01T17:47:32.585514+00:00,INFO,eight_k: (80.9%) processed 186/230 filings
+2025-12-01T17:47:32.593974+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465925104414/tm2529824d1_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:32.617121+00:00,INFO,eight_k: parsed 133
+2025-12-01T17:47:32.826809+00:00,INFO,eight_k: (81.3%) processed 187/230 filings
+2025-12-01T17:47:32.833372+00:00,INFO,eight_k: RMAX skipped url https://www.sec.gov/Archives/edgar/data/1581091/000110465925051001/tm2515624d2_8k.htm reason non_actionable
+2025-12-01T17:47:32.836914+00:00,INFO,eight_k: failed 54
+2025-12-01T17:47:33.734798+00:00,INFO,eight_k: (81.7%) processed 188/230 filings
+2025-12-01T17:47:33.756658+00:00,INFO,eight_k: RBB parsed url https://www.sec.gov/Archives/edgar/data/1499422/000143774925002652/rbb20241125_8k.htm items Item 2.02; Item 7.01; Item 9.01 items_norm Item 2.02; Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:33.763797+00:00,INFO,eight_k: parsed 134
+2025-12-01T17:47:34.424645+00:00,INFO,eight_k: (82.2%) processed 189/230 filings
+2025-12-01T17:47:34.447693+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465925071745/tm2521950d1_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:34.453644+00:00,INFO,eight_k: parsed 135
+2025-12-01T17:47:34.721576+00:00,INFO,eight_k: (82.6%) processed 190/230 filings
+2025-12-01T17:47:34.738696+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465925029865/tm2510953d1_8k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:34.766310+00:00,INFO,eight_k: parsed 136
+2025-12-01T17:47:35.296537+00:00,INFO,eight_k: (83.0%) processed 191/230 filings
+2025-12-01T17:47:35.302534+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465925043523/tm2513784d1_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:35.314408+00:00,INFO,eight_k: parsed 137
+2025-12-01T17:47:35.673638+00:00,INFO,eight_k: (83.5%) processed 192/230 filings
+2025-12-01T17:47:35.684766+00:00,INFO,eight_k: RMAX skipped url https://www.sec.gov/Archives/edgar/data/1581091/000110465925002028/tm252667d1_8k.htm reason non_actionable
+2025-12-01T17:47:35.693551+00:00,INFO,eight_k: failed 55
+2025-12-01T17:47:36.237116+00:00,INFO,eight_k: (83.9%) processed 193/230 filings
+2025-12-01T17:47:36.248780+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125021431/ef20050145_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:36.261722+00:00,INFO,eight_k: parsed 138
+2025-12-01T17:47:36.780392+00:00,INFO,eight_k: (84.3%) processed 194/230 filings
+2025-12-01T17:47:36.944387+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125019627/ny20045296x17_8k.htm items Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 5.02; Item 5.03; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:37.188240+00:00,INFO,eight_k: parsed 139
+2025-12-01T17:47:37.309399+00:00,INFO,eight_k: (84.8%) processed 195/230 filings
+2025-12-01T17:47:37.327463+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465925015665/tm257135d1_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:37.335929+00:00,INFO,eight_k: parsed 140
+2025-12-01T17:47:37.575933+00:00,INFO,eight_k: (85.2%) processed 196/230 filings
+2025-12-01T17:47:37.581694+00:00,INFO,eight_k: RTAC parsed url https://www.sec.gov/Archives/edgar/data/2035173/000114036125020174/ef20049531_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:37.587064+00:00,INFO,eight_k: parsed 141
+2025-12-01T17:47:37.816249+00:00,INFO,eight_k: (85.7%) processed 197/230 filings
+2025-12-01T17:47:37.831120+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:37.838888+00:00,INFO,eight_k: parsed 142
+2025-12-01T17:47:37.981766+00:00,INFO,eight_k: (86.1%) processed 198/230 filings
+2025-12-01T17:47:37.996201+00:00,INFO,eight_k: fetching 198/230 https://www.sec.gov/Archives/edgar/data/1551901/000110465925093911/tm2526928d1_8k.htm
+2025-12-01T17:47:38.139897+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925093911/tm2526928d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:38.376341+00:00,INFO,eight_k: parsed 143
+2025-12-01T17:47:38.436365+00:00,INFO,eight_k: (86.5%) processed 199/230 filings
+2025-12-01T17:47:38.458892+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465925090030/tm2526011d1_8k.htm reason non_actionable
+2025-12-01T17:47:38.465435+00:00,INFO,eight_k: failed 56
+2025-12-01T17:47:38.486393+00:00,INFO,eight_k: (87.0%) processed 200/230 filings
+2025-12-01T17:47:38.493789+00:00,INFO,eight_k: RMAX parsed url https://www.sec.gov/Archives/edgar/data/1581091/000110465924113061/tm2427177d1_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:38.535755+00:00,INFO,eight_k: parsed 144
+2025-12-01T17:47:38.599102+00:00,INFO,eight_k: (87.4%) processed 201/230 filings
+2025-12-01T17:47:38.630906+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925088902/tm2525669d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags atm;warrant;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:38.636778+00:00,INFO,eight_k: parsed 145
+2025-12-01T17:47:38.829183+00:00,INFO,eight_k: (87.8%) processed 202/230 filings
+2025-12-01T17:47:38.853724+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925084789/tm2524446d1_8k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:38.870812+00:00,INFO,eight_k: parsed 146
+2025-12-01T17:47:38.885290+00:00,INFO,eight_k: (88.3%) processed 203/230 filings
+2025-12-01T17:47:38.891764+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465925061187/tm2518314d1_8k.htm reason non_actionable
+2025-12-01T17:47:38.929060+00:00,INFO,eight_k: failed 57
+2025-12-01T17:47:39.007174+00:00,INFO,eight_k: (88.7%) processed 204/230 filings
+2025-12-01T17:47:39.045910+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925031208/tm2510985d1_8k.htm items Item 1.01; Item 2.03; Item 9.01 items_norm Item 1.01; Item 2.03; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:39.048423+00:00,INFO,eight_k: parsed 147
+2025-12-01T17:47:39.055485+00:00,INFO,eight_k: (89.1%) processed 205/230 filings
+2025-12-01T17:47:39.063186+00:00,INFO,eight_k: SCM parsed url https://www.sec.gov/Archives/edgar/data/1551901/000110465925029412/tm2510626d1_8k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;warrant;offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:39.073147+00:00,INFO,eight_k: parsed 148
+2025-12-01T17:47:39.115692+00:00,INFO,eight_k: (89.6%) processed 206/230 filings
+2025-12-01T17:47:39.152754+00:00,INFO,eight_k: SCM skipped url https://www.sec.gov/Archives/edgar/data/1551901/000110465924113515/tm2427269d1_8k.htm reason non_actionable
+2025-12-01T17:47:39.168693+00:00,INFO,eight_k: failed 58
+2025-12-01T17:47:39.944263+00:00,INFO,eight_k: (90.0%) processed 207/230 filings
+2025-12-01T17:47:39.960599+00:00,INFO,eight_k: SIMA skipped url https://www.sec.gov/Archives/edgar/data/2014982/000121390025085575/ea0256467-8k_simacq1.htm reason non_actionable
+2025-12-01T17:47:39.965895+00:00,INFO,eight_k: failed 59
+2025-12-01T17:47:40.085446+00:00,INFO,eight_k: (90.4%) processed 208/230 filings
+2025-12-01T17:47:40.095504+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225021084/form8-k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:40.099413+00:00,INFO,eight_k: parsed 149
+2025-12-01T17:47:40.370191+00:00,INFO,eight_k: (90.9%) processed 209/230 filings
+2025-12-01T17:47:40.384721+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225022652/form8-k.htm items Item 8.01; Item 9.01 items_norm Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:40.434121+00:00,INFO,eight_k: parsed 150
+2025-12-01T17:47:40.465760+00:00,INFO,eight_k: (91.3%) processed 210/230 filings
+2025-12-01T17:47:40.472267+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225022654/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:47:40.482984+00:00,INFO,eight_k: parsed 151
+2025-12-01T17:47:40.566423+00:00,INFO,eight_k: (91.7%) processed 211/230 filings
+2025-12-01T17:47:40.613896+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225017440/form8-k.htm items Item 2.01; Item 8.01; Item 9.01 items_norm Item 2.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:47:40.625122+00:00,INFO,eight_k: parsed 152
+2025-12-01T17:47:40.640571+00:00,INFO,eight_k: (92.2%) processed 212/230 filings
+2025-12-01T17:47:40.651436+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225021082/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:40.679064+00:00,INFO,eight_k: parsed 153
+2025-12-01T17:47:40.907498+00:00,INFO,eight_k: (92.6%) processed 213/230 filings
+2025-12-01T17:47:40.916257+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225016353/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:40.918183+00:00,INFO,eight_k: parsed 154
+2025-12-01T17:47:41.030139+00:00,INFO,eight_k: (93.0%) processed 214/230 filings
+2025-12-01T17:47:41.054611+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225013546/form8-k.htm items Item 1.01; Item 9.01 items_norm Item 1.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release False exhibits True
+2025-12-01T17:47:41.057534+00:00,INFO,eight_k: parsed 155
+2025-12-01T17:47:41.061780+00:00,INFO,eight_k: (93.5%) processed 215/230 filings
+2025-12-01T17:47:41.097075+00:00,INFO,eight_k: STRW skipped url https://www.sec.gov/Archives/edgar/data/1782430/000164117225009567/form8-k.htm reason non_actionable
+2025-12-01T17:47:41.109160+00:00,INFO,eight_k: failed 60
+2025-12-01T17:47:41.143747+00:00,INFO,eight_k: (93.9%) processed 216/230 filings
+2025-12-01T17:47:41.146537+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225012610/form8-k.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:47:41.191142+00:00,INFO,eight_k: parsed 156
+2025-12-01T17:47:41.439516+00:00,INFO,eight_k: (94.3%) processed 217/230 filings
+2025-12-01T17:47:41.799668+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000149315225012849/form8-ka.htm items Item 9.01 items_norm Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:47:42.001990+00:00,INFO,eight_k: parsed 157
+2025-12-01T17:47:42.692691+00:00,INFO,eight_k: (94.8%) processed 218/230 filings
+2025-12-01T17:47:42.709527+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000119312525303161/d700980d8k.htm items Item 1.01; Item 2.03; Item 9.01 items_norm Item 1.01; Item 2.03; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:42.716924+00:00,INFO,eight_k: parsed 158
+2025-12-01T17:47:42.863768+00:00,INFO,eight_k: (95.2%) processed 219/230 filings
+2025-12-01T17:47:42.868128+00:00,INFO,eight_k: STRW parsed url https://www.sec.gov/Archives/edgar/data/1782430/000164117225009375/form8-k.htm items Item 7.01; Item 9.01 items_norm Item 7.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:42.872583+00:00,INFO,eight_k: parsed 159
+2025-12-01T17:47:43.227841+00:00,INFO,eight_k: (95.7%) processed 220/230 filings
+2025-12-01T17:47:43.240428+00:00,INFO,eight_k: fetching 220/230 https://www.sec.gov/Archives/edgar/data/1169445/000119312525229309/d894776d8k.htm
+2025-12-01T17:47:43.243099+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000119312525229309/d894776d8k.htm items Item 5.02; Item 8.01; Item 9.01 items_norm Item 5.02; Item 8.01; Item 9.01 catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:43.245998+00:00,INFO,eight_k: parsed 160
+2025-12-01T17:47:43.879492+00:00,INFO,eight_k: (96.1%) processed 221/230 filings
+2025-12-01T17:47:43.884566+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000143774925033614/cpsi20251106_8k.htm items Results of Operations; Financial Statements and Exhibits items_norm Results of Operations; Financial Statements and Exhibits catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement ignore_reason none press_release True exhibits True
+2025-12-01T17:47:43.887508+00:00,INFO,eight_k: parsed 161
+2025-12-01T17:47:43.980363+00:00,INFO,eight_k: (96.5%) processed 222/230 filings
+2025-12-01T17:47:43.985636+00:00,INFO,eight_k: TBRG skipped url https://www.sec.gov/Archives/edgar/data/1169445/000119312525154014/d22042d8k.htm reason non_actionable
+2025-12-01T17:47:43.987933+00:00,INFO,eight_k: failed 61
+2025-12-01T17:47:44.178425+00:00,INFO,eight_k: (97.0%) processed 223/230 filings
+2025-12-01T17:47:44.191487+00:00,INFO,eight_k: TBRG skipped url https://www.sec.gov/Archives/edgar/data/1169445/000119312525115975/d848279d8k.htm reason non_actionable
+2025-12-01T17:47:44.194501+00:00,INFO,eight_k: failed 62
+2025-12-01T17:47:44.924816+00:00,INFO,eight_k: (97.4%) processed 224/230 filings
+2025-12-01T17:47:44.938128+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000143774925025532/cpsi20250807_8k.htm items Results of Operations; Financial Statements and Exhibits items_norm Results of Operations; Financial Statements and Exhibits catalyst Tier-2 tier1_type none tier1_trigger none dilution no dilution_tags none ignore_reason none press_release True exhibits True
+2025-12-01T17:47:44.942301+00:00,INFO,eight_k: parsed 162
+2025-12-01T17:47:45.397537+00:00,INFO,eight_k: (97.8%) processed 225/230 filings
+2025-12-01T17:47:45.410102+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000119312525024808/d931144d8k.htm items Item 1.01; Item 3.03; Item 5.02; Item 7.01; Item 9.01 items_norm Item 1.01; Item 3.03; Item 5.02; Item 7.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:45.418325+00:00,INFO,eight_k: parsed 163
+2025-12-01T17:47:45.761473+00:00,INFO,eight_k: (98.3%) processed 226/230 filings
+2025-12-01T17:47:45.771924+00:00,INFO,eight_k: TBRG skipped url https://www.sec.gov/Archives/edgar/data/1169445/000119312525000145/d456480d8k.htm reason non_actionable
+2025-12-01T17:47:45.778292+00:00,INFO,eight_k: failed 63
+2025-12-01T17:47:46.498774+00:00,INFO,eight_k: (98.7%) processed 227/230 filings
+2025-12-01T17:47:46.514718+00:00,INFO,eight_k: TLNC parsed url https://www.sec.gov/Archives/edgar/data/2073340/000121390025087276/ea0256900-8k_talon.htm items Item 1.01; Item 3.02; Item 8.01; Item 9.01 items_norm Item 1.01; Item 3.02; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;underwriting_agreement;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:46.568958+00:00,INFO,eight_k: parsed 164
+2025-12-01T17:47:46.592800+00:00,INFO,eight_k: (99.1%) processed 228/230 filings
+2025-12-01T17:47:46.599630+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000143774925015133/cpsi20250507_8k.htm items Results of Operations; Financial Statements and Exhibits items_norm Results of Operations; Financial Statements and Exhibits catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:46.604820+00:00,INFO,eight_k: parsed 165
+2025-12-01T17:47:46.717743+00:00,INFO,eight_k: (99.6%) processed 229/230 filings
+2025-12-01T17:47:46.730830+00:00,INFO,eight_k: TLNC parsed url https://www.sec.gov/Archives/edgar/data/2073340/000121390025088251/ea0257330-8k_talon.htm items Item 1.01; Item 8.01; Item 9.01 items_norm Item 1.01; Item 8.01; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags underwriting_agreement;convertible;warrant;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:46.735532+00:00,INFO,eight_k: parsed 166
+2025-12-01T17:47:47.176870+00:00,INFO,eight_k: (100.0%) processed 230/230 filings
+2025-12-01T17:47:47.179544+00:00,INFO,eight_k: TBRG parsed url https://www.sec.gov/Archives/edgar/data/1169445/000143774925006839/cpsi20250310_8k.htm items Item 2.02; Item 9.01 items_norm Item 2.02; Item 9.01 catalyst Tier-1 tier1_type Financing tier1_trigger none dilution yes dilution_tags purchase_agreement;offering ignore_reason none press_release True exhibits True
+2025-12-01T17:47:47.180925+00:00,INFO,eight_k: parsed 167
+2025-12-01T17:47:47.225682+00:00,INFO,eight_k: parsed 167
+2025-12-01T17:47:47.227786+00:00,INFO,eight_k: failed 63
+2025-12-01T17:47:47.229463+00:00,INFO,eight_k: complete – wrote 167 rows
+2025-12-01T17:47:57.151367+00:00,INFO,WEEKLY_VALIDATION N_rows=30 N_validated_all_true=13 N_any_gate_false=17 C1=14/16 C2=30/0 C3=30/0 C4=27/3 C5=30/0 C6=13/17
+2025-12-01T17:47:57.182225+00:00,INFO,"WEEKLY_VALIDATION: validated=13 tbd=17 reasons=[Mandatory subscore missing: Runway; Materiality fail=13, Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail=3, Materiality fail=1]"
+2025-12-01T17:47:57.405518+00:00,INFO,WEEKLY_SUMMARY: universe=42 filings=680 events=167 shortlist=30 deep=30 validated=13 tbd=17

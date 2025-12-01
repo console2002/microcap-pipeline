@@ -1,5 +1,58 @@
 Ticker,Company,Sector,CIK,Close,ADV20,MarketCap,LatestForm,FiledAt,FilingURL,FilingsSummary,FilingURLsAll,FDA_EventType,FDA_Date,FDA_URL,FDA_Summary,FDA_URLsAll
-BDCI,BTC Development Corp. Class A Ordinary Shares,Financial Services,0002042292,10.07,156442.9,349898947.0,10-Q,2025-11-12,https://www.sec.gov/Archives/edgar/data/2042292/000121390025109324/ea0264862-10q_btcdev.htm,"2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/2042292/000121390025109324/ea0264862-10q_btcdev.htm | nan
+ASMB,"Assembly Biosciences, Inc.",Healthcare,0001426800,34.81,132120.65,299749641.0,424B3,2025-11-21,https://www.sec.gov/Archives/edgar/data/1426800/000119312525291512/d54786d424b3.htm,"2025-11-21 | 424B3 | https://www.sec.gov/Archives/edgar/data/1426800/000119312525291512/d54786d424b3.htm | nan
+2025-11-10 | 10-Q | https://www.sec.gov/Archives/edgar/data/1426800/000119312525274277/asmb-20250930.htm | nan
+2025-11-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000119312525274235/asmb-20251110.htm | nan
+2025-10-14 | S-3 | https://www.sec.gov/Archives/edgar/data/1426800/000119312525239048/d54786ds3.htm | nan
+2025-10-03 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000112329225000510/form4.xml | nan
+2025-08-11 | 424B5 | https://www.sec.gov/Archives/edgar/data/1426800/000119312525177435/d940442d424b5.htm | nan
+2025-08-11 | 424B5 | https://www.sec.gov/Archives/edgar/data/1426800/000119312525177403/d56446d424b5.htm | nan
+2025-08-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000119312525178092/d442009d8k.htm | nan
+2025-08-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000119312525176138/d802767d8k.htm | nan
+2025-08-06 | 10-Q | https://www.sec.gov/Archives/edgar/data/1426800/000095017025104060/asmb-20250630.htm | nan
+2025-08-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025104020/asmb-20250806.htm | nan
+2025-08-06 | S-8 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025104118/asmb-20250806.htm | nan
+2025-06-25 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025089949/asmb-20250625.htm | nan
+2025-06-17 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025087346/ownership.xml | nan
+2025-06-09 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083702/ownership.xml | nan
+2025-06-09 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083700/ownership.xml | nan
+2025-06-09 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083695/ownership.xml | nan
+2025-06-09 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083694/ownership.xml | nan
+2025-06-09 | 4 | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083693/ownership.xml | nan
+2025-06-09 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025083830/asmb-20250605.htm | nan
+2025-05-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025066946/asmb-20250508.htm | nan
+2025-03-20 | 10-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025042673/asmb-20241231.htm | nan
+2025-03-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025042660/asmb-20250320.htm | nan
+2025-03-20 | S-3 | https://www.sec.gov/Archives/edgar/data/1426800/000119312525059320/d920089ds3.htm | nan
+2025-02-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025024134/asmb-20250220.htm | nan
+2025-01-03 | 8-K | https://www.sec.gov/Archives/edgar/data/1426800/000095017025001141/asmb-20241230.htm | nan
+2024-11-07 | 424B5 | https://www.sec.gov/Archives/edgar/data/1426800/000119312524253253/d856320d424b5.htm | nan","https://www.sec.gov/Archives/edgar/data/1426800/000119312525291512/d54786d424b3.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525274277/asmb-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525274235/asmb-20251110.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525239048/d54786ds3.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000112329225000510/form4.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525177435/d940442d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525177403/d56446d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525178092/d442009d8k.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525176138/d802767d8k.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025104060/asmb-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025104020/asmb-20250806.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025104118/asmb-20250806.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025089949/asmb-20250625.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025087346/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083702/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083700/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083695/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083694/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083693/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025083830/asmb-20250605.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025066946/asmb-20250508.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025042673/asmb-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025042660/asmb-20250320.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312525059320/d920089ds3.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025024134/asmb-20250220.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000095017025001141/asmb-20241230.htm
+https://www.sec.gov/Archives/edgar/data/1426800/000119312524253253/d856320d424b5.htm",,,,,
+BDCI,BTC Development Corp. Class A Ordinary Shares,Financial Services,0002042292,10.085,156448.05,349898947.0,10-Q,2025-11-12,https://www.sec.gov/Archives/edgar/data/2042292/000121390025109324/ea0264862-10q_btcdev.htm,"2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/2042292/000121390025109324/ea0264862-10q_btcdev.htm | nan
 2025-10-07 | 8-K | https://www.sec.gov/Archives/edgar/data/2042292/000121390025097023/ea0260340-8k_btcdevelop.htm | nan
 2025-10-03 | 8-K | https://www.sec.gov/Archives/edgar/data/2042292/000121390025096131/ea0259285-8k_btc.htm | nan
 2025-09-30 | 3 | https://www.sec.gov/Archives/edgar/data/2042292/000092963825003698/form3.xml | nan
@@ -18,58 +71,403 @@ https://www.sec.gov/Archives/edgar/data/2042292/000092963825003695/form3.xml
 https://www.sec.gov/Archives/edgar/data/2042292/000092963825003694/form3.xml
 https://www.sec.gov/Archives/edgar/data/2042292/000121390025093944/ea0225715-12.htm
 https://www.sec.gov/Archives/edgar/data/2042292/000121390025093940/ea0225715-11.htm",,,,,
-DBVT,DBV Technologies S.A.,Healthcare,0001613780,13.16,141994.35,316723824.0,4,2025-11-25,https://www.sec.gov/Archives/edgar/data/1613780/000176039525000003/form4-11252025_041101.xml,"2025-11-25 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000176039525000003/form4-11252025_041101.xml | nan
-2025-11-24 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000199949625000003/form4-11242025_071105.xml | nan
-2025-11-24 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000209601425000004/form4-11242025_071103.xml | nan
-2025-11-24 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000150278525000004/form4-11242025_071101.xml | nan
-2025-11-12 | 3 | https://www.sec.gov/Archives/edgar/data/1613780/000209601425000002/form3-11122025_091155.xml | nan
-2025-10-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525258780/d82861d8k.htm | nan
-2025-10-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525253968/d53703d8k.htm | nan
-2025-10-28 | 10-Q | https://www.sec.gov/Archives/edgar/data/1613780/000162828025046809/dbvt-20250930.htm | nan
-2025-09-18 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525207507/d934130d8k.htm | nan
-2025-09-05 | 424B5 | https://www.sec.gov/Archives/edgar/data/1613780/000119312525197205/d785485d424b5.htm | nan
-2025-09-05 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525197277/d17585d8k.htm | nan
-2025-07-31 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000141588925020722/form4-07312025_040708.xml | nan
-2025-07-29 | 10-Q | https://www.sec.gov/Archives/edgar/data/1613780/000161378025000016/dbvt-20250630.htm | nan
-2025-07-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525168148/d945712d8k.htm | nan
-2025-06-25 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525146994/d51953d8k.htm | nan
-2025-06-24 | S-8 | https://www.sec.gov/Archives/edgar/data/1613780/000119312525145724/d858624ds8.htm | nan
-2025-06-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525139137/d55409d8k.htm | nan
-2025-05-29 | 424B3 | https://www.sec.gov/Archives/edgar/data/1613780/000119312525130686/d921073d424b3.htm | nan
-2025-05-27 | 4 | https://www.sec.gov/Archives/edgar/data/1613780/000141588925014602/form4-05272025_040501.xml | nan
-2025-05-20 | 3 | https://www.sec.gov/Archives/edgar/data/1613780/000110465925050974/tm2515244-1_3seq1.xml | nan
-2025-05-19 | S-3 | https://www.sec.gov/Archives/edgar/data/1613780/000119312525122437/d921073ds3.htm | nan
-2025-05-14 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1613780/000119312525119836/d915186d10ka.htm | nan
-2025-04-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525107505/d947872d8k.htm | nan
-2025-04-28 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1613780/000119312525100826/d915186d10ka.htm | nan
-2025-03-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525068727/d944342d8k.htm | nan
-2025-03-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1613780/000119312525060850/d932759d8k.htm | nan","https://www.sec.gov/Archives/edgar/data/1613780/000176039525000003/form4-11252025_041101.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000199949625000003/form4-11242025_071105.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000209601425000004/form4-11242025_071103.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000150278525000004/form4-11242025_071101.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000209601425000002/form3-11122025_091155.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525258780/d82861d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525253968/d53703d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000162828025046809/dbvt-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525207507/d934130d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525197205/d785485d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525197277/d17585d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000141588925020722/form4-07312025_040708.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000161378025000016/dbvt-20250630.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525168148/d945712d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525146994/d51953d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525145724/d858624ds8.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525139137/d55409d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525130686/d921073d424b3.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000141588925014602/form4-05272025_040501.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000110465925050974/tm2515244-1_3seq1.xml
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525122437/d921073ds3.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525119836/d915186d10ka.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525107505/d947872d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525100826/d915186d10ka.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525068727/d944342d8k.htm
-https://www.sec.gov/Archives/edgar/data/1613780/000119312525060850/d932759d8k.htm",,,,,
-DSP,Viant Technology Inc.,Technology,0001828791,10.895,304746.3,176541663.0,8-K,2025-11-10,https://www.sec.gov/Archives/edgar/data/1828791/000182879125000077/dsp-20251110.htm,"2025-11-10 | 10-Q | https://www.sec.gov/Archives/edgar/data/1828791/000182879125000078/dsp-20250930.htm | nan
+BKKT,"Bakkt Holdings, Inc.",Technology,0001820302,13.92,1588720.4,221483990.0,8-K,2025-11-24,https://www.sec.gov/Archives/edgar/data/1820302/000162828025053695/bakkt-20251121.htm,"2025-11-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025053695/bakkt-20251121.htm | nan
+2025-11-18 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000206254325000006/primary_doc.xml | nan
+2025-11-18 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000187091025000013/primary_doc.xml | nan
+2025-11-18 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000187155925000016/primary_doc.xml | nan
+2025-11-18 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000204368125000009/primary_doc.xml | nan
+2025-11-18 | 4/A | https://www.sec.gov/Archives/edgar/data/1820302/000206254325000007/primary_doc.xml | nan
+2025-11-14 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000206254325000005/primary_doc.xml | nan
+2025-11-14 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000187155925000015/primary_doc.xml | nan
+2025-11-14 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000204368125000008/primary_doc.xml | nan
+2025-11-14 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000187091025000012/primary_doc.xml | nan
+2025-11-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025052422/bakkt-20251107.htm | nan
+2025-11-13 | 4 | https://www.sec.gov/Archives/edgar/data/1820302/000203050525000004/primary_doc.xml | nan
+2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/1820302/000162828025051180/bakkt-20250930.htm | nan
+2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000119312525275602/d17320d8k.htm | nan
+2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025051201/bakkt-20251110.htm | nan
+2025-11-10 | S-8 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525273946/d945367ds8.htm | nan
+2025-11-07 | 8-K/A | https://www.sec.gov/Archives/edgar/data/1820302/000119312525272524/d70742d8ka.htm | nan
+2025-11-03 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000119312525262474/d98917d8k.htm | nan
+2025-10-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025047840/bakkt-20251031.htm | nan
+2025-10-22 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000119312525245822/d36779d8k.htm | nan
+2025-10-21 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025045560/bakkt-20251019.htm | nan
+2025-10-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000119312525242750/d74254d8k.htm | nan
+2025-10-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1820302/000119312525237364/d32118d8k.htm | nan
+2025-08-11 | 10-Q | https://www.sec.gov/Archives/edgar/data/1820302/000162828025039625/bakkt-20250630.htm | nan
+2025-07-30 | 424B5 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525168405/d937687d424b5.htm | nan
+2025-07-28 | 424B5 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525166553/d937687d424b5.htm | nan
+2025-07-24 | 424B3 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525164474/d84171d424b3.htm | nan
+2025-07-07 | S-3/A | https://www.sec.gov/Archives/edgar/data/1820302/000119312525156281/d84171ds3a.htm | nan
+2025-06-27 | S-3 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525149177/d84171ds3.htm | nan
+2025-06-27 | S-8 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525151371/d41678ds8.htm | nan
+2025-06-26 | S-3 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525149155/d937687ds3.htm | nan
+2025-04-18 | S-8 | https://www.sec.gov/Archives/edgar/data/1820302/000119312525085820/d930118ds8.htm | nan
+2025-03-20 | 10-K | https://www.sec.gov/Archives/edgar/data/1820302/000162828025013959/bakkt-20241231.htm | nan","https://www.sec.gov/Archives/edgar/data/1820302/000162828025053695/bakkt-20251121.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000206254325000006/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000187091025000013/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000187155925000016/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000204368125000009/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000206254325000007/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000206254325000005/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000187155925000015/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000204368125000008/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000187091025000012/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025052422/bakkt-20251107.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000203050525000004/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025051180/bakkt-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525275602/d17320d8k.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025051201/bakkt-20251110.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525273946/d945367ds8.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525272524/d70742d8ka.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525262474/d98917d8k.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025047840/bakkt-20251031.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525245822/d36779d8k.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025045560/bakkt-20251019.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525242750/d74254d8k.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525237364/d32118d8k.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025039625/bakkt-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525168405/d937687d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525166553/d937687d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525164474/d84171d424b3.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525156281/d84171ds3a.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525149177/d84171ds3.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525151371/d41678ds8.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525149155/d937687ds3.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000119312525085820/d930118ds8.htm
+https://www.sec.gov/Archives/edgar/data/1820302/000162828025013959/bakkt-20241231.htm",,,,,
+CCRN,"Cross Country Healthcare, Inc.",Healthcare,0001141103,10.185,407015.05,333332512.0,8-K,2025-11-12,https://www.sec.gov/Archives/edgar/data/1141103/000162828025051671/ccrn-20251112.htm,"2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/1141103/000162828025051682/ccrn-20250930.htm | nan
+2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025051671/ccrn-20251112.htm | nan
+2025-09-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025043262/ccrn-20250925.htm | nan
+2025-09-03 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000095010325011190/dp233920_8k.htm | nan
+2025-08-06 | 10-Q | https://www.sec.gov/Archives/edgar/data/1141103/000162828025038395/ccrn-20250630.htm | nan
+2025-08-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025038369/ccrn-20250806.htm | nan
+2025-06-03 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325010757/form4.xml | nan
+2025-06-03 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325010755/form4.xml | nan
+2025-06-03 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325010754/form4.xml | nan
+2025-06-03 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325010756/form4.xml | nan
+2025-05-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025023205/ccrn-20250507.htm | nan
+2025-04-16 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1141103/000114036125014192/ef20046934_10ka.htm | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006849/form4.xml | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006844/form4.xml | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006846/form4.xml | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006848/form4.xml | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006847/form4.xml | nan
+2025-04-02 | 4 | https://www.sec.gov/Archives/edgar/data/1141103/000106299325006852/form4.xml | nan
+2025-03-05 | 10-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025010519/ccrn-20241231.htm | nan
+2025-03-05 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828025010495/ccrn-20250305.htm | nan
+2025-02-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000095010325002748/dp225602_8k.htm | nan
+2025-02-21 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000095010325002303/dp225185_8k.htm | nan
+2024-12-04 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000095010324017244/dp221634_8k.htm | nan
+2024-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1141103/000162828024045750/ccrn-20241106.htm | nan","https://www.sec.gov/Archives/edgar/data/1141103/000162828025051682/ccrn-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025051671/ccrn-20251112.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025043262/ccrn-20250925.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000095010325011190/dp233920_8k.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025038395/ccrn-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025038369/ccrn-20250806.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325010757/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325010755/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325010754/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325010756/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025023205/ccrn-20250507.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000114036125014192/ef20046934_10ka.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006849/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006844/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006846/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006848/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006847/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000106299325006852/form4.xml
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025010519/ccrn-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828025010495/ccrn-20250305.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000095010325002748/dp225602_8k.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000095010325002303/dp225185_8k.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000095010324017244/dp221634_8k.htm
+https://www.sec.gov/Archives/edgar/data/1141103/000162828024045750/ccrn-20241106.htm",,,,,
+CGC,Canopy Growth Corporation,Healthcare,0001737927,1.1301,21406389.2,272154081.0,4,2025-11-13,https://www.sec.gov/Archives/edgar/data/1737927/000110465925111341/tm2531202-1_4seq1.xml,"2025-11-13 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925111341/tm2531202-1_4seq1.xml | nan
+2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1737927/000119312525270960/cgc-20250930.htm | nan
+2025-11-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000119312525270995/cgc-20251107.htm | nan
+2025-10-14 | 3 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925099288/tm2528718-1_3seq1.xml | nan
+2025-10-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925098884/tm2528659d1_8k.htm | nan
+2025-09-30 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925095031/tm2527640-4_4seq1.xml | nan
+2025-09-30 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925095030/tm2527640-3_4seq1.xml | nan
+2025-09-30 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925095029/tm2527640-2_4seq1.xml | nan
+2025-09-30 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925095025/tm2527640-1_4seq1.xml | nan
+2025-09-23 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925092515/tm2526756-1_4seq1.xml | nan
+2025-09-19 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925091658/tm2526516-1_4seq1.xml | nan
+2025-09-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925090861/tm2526282d1_8k.htm | nan
+2025-08-29 | 424B5 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925085662/tm2524607-2_424b5.htm | nan
+2025-08-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925085779/tm2524672d1_8k.htm | nan
+2025-08-26 | 4 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925083085/tm2524390-1_4seq1.xml | nan
+2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1737927/000119312525175982/cgc-20250630.htm | nan
+2025-08-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000119312525176020/cgc-20250806.htm | nan
+2025-07-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925071781/tm2521930d1_8k.htm | nan
+2025-07-09 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925066600/tm2520113d1_8k.htm | nan
+2025-06-06 | 424B5 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925057337/tm2516121-5_424b5.htm | nan
+2025-06-06 | 424B7 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925057341/tm2516121-6_424b7.htm | nan
+2025-05-30 | 10-K | https://www.sec.gov/Archives/edgar/data/1737927/000095017025079317/cgc-20250331.htm | nan
+2025-05-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000095017025079321/cgc-20250530.htm | nan
+2025-04-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925030245/tm257897d4_8k.htm | nan
+2025-02-28 | 424B5 | https://www.sec.gov/Archives/edgar/data/1737927/000110465925019242/tm257897-1_424b5.htm | nan
+2025-02-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1737927/000110465925019244/tm257897d2_8k.htm | nan
+2024-12-10 | 424B7 | https://www.sec.gov/Archives/edgar/data/1737927/000110465924127219/tm2430617-1_424b7.htm | nan","https://www.sec.gov/Archives/edgar/data/1737927/000110465925111341/tm2531202-1_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000119312525270960/cgc-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000119312525270995/cgc-20251107.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925099288/tm2528718-1_3seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925098884/tm2528659d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925095031/tm2527640-4_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925095030/tm2527640-3_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925095029/tm2527640-2_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925095025/tm2527640-1_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925092515/tm2526756-1_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925091658/tm2526516-1_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925090861/tm2526282d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925085662/tm2524607-2_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925085779/tm2524672d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925083085/tm2524390-1_4seq1.xml
+https://www.sec.gov/Archives/edgar/data/1737927/000119312525175982/cgc-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000119312525176020/cgc-20250806.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925071781/tm2521930d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925066600/tm2520113d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925057337/tm2516121-5_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925057341/tm2516121-6_424b7.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000095017025079317/cgc-20250331.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000095017025079321/cgc-20250530.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925030245/tm257897d4_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925019242/tm257897-1_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465925019244/tm257897d2_8k.htm
+https://www.sec.gov/Archives/edgar/data/1737927/000110465924127219/tm2430617-1_424b7.htm",,,,,
+CTGO,"Contango Ore, Inc.",Basic Materials,0001502377,24.715,97476.45,301834730.0,8-K,2025-11-21,https://www.sec.gov/Archives/edgar/data/1502377/000119312525291648/ctgo-20251119.htm,"2025-11-21 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000119312525291648/ctgo-20251119.htm | nan
+2025-11-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000119312525280652/ctgo-20251113.htm | nan
+2025-11-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/1502377/000119312525280434/ctgo-20250930.htm | nan
+2025-10-02 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000119312525228609/ctgo-20251002.htm | nan
+2025-09-26 | 424B5 | https://www.sec.gov/Archives/edgar/data/1502377/000119312525218791/d11832d424b5.htm | nan
+2025-09-26 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000119312525220431/d911539d8k.htm | nan
+2025-09-25 | 424B5 | https://www.sec.gov/Archives/edgar/data/1502377/000119312525216422/d11832d424b5.htm | nan
+2025-08-18 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025109904/ownership.xml | nan
+2025-08-18 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025109900/ownership.xml | nan
+2025-08-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025108206/ctgo-20250813.htm | nan
+2025-08-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/1502377/000095017025108075/ctgo-20250630.htm | nan
+2025-08-07 | 3 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025105278/ownership.xml | nan
+2025-08-07 | 3 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025105277/ownership.xml | nan
+2025-08-07 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025105294/ownership.xml | nan
+2025-08-07 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025105293/ownership.xml | nan
+2025-07-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025100447/ctgo-20250730.htm | nan
+2025-07-11 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025095345/ownership.xml | nan
+2025-06-27 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025091058/ctgo-20250625.htm | nan
+2025-06-16 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025086551/ctgo-20250616.htm | nan
+2025-06-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025084513/ctgo-20250610.htm | nan
+2025-06-05 | 8-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025082392/ctgo-20250603.htm | nan
+2025-04-24 | 4 | https://www.sec.gov/Archives/edgar/data/1502377/000095017025058251/ownership.xml | nan
+2025-04-14 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1502377/000095017025053763/ctgo-20241231.htm | nan
+2025-03-17 | 10-K | https://www.sec.gov/Archives/edgar/data/1502377/000095017025039841/ctgo-20241231.htm | nan
+2024-11-15 | S-3 | https://www.sec.gov/Archives/edgar/data/1502377/000119312524259962/d887759ds3.htm | nan","https://www.sec.gov/Archives/edgar/data/1502377/000119312525291648/ctgo-20251119.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525280652/ctgo-20251113.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525280434/ctgo-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525228609/ctgo-20251002.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525218791/d11832d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525220431/d911539d8k.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312525216422/d11832d424b5.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025109904/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025109900/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025108206/ctgo-20250813.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025108075/ctgo-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025105278/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025105277/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025105294/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025105293/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025100447/ctgo-20250730.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025095345/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025091058/ctgo-20250625.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025086551/ctgo-20250616.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025084513/ctgo-20250610.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025082392/ctgo-20250603.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025058251/ownership.xml
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025053763/ctgo-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000095017025039841/ctgo-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1502377/000119312524259962/d887759ds3.htm",,,,,
+CTNM,"Contineum Therapeutics, Inc. Class A Common Stock",Healthcare,0001855175,10.74,182668.05,313398054.0,8-K,2025-11-20,https://www.sec.gov/Archives/edgar/data/1855175/000143774925035860/ctnm20251117_8k.htm,"2025-11-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925035860/ctnm20251117_8k.htm | nan
+2025-10-30 | 10-Q | https://www.sec.gov/Archives/edgar/data/1855175/000143774925032427/ctnm20250930_10q.htm | nan
+2025-10-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925032422/ctnm20251015_8k.htm | nan
+2025-09-18 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925029349/ctnm20250910_8k.htm | nan
+2025-08-05 | 10-Q | https://www.sec.gov/Archives/edgar/data/1855175/000143774925024852/ctnm20250630_10q.htm | nan
+2025-08-05 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925024849/ctnm20250616_8k.htm | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021373/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021372/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021371/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021369/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021367/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021366/rdgdoc.xml | nan
+2025-06-26 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021365/rdgdoc.xml | nan
+2025-06-26 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925021343/ctnm20250616c_8k.htm | nan
+2025-05-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925016877/cont20250321_8k.htm | nan
+2025-05-14 | S-3 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925016871/cont20250506_s3.htm | nan
+2025-05-14 | S-8 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925016878/cont20250506_s8.htm | nan
+2025-04-28 | 3 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925013335/rdgdoc.xml | nan
+2025-04-28 | 4 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925013340/rdgdoc.xml | nan
+2025-04-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925013334/cont20250422_8k.htm | nan
+2025-03-17 | 3 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925008001/rdgdoc.xml | nan
+2025-03-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925007998/cont20250304_8k.htm | nan
+2025-03-06 | 10-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925006458/cont20241231_10k.htm | nan
+2025-03-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774925006457/cont20250214_8k.htm | nan
+2025-03-06 | S-8 | https://www.sec.gov/Archives/edgar/data/1855175/000143774925006459/cont20250221_s8.htm | nan
+2024-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1855175/000143774924033614/cont20241029_8k.htm | nan","https://www.sec.gov/Archives/edgar/data/1855175/000143774925035860/ctnm20251117_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925032427/ctnm20250930_10q.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925032422/ctnm20251015_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925029349/ctnm20250910_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925024852/ctnm20250630_10q.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925024849/ctnm20250616_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021373/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021372/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021371/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021369/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021367/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021366/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021365/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925021343/ctnm20250616c_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925016877/cont20250321_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925016871/cont20250506_s3.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925016878/cont20250506_s8.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925013335/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925013340/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925013334/cont20250422_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925008001/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925007998/cont20250304_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925006458/cont20241231_10k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925006457/cont20250214_8k.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774925006459/cont20250221_s8.htm
+https://www.sec.gov/Archives/edgar/data/1855175/000143774924033614/cont20241029_8k.htm",,,,,
+CZNC,Citizens & Northern Corporation,Financial Services,0000810958,20.3907,45071.55,312609308.0,4,2025-11-26,https://www.sec.gov/Archives/edgar/data/810958/000166721125000008/form4-11262025_071151.xml,"2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000198186425000004/form4-11262025_081117.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000122080825000004/form4-11262025_081152.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000170463525000004/form4-11262025_071117.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000124245725000004/form4-11262025_071139.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000181638725000005/form4-11262025_071152.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000187047325000008/form4-11262025_071150.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000173834125000005/form4-11262025_071133.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000181591625000005/form4-11262025_071133.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000185866825000004/form4-11262025_071138.xml | nan
+2025-11-26 | 4 | https://www.sec.gov/Archives/edgar/data/810958/000166721125000008/form4-11262025_071151.xml | nan
+2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/810958/000110465925108331/cznc-20250930x10q.htm | nan
+2025-11-07 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000110465925108359/cznc-20251107x8k.htm | nan
+2025-10-23 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000110465925101823/cznc-20251023x8k.htm | nan
+2025-10-01 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000110465925095389/cznc-20251001x8k.htm | nan
+2025-09-22 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000110465925092067/cznc-20250922x8k.htm | nan
+2025-09-10 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000110465925088983/cznc-20250908x8k.htm | nan
+2025-08-28 | 424B3 | https://www.sec.gov/Archives/edgar/data/810958/000110465925084667/tm2524302-1_424b3.htm | nan
+2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/810958/000155837025010889/cznc-20250630x10q.htm | nan
+2025-08-06 | 424B3 | https://www.sec.gov/Archives/edgar/data/810958/000110465925074626/tm2514179-6_424b3.htm | nan
+2025-08-04 | S-4/A | https://www.sec.gov/Archives/edgar/data/810958/000110465925073477/tm2514179-3_s4a.htm | nan
+2025-07-24 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025009537/cznc-20250724x8k.htm | nan
+2025-07-22 | S-4 | https://www.sec.gov/Archives/edgar/data/810958/000110465925069550/tm2514179-1_s4.htm | nan
+2025-04-28 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025005706/cznc-20250424x8k.htm | nan
+2025-04-23 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025005276/cznc-20250423x8k.htm | nan
+2025-04-23 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025005252/cznc-20250423x8k.htm | nan
+2025-03-06 | 10-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025002408/cznc-20241231x10k.htm | nan
+2025-01-23 | 8-K | https://www.sec.gov/Archives/edgar/data/810958/000155837025000359/cznc-20250123x8k.htm | nan","https://www.sec.gov/Archives/edgar/data/810958/000198186425000004/form4-11262025_081117.xml
+https://www.sec.gov/Archives/edgar/data/810958/000122080825000004/form4-11262025_081152.xml
+https://www.sec.gov/Archives/edgar/data/810958/000170463525000004/form4-11262025_071117.xml
+https://www.sec.gov/Archives/edgar/data/810958/000124245725000004/form4-11262025_071139.xml
+https://www.sec.gov/Archives/edgar/data/810958/000181638725000005/form4-11262025_071152.xml
+https://www.sec.gov/Archives/edgar/data/810958/000187047325000008/form4-11262025_071150.xml
+https://www.sec.gov/Archives/edgar/data/810958/000173834125000005/form4-11262025_071133.xml
+https://www.sec.gov/Archives/edgar/data/810958/000181591625000005/form4-11262025_071133.xml
+https://www.sec.gov/Archives/edgar/data/810958/000185866825000004/form4-11262025_071138.xml
+https://www.sec.gov/Archives/edgar/data/810958/000166721125000008/form4-11262025_071151.xml
+https://www.sec.gov/Archives/edgar/data/810958/000110465925108331/cznc-20250930x10q.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925108359/cznc-20251107x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925101823/cznc-20251023x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925095389/cznc-20251001x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925092067/cznc-20250922x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925088983/cznc-20250908x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925084667/tm2524302-1_424b3.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025010889/cznc-20250630x10q.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925074626/tm2514179-6_424b3.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925073477/tm2514179-3_s4a.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025009537/cznc-20250724x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000110465925069550/tm2514179-1_s4.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025005706/cznc-20250424x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025005276/cznc-20250423x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025005252/cznc-20250423x8k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025002408/cznc-20241231x10k.htm
+https://www.sec.gov/Archives/edgar/data/810958/000155837025000359/cznc-20250123x8k.htm",,,,,
+DENN,Denny's Corporation,Consumer Cyclical,0000852772,6.1821,4052195.3,318325582.0,8-K,2025-11-04,https://www.sec.gov/Archives/edgar/data/852772/000085277225000119/denn-20251103.htm,"2025-11-04 | 10-Q | https://www.sec.gov/Archives/edgar/data/852772/000085277225000121/denn-20250924.htm | nan
+2025-11-04 | 3 | https://www.sec.gov/Archives/edgar/data/852772/000092189525002893/form313432007_11042025.xml | nan
+2025-11-04 | 3/A | https://www.sec.gov/Archives/edgar/data/852772/000092189525002892/form3a108569061_11042025.xml | nan
+2025-11-04 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000092189525002894/form413432007_11042025.xml | nan
+2025-11-04 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000119312525263393/d17512d8k.htm | nan
+2025-11-04 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000119/denn-20251103.htm | nan
+2025-11-03 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000119312525262835/d40219d8k.htm | nan
+2025-10-21 | 3 | https://www.sec.gov/Archives/edgar/data/852772/000092189525002783/form313432007_10212025.xml | nan
+2025-10-21 | 3 | https://www.sec.gov/Archives/edgar/data/852772/000092189525002782/form308569061_10212025.xml | nan
+2025-10-21 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000092189525002784/form413432007_10212025.xml | nan
+2025-08-04 | 10-Q | https://www.sec.gov/Archives/edgar/data/852772/000085277225000108/denn-20250625.htm | nan
+2025-08-04 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000106/denn-20250804.htm | nan
+2025-07-31 | S-8 | https://www.sec.gov/Archives/edgar/data/852772/000092963825002833/s8.htm | nan
+2025-07-25 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000098/denn-20250725.htm | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000085277225000091/wk-form4_1747429240.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000085277225000090/wk-form4_1747429229.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000085277225000089/wk-form4_1747429217.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/852772/000085277225000088/wk-form4_1747429201.xml | nan
+2025-05-16 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000087/denn-20250514.htm | nan
+2025-05-05 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000081/denn-20250505.htm | nan
+2025-03-03 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000073/denn-20250303.htm | nan
+2025-02-24 | 10-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000070/denn-20241225.htm | nan
+2025-02-18 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000064/denn-20250218.htm | nan
+2025-02-12 | 8-K | https://www.sec.gov/Archives/edgar/data/852772/000085277225000044/denn-20250212.htm | nan","https://www.sec.gov/Archives/edgar/data/852772/000085277225000121/denn-20250924.htm
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002893/form313432007_11042025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002892/form3a108569061_11042025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002894/form413432007_11042025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000119312525263393/d17512d8k.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000119/denn-20251103.htm
+https://www.sec.gov/Archives/edgar/data/852772/000119312525262835/d40219d8k.htm
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002783/form313432007_10212025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002782/form308569061_10212025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000092189525002784/form413432007_10212025.xml
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000108/denn-20250625.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000106/denn-20250804.htm
+https://www.sec.gov/Archives/edgar/data/852772/000092963825002833/s8.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000098/denn-20250725.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000091/wk-form4_1747429240.xml
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000090/wk-form4_1747429229.xml
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000089/wk-form4_1747429217.xml
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000088/wk-form4_1747429201.xml
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000087/denn-20250514.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000081/denn-20250505.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000073/denn-20250303.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000070/denn-20241225.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000064/denn-20250218.htm
+https://www.sec.gov/Archives/edgar/data/852772/000085277225000044/denn-20250212.htm",,,,,
+DRDB,Roman DBDR Acquisition Corp. II,Financial Services,0002032528,10.43,54572.5,239890000.0,10-Q,2025-11-13,https://www.sec.gov/Archives/edgar/data/2032528/000110465925110662/drdb-20250930x10q.htm,"2025-11-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/2032528/000110465925110662/drdb-20250930x10q.htm | nan
+2025-10-23 | 10-Q | https://www.sec.gov/Archives/edgar/data/2032528/000110465925101820/drdb-20250630x10q.htm | nan
+2025-10-16 | 3 | https://www.sec.gov/Archives/edgar/data/2032528/000110465925100090/tm2528635-1_3seq1.xml | nan
+2025-10-03 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925096645/tm2527764d1_8k.htm | nan
+2025-09-18 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925091346/tm2526462d1_8k.htm | nan
+2025-04-07 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925032650/tm2511717d1_8k.htm | nan
+2025-03-31 | 10-K | https://www.sec.gov/Archives/edgar/data/2032528/000141057825000577/drdb-20241231x10k.htm | nan
+2025-01-31 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925007788/tm254957d1_8k.htm | nan
+2025-01-28 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925006550/tm254523d1_8k.htm | nan
+2025-01-03 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465925000823/tm251744d1_8k.htm | nan
+2024-12-17 | 8-K | https://www.sec.gov/Archives/edgar/data/2032528/000110465924129432/tm2431164d1_8k.htm | nan
+2024-12-13 | 424B4 | https://www.sec.gov/Archives/edgar/data/2032528/000110465924128493/tm2423509-15_424b4.htm | nan
+2024-12-12 | 3 | https://www.sec.gov/Archives/edgar/data/2032528/000110465924128157/tm2430554-6_3seq1.xml | nan
+2024-12-12 | 3 | https://www.sec.gov/Archives/edgar/data/2032528/000110465924128156/tm2430554-5_3seq1.xml | nan
+2024-12-12 | 3 | https://www.sec.gov/Archives/edgar/data/2032528/000110465924128155/tm2430554-4_3seq1.xml | nan
+2024-12-12 | 3 | https://www.sec.gov/Archives/edgar/data/2032528/000110465924128154/tm2430554-3_3seq1.xml | nan","https://www.sec.gov/Archives/edgar/data/2032528/000110465925110662/drdb-20250930x10q.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925101820/drdb-20250630x10q.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925100090/tm2528635-1_3seq1.xml
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925096645/tm2527764d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925091346/tm2526462d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925032650/tm2511717d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000141057825000577/drdb-20241231x10k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925007788/tm254957d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925006550/tm254523d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465925000823/tm251744d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924129432/tm2431164d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924128493/tm2423509-15_424b4.htm
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924128157/tm2430554-6_3seq1.xml
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924128156/tm2430554-5_3seq1.xml
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924128155/tm2430554-4_3seq1.xml
+https://www.sec.gov/Archives/edgar/data/2032528/000110465924128154/tm2430554-3_3seq1.xml",,,,,
+DSP,Viant Technology Inc.,Technology,0001828791,11.27,312929.0,183184011.0,8-K,2025-11-10,https://www.sec.gov/Archives/edgar/data/1828791/000182879125000077/dsp-20251110.htm,"2025-11-10 | 10-Q | https://www.sec.gov/Archives/edgar/data/1828791/000182879125000078/dsp-20250930.htm | nan
 2025-11-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1828791/000182879125000077/dsp-20251110.htm | nan
 2025-09-17 | 4 | https://www.sec.gov/Archives/edgar/data/1828791/000184476725000005/wk-form4_1758148771.xml | nan
 2025-09-17 | 4 | https://www.sec.gov/Archives/edgar/data/1828791/000184310425000007/wk-form4_1758148734.xml | nan
@@ -110,21 +508,21 @@ https://www.sec.gov/Archives/edgar/data/1828791/000182879125000010/dsp-20241231.
 https://www.sec.gov/Archives/edgar/data/1828791/000182879125000009/dsp-20250303.htm
 https://www.sec.gov/Archives/edgar/data/1828791/000182879125000013/dsp-20241231xsx8.htm
 https://www.sec.gov/Archives/edgar/data/1828791/000182879124000053/dsp-20241112.htm",,,,,
-EM,Smart Share Global Limited,Consumer Cyclical,0001834253,1.38,664512.55,173081034.0,6-K,2025-11-28,https://www.sec.gov/Archives/edgar/data/1834253/000110465925116666/tm2532369d1_6k.htm,"2025-11-28 | 6-K | https://www.sec.gov/Archives/edgar/data/1834253/000110465925116666/tm2532369d1_6k.htm | nan
+EM,Smart Share Global Limited,Consumer Cyclical,0001834253,1.37,664583.4,173131753.0,6-K,2025-11-28,https://www.sec.gov/Archives/edgar/data/1834253/000110465925116666/tm2532369d1_6k.htm,"2025-11-28 | 6-K | https://www.sec.gov/Archives/edgar/data/1834253/000110465925116666/tm2532369d1_6k.htm | nan
 2025-08-15 | 6-K | https://www.sec.gov/Archives/edgar/data/1834253/000110465925079276/tm2523631d1_6k.htm | nan
 2025-08-01 | 6-K | https://www.sec.gov/Archives/edgar/data/1834253/000110465925073150/tm2522321d1_6k.htm | nan
 2025-04-28 | 20-F | https://www.sec.gov/Archives/edgar/data/1834253/000141057825000928/em-20241231x20f.htm | nan","https://www.sec.gov/Archives/edgar/data/1834253/000110465925116666/tm2532369d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1834253/000110465925079276/tm2523631d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1834253/000110465925073150/tm2522321d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1834253/000141057825000928/em-20241231x20f.htm",,,,,
-GFR,Greenfire Resources Ltd.,Energy,0001966287,4.68,206453.7,328792937.0,6-K,2025-11-06,https://www.sec.gov/Archives/edgar/data/1966287/000121390025106857/ea0264337-6k_greenfire.htm,"2025-11-06 | 6-K | https://www.sec.gov/Archives/edgar/data/1966287/000121390025106857/ea0264337-6k_greenfire.htm | nan
+GFR,Greenfire Resources Ltd.,Energy,0001966287,4.73,210927.8,332656956.0,6-K,2025-11-06,https://www.sec.gov/Archives/edgar/data/1966287/000121390025106857/ea0264337-6k_greenfire.htm,"2025-11-06 | 6-K | https://www.sec.gov/Archives/edgar/data/1966287/000121390025106857/ea0264337-6k_greenfire.htm | nan
 2025-11-04 | 6-K | https://www.sec.gov/Archives/edgar/data/1966287/000121390025105629/ea0263834-6k_greenfire.htm | nan
 2025-08-07 | 6-K | https://www.sec.gov/Archives/edgar/data/1966287/000121390025073065/ea0252225-6k_greenfire.htm | nan
 2025-03-20 | 40-F | https://www.sec.gov/Archives/edgar/data/1966287/000121390025025189/ea0234745-40f_greenfire.htm | nan","https://www.sec.gov/Archives/edgar/data/1966287/000121390025106857/ea0264337-6k_greenfire.htm
 https://www.sec.gov/Archives/edgar/data/1966287/000121390025105629/ea0263834-6k_greenfire.htm
 https://www.sec.gov/Archives/edgar/data/1966287/000121390025073065/ea0252225-6k_greenfire.htm
 https://www.sec.gov/Archives/edgar/data/1966287/000121390025025189/ea0234745-40f_greenfire.htm",,,,,
-GIW,GigCapital8 Corp.,Financial Services,0002080019,9.9,109598.75,254010488.0,10-Q,2025-11-06,https://www.sec.gov/Archives/edgar/data/2080019/000119312525269558/giwwu-20250930.htm,"2025-11-06 | 10-Q | https://www.sec.gov/Archives/edgar/data/2080019/000119312525269558/giwwu-20250930.htm | nan
+GIW,GigCapital8 Corp.,Financial Services,0002080019,9.905,159835.65,254138776.0,10-Q,2025-11-06,https://www.sec.gov/Archives/edgar/data/2080019/000119312525269558/giwwu-20250930.htm,"2025-11-06 | 10-Q | https://www.sec.gov/Archives/edgar/data/2080019/000119312525269558/giwwu-20250930.htm | nan
 2025-10-23 | 8-K | https://www.sec.gov/Archives/edgar/data/2080019/000119312525248776/giwwu-20251023.htm | nan
 2025-10-15 | 3 | https://www.sec.gov/Archives/edgar/data/2080019/000208957125000001/primary_doc.xml | nan
 2025-10-15 | 3 | https://www.sec.gov/Archives/edgar/data/2080019/000120111025000003/primary_doc.xml | nan
@@ -143,7 +541,7 @@ https://www.sec.gov/Archives/edgar/data/2080019/000113309925000007/primary_doc.x
 https://www.sec.gov/Archives/edgar/data/2080019/000184720225000002/primary_doc.xml
 https://www.sec.gov/Archives/edgar/data/2080019/000111622925000004/primary_doc.xml
 https://www.sec.gov/Archives/edgar/data/2080019/000119312525230859/d929696d424b4.htm",,,,,
-IMRX,Immuneering Corporation,Healthcare,0001790340,7.0531,1138213.6,255749971.0,8-K,2025-11-12,https://www.sec.gov/Archives/edgar/data/1790340/000179034025000133/imrx-20251112.htm,"2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/1790340/000179034025000135/imrx-20250930.htm | nan
+IMRX,Immuneering Corporation,Healthcare,0001790340,7.12,1148146.1,257746600.0,8-K,2025-11-12,https://www.sec.gov/Archives/edgar/data/1790340/000179034025000133/imrx-20251112.htm,"2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/1790340/000179034025000135/imrx-20250930.htm | nan
 2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1790340/000179034025000133/imrx-20251112.htm | nan
 2025-10-07 | 4 | https://www.sec.gov/Archives/edgar/data/1790340/000179034025000127/wk-form4_1759841769.xml | nan
 2025-10-02 | 4 | https://www.sec.gov/Archives/edgar/data/1790340/000179034025000125/wk-form4_1759410175.xml | nan
@@ -200,7 +598,18 @@ https://www.sec.gov/Archives/edgar/data/1790340/000179034025000042/imrx-20241231
 https://www.sec.gov/Archives/edgar/data/1790340/000110465925026222/tm259697d1_424b5.htm
 https://www.sec.gov/Archives/edgar/data/1790340/000179034025000039/imrx-20250320.htm
 https://www.sec.gov/Archives/edgar/data/1790340/000179034025000014/imrx-20250113.htm",,,,,
-IVA,Inventiva S.A.,Healthcare,0001756594,4.35,275229.45,223003222.0,6-K,2025-11-28,https://www.sec.gov/Archives/edgar/data/1756594/000117184325007640/f6k_112825.htm,"2025-11-28 | 6-K | https://www.sec.gov/Archives/edgar/data/1756594/000117184325007640/f6k_112825.htm | nan
+IONR,ioneer Ltd,Basic Materials,0001896084,4.515,175790.0,300462056.0,6-K,2025-12-01,https://www.sec.gov/Archives/edgar/data/1896084/000114036125043728/ef20060240_6k.htm,"2025-12-01 | 6-K | https://www.sec.gov/Archives/edgar/data/1896084/000114036125043728/ef20060240_6k.htm | nan
+2025-10-29 | 6-K | https://www.sec.gov/Archives/edgar/data/1896084/000114036125039729/ef20057892_6k.htm | nan
+2025-10-22 | 20-F | https://www.sec.gov/Archives/edgar/data/1896084/000114036125038934/ef20050367_20f.htm | nan
+2025-10-20 | 6-K | https://www.sec.gov/Archives/edgar/data/1896084/000114036125038668/ef20057419_6k.htm | nan
+2025-09-30 | 6-K | https://www.sec.gov/Archives/edgar/data/1896084/000114036125036657/ef20056465_6k.htm | nan
+2025-09-23 | 6-K | https://www.sec.gov/Archives/edgar/data/1896084/000114036125035847/ef20055935_6k.htm | nan","https://www.sec.gov/Archives/edgar/data/1896084/000114036125043728/ef20060240_6k.htm
+https://www.sec.gov/Archives/edgar/data/1896084/000114036125039729/ef20057892_6k.htm
+https://www.sec.gov/Archives/edgar/data/1896084/000114036125038934/ef20050367_20f.htm
+https://www.sec.gov/Archives/edgar/data/1896084/000114036125038668/ef20057419_6k.htm
+https://www.sec.gov/Archives/edgar/data/1896084/000114036125036657/ef20056465_6k.htm
+https://www.sec.gov/Archives/edgar/data/1896084/000114036125035847/ef20055935_6k.htm",,,,,
+IVA,Inventiva S.A.,Healthcare,0001756594,4.285,278227.05,224042864.0,6-K,2025-11-28,https://www.sec.gov/Archives/edgar/data/1756594/000117184325007640/f6k_112825.htm,"2025-11-28 | 6-K | https://www.sec.gov/Archives/edgar/data/1756594/000117184325007640/f6k_112825.htm | nan
 2025-11-24 | 6-K | https://www.sec.gov/Archives/edgar/data/1756594/000117184325007502/f6k_112125.htm | nan
 2025-11-17 | 6-K | https://www.sec.gov/Archives/edgar/data/1756594/000117184325007356/f6k_111725.htm | nan
 2025-11-13 | 424B5 | https://www.sec.gov/Archives/edgar/data/1756594/000110465925111403/tm2528355-6_424b5.htm | nan
@@ -215,54 +624,7 @@ https://www.sec.gov/Archives/edgar/data/1756594/000110465925111442/tm2528355d8_6
 https://www.sec.gov/Archives/edgar/data/1756594/000110465925110422/tm2528355-4_424b5.htm
 https://www.sec.gov/Archives/edgar/data/1756594/000110465925108473/tm2530500d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1756594/000110465925035122/iva-20241231x20f.htm",,,,,
-IVVD,"Invivyd, Inc.",Healthcare,0001832038,2.45,11635606.3,323196191.0,8-K,2025-11-24,https://www.sec.gov/Archives/edgar/data/1832038/000119312525291992/ivvd-20251124.htm,"2025-11-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525291992/ivvd-20251124.htm | nan
-2025-11-20 | 4 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525289825/ownership.xml | nan
-2025-11-19 | 424B5 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525286661/d835559d424b5.htm | nan
-2025-11-19 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525288347/ivvd-20251117.htm | nan
-2025-11-17 | 424B5 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525284616/d835559d424b5.htm | nan
-2025-11-06 | 10-Q | https://www.sec.gov/Archives/edgar/data/1832038/000119312525268076/ivvd-20250930.htm | nan
-2025-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525268057/d81968d8k.htm | nan
-2025-10-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525258526/d24723d8k.htm | nan
-2025-10-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525230898/ivvd-20251006.htm | nan
-2025-10-02 | S-3 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525228321/d28850ds3.htm | nan
-2025-09-24 | 3 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525215619/ownership.xml | nan
-2025-09-24 | 4 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525215634/ownership.xml | nan
-2025-09-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525215541/ivvd-20250922.htm | nan
-2025-08-22 | 424B5 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525185639/d83346d424b5.htm | nan
-2025-08-22 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000095017025110952/ivvd-20250820.htm | nan
-2025-08-20 | 424B5 | https://www.sec.gov/Archives/edgar/data/1832038/000119312525184075/d83346d424b5.htm | nan
-2025-08-19 | 4 | https://www.sec.gov/Archives/edgar/data/1832038/000095017025110343/ownership.xml | nan
-2025-08-19 | 4 | https://www.sec.gov/Archives/edgar/data/1832038/000095017025110341/ownership.xml | nan
-2025-08-19 | 4 | https://www.sec.gov/Archives/edgar/data/1832038/000095017025110339/ownership.xml | nan
-2025-08-14 | 10-Q | https://www.sec.gov/Archives/edgar/data/1832038/000095017025109029/ivvd-20250630.htm | nan
-2025-08-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000119312525180890/d936404d8k.htm | nan
-2025-07-02 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000095017025092528/ivvd-20250702.htm | nan
-2025-06-26 | 8-K | https://www.sec.gov/Archives/edgar/data/1832038/000095017025090172/ivvd-20250626.htm | nan
-2025-03-20 | 10-K | https://www.sec.gov/Archives/edgar/data/1832038/000095017025042332/ivvd-20241231.htm | nan","https://www.sec.gov/Archives/edgar/data/1832038/000119312525291992/ivvd-20251124.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525289825/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525286661/d835559d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525288347/ivvd-20251117.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525284616/d835559d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525268076/ivvd-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525268057/d81968d8k.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525258526/d24723d8k.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525230898/ivvd-20251006.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525228321/d28850ds3.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525215619/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525215634/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525215541/ivvd-20250922.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525185639/d83346d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025110952/ivvd-20250820.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525184075/d83346d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025110343/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025110341/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025110339/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025109029/ivvd-20250630.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000119312525180890/d936404d8k.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025092528/ivvd-20250702.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025090172/ivvd-20250626.htm
-https://www.sec.gov/Archives/edgar/data/1832038/000095017025042332/ivvd-20241231.htm",,,,,
-JKS,"JinkoSolar Holding Co., Ltd.",Energy,0001481513,25.94,881892.2,336580186.0,6-K,2025-11-17,https://www.sec.gov/Archives/edgar/data/1481513/000110465925113038/tm2531464d1_6k.htm,"2025-11-17 | 6-K | https://www.sec.gov/Archives/edgar/data/1481513/000110465925113038/tm2531464d1_6k.htm | nan
+JKS,"JinkoSolar Holding Co., Ltd.",Energy,0001481513,26.1,885074.7,336451055.0,6-K,2025-11-17,https://www.sec.gov/Archives/edgar/data/1481513/000110465925113038/tm2531464d1_6k.htm,"2025-11-17 | 6-K | https://www.sec.gov/Archives/edgar/data/1481513/000110465925113038/tm2531464d1_6k.htm | nan
 2025-10-30 | 6-K | https://www.sec.gov/Archives/edgar/data/1481513/000110465925104062/tm2529838d1_6k.htm | nan
 2025-09-18 | 6-K | https://www.sec.gov/Archives/edgar/data/1481513/000110465925091055/tm2526449d1_6k.htm | nan
 2025-09-12 | 6-K | https://www.sec.gov/Archives/edgar/data/1481513/000141057825002285/tm2525986d1_6k.htm | nan
@@ -273,7 +635,18 @@ https://www.sec.gov/Archives/edgar/data/1481513/000110465925091055/tm2526449d1_6
 https://www.sec.gov/Archives/edgar/data/1481513/000141057825002285/tm2525986d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1481513/000110465925083648/tm2524499d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1481513/000141057825000970/jks-20241231x20f.htm",,,,,
-MOV,"Movado Group, Inc.",Consumer Cyclical,0000072573,21.29,117848.75,333877274.0,8-K,2025-11-25,https://www.sec.gov/Archives/edgar/data/72573/000095014225003060/eh250709295_8k.htm,"2025-11-25 | 10-Q | https://www.sec.gov/Archives/edgar/data/72573/000119312525294766/mov-20251031.htm | nan
+KNOP,KNOT Offshore Partners LP,Industrials,0001564180,9.99,172467.95,339940134.0,6-K,2025-11-13,https://www.sec.gov/Archives/edgar/data/1564180/000110465925110839/tm2530963d1_6k.htm,"2025-11-13 | 6-K | https://www.sec.gov/Archives/edgar/data/1564180/000110465925110839/tm2530963d1_6k.htm | nan
+2025-11-03 | 6-K | https://www.sec.gov/Archives/edgar/data/1564180/000110465925105158/knop-20251103x6k.htm | nan
+2025-10-27 | 6-K | https://www.sec.gov/Archives/edgar/data/1564180/000110465925102370/knop-20251027x6k.htm | nan
+2025-09-29 | 6-K | https://www.sec.gov/Archives/edgar/data/1564180/000110465925094189/knop-20250630x6k.htm | nan
+2025-09-25 | 6-K | https://www.sec.gov/Archives/edgar/data/1564180/000110465925093354/knop-20250925x6k.htm | nan
+2025-03-27 | 20-F | https://www.sec.gov/Archives/edgar/data/1564180/000155837025003754/knop-20241231x20f.htm | nan","https://www.sec.gov/Archives/edgar/data/1564180/000110465925110839/tm2530963d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1564180/000110465925105158/knop-20251103x6k.htm
+https://www.sec.gov/Archives/edgar/data/1564180/000110465925102370/knop-20251027x6k.htm
+https://www.sec.gov/Archives/edgar/data/1564180/000110465925094189/knop-20250630x6k.htm
+https://www.sec.gov/Archives/edgar/data/1564180/000110465925093354/knop-20250925x6k.htm
+https://www.sec.gov/Archives/edgar/data/1564180/000155837025003754/knop-20241231x20f.htm",,,,,
+MOV,"Movado Group, Inc.",Consumer Cyclical,0000072573,21.32,119232.1,333642039.0,8-K,2025-11-25,https://www.sec.gov/Archives/edgar/data/72573/000095014225003060/eh250709295_8k.htm,"2025-11-25 | 10-Q | https://www.sec.gov/Archives/edgar/data/72573/000119312525294766/mov-20251031.htm | nan
 2025-11-25 | 8-K | https://www.sec.gov/Archives/edgar/data/72573/000095014225003060/eh250709295_8k.htm | nan
 2025-10-02 | 4 | https://www.sec.gov/Archives/edgar/data/72573/000095014225002653/es250685345_4-sussis.xml | nan
 2025-10-02 | 4 | https://www.sec.gov/Archives/edgar/data/72573/000095014225002652/es250685344_4-soltani.xml | nan
@@ -314,7 +687,58 @@ https://www.sec.gov/Archives/edgar/data/72573/000095014225001084/eh250616699_8k.
 https://www.sec.gov/Archives/edgar/data/72573/000095014225001035/eh250615018_8k.htm
 https://www.sec.gov/Archives/edgar/data/72573/000095014224002890/eh240564665_8k.htm
 https://www.sec.gov/Archives/edgar/data/72573/000095014224002790/eh240555997_8k.htm",,,,,
-NOAH,Noah Holdings Limited,Financial Services,0001499543,10.57,81959.0,148008622.0,6-K,2025-11-25,https://www.sec.gov/Archives/edgar/data/1499543/000110465925115590/tm2532142d1_6k.htm,"2025-11-25 | 6-K | https://www.sec.gov/Archives/edgar/data/1499543/000110465925116023/tm2532162d1_6k.htm | nan
+NGNE,Neurogene Inc.,Healthcare,0001404644,20.13,254169.85,310767456.0,8-K,2025-11-13,https://www.sec.gov/Archives/edgar/data/1404644/000140464425000103/ngne-20251113.htm,"2025-11-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000101/ngne-20250930.htm | nan
+2025-11-13 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000103/ngne-20251113.htm | nan
+2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000098/ngne-20251112.htm | nan
+2025-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000091/ngne-20251106.htm | nan
+2025-10-09 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000088/ngne-20251009.htm | nan
+2025-08-11 | 10-Q | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000081/ngne-20250630.htm | nan
+2025-08-11 | 424B5 | https://www.sec.gov/Archives/edgar/data/1404644/000162828025039623/ngne-2025atmprospectussupp.htm | nan
+2025-08-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000082/ngne-20250811.htm | nan
+2025-06-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000070/ngne-20250630.htm | nan
+2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000068/wk-form4_1749830856.xml | nan
+2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000067/wk-form4_1749830826.xml | nan
+2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000066/wk-form4_1749830797.xml | nan
+2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000065/wk-form4_1749830770.xml | nan
+2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000064/wk-form4_1749830742.xml | nan
+2025-06-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000053/ngne-20250612.htm | nan
+2025-06-09 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000049/ngne-20250609.htm | nan
+2025-05-15 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000046/wk-form4_1747341779.xml | nan
+2025-05-09 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000044/ngne-20250509.htm | nan
+2025-04-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000029/ngne-20250414.htm | nan
+2025-04-01 | 424B3 | https://www.sec.gov/Archives/edgar/data/1404644/000162828025015981/neurogene-424b.htm | nan
+2025-03-28 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000021/wk-form4_1743211701.xml | nan
+2025-03-28 | 4 | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000020/wk-form4_1743211653.xml | nan
+2025-03-24 | 10-K | https://www.sec.gov/Archives/edgar/data/1404644/000140464425000012/ngne-20241231.htm | nan
+2025-03-24 | S-3 | https://www.sec.gov/Archives/edgar/data/1404644/000162828025014521/neurogene-sx3shelf.htm | nan
+2025-03-24 | S-8 | https://www.sec.gov/Archives/edgar/data/1404644/000162828025014508/neurogene-sx8.htm | nan
+2024-12-18 | 424B3 | https://www.sec.gov/Archives/edgar/data/1404644/000162828024051855/neurogene-424b3.htm | nan","https://www.sec.gov/Archives/edgar/data/1404644/000140464425000101/ngne-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000103/ngne-20251113.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000098/ngne-20251112.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000091/ngne-20251106.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000088/ngne-20251009.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000081/ngne-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000162828025039623/ngne-2025atmprospectussupp.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000082/ngne-20250811.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000070/ngne-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000068/wk-form4_1749830856.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000067/wk-form4_1749830826.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000066/wk-form4_1749830797.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000065/wk-form4_1749830770.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000064/wk-form4_1749830742.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000053/ngne-20250612.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000049/ngne-20250609.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000046/wk-form4_1747341779.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000044/ngne-20250509.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000029/ngne-20250414.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000162828025015981/neurogene-424b.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000021/wk-form4_1743211701.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000020/wk-form4_1743211653.xml
+https://www.sec.gov/Archives/edgar/data/1404644/000140464425000012/ngne-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000162828025014521/neurogene-sx3shelf.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000162828025014508/neurogene-sx8.htm
+https://www.sec.gov/Archives/edgar/data/1404644/000162828024051855/neurogene-424b3.htm",,,,,
+NOAH,Noah Holdings Limited,Financial Services,0001499543,10.56,82953.95,148429101.0,6-K,2025-11-25,https://www.sec.gov/Archives/edgar/data/1499543/000110465925115590/tm2532142d1_6k.htm,"2025-11-25 | 6-K | https://www.sec.gov/Archives/edgar/data/1499543/000110465925116023/tm2532162d1_6k.htm | nan
 2025-11-25 | 6-K | https://www.sec.gov/Archives/edgar/data/1499543/000110465925115590/tm2532142d1_6k.htm | nan
 2025-11-14 | 6-K | https://www.sec.gov/Archives/edgar/data/1499543/000110465925111717/tm2531162d1_6k.htm | nan
 2025-11-07 | 6-K | https://www.sec.gov/Archives/edgar/data/1499543/000110465925108035/tm2530454d1_6k.htm | nan
@@ -325,7 +749,7 @@ https://www.sec.gov/Archives/edgar/data/1499543/000110465925111717/tm2531162d1_6
 https://www.sec.gov/Archives/edgar/data/1499543/000110465925108035/tm2530454d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1499543/000110465925098052/tm2528386d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1499543/000141057825000852/noah-20241231x20f.htm",,,,,
-NPB,"Northpointe Bancshares, Inc.",Financial Services,0001336706,17.73,131115.2,262964346.0,4,2025-11-24,https://www.sec.gov/Archives/edgar/data/1336706/000110465925115551/tm2532110-1_4seq1.xml,"2025-11-24 | 4 | https://www.sec.gov/Archives/edgar/data/1336706/000110465925115551/tm2532110-1_4seq1.xml | nan
+NPB,"Northpointe Bancshares, Inc.",Financial Services,0001336706,17.73,133811.35,265280225.0,4,2025-11-24,https://www.sec.gov/Archives/edgar/data/1336706/000110465925115551/tm2532110-1_4seq1.xml,"2025-11-24 | 4 | https://www.sec.gov/Archives/edgar/data/1336706/000110465925115551/tm2532110-1_4seq1.xml | nan
 2025-11-12 | 10-Q | https://www.sec.gov/Archives/edgar/data/1336706/000133670625000008/npb-20250930.htm | nan
 2025-10-29 | 3 | https://www.sec.gov/Archives/edgar/data/1336706/000110465925103751/tm2529680-3_3seq1.xml | nan
 2025-10-29 | 3 | https://www.sec.gov/Archives/edgar/data/1336706/000110465925103749/tm2529680-2_3seq1.xml | nan
@@ -374,107 +798,148 @@ https://www.sec.gov/Archives/edgar/data/1336706/000162828025017013/npb-20250408.
 https://www.sec.gov/Archives/edgar/data/1336706/000162828025015483/npb-20241231.htm
 https://www.sec.gov/Archives/edgar/data/1336706/000110465925014747/tm256850d1_s8.htm
 https://www.sec.gov/Archives/edgar/data/1336706/000110465925014328/tm2430447-12_424b4.htm",,,,,
-OPAL,OPAL Fuels Inc.,Utilities,0001842279,2.4,217609.8,70460710.0,8-K,2025-11-07,https://www.sec.gov/Archives/edgar/data/1842279/000162828025050443/opal-20251106.htm,"2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1842279/000162828025050643/wdq-20250930.htm | nan
-2025-11-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025050443/opal-20251106.htm | nan
-2025-11-03 | 3 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025048354/wk-form3_1762207549.xml | nan
-2025-11-03 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025048358/wk-form4_1762207597.xml | nan
-2025-10-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025046759/opal-20251028.htm | nan
-2025-10-27 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000184227925000061/opal-20251022.htm | nan
-2025-10-02 | 3 | https://www.sec.gov/Archives/edgar/data/1842279/000184754425000006/wk-form3_1759437893.xml | nan
-2025-10-02 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000184754425000008/wk-form4_1759438315.xml | nan
-2025-09-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025043107/opal-20250929.htm | nan
-2025-08-19 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000193308825000006/wk-form4_1755636646.xml | nan
-2025-08-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1842279/000162828025038997/wdq-20250630.htm | nan
-2025-08-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025038987/opal-20250807.htm | nan
-2025-06-18 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025032166/opal-20250618.htm | nan
-2025-06-16 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025031616/wk-form4_1750106640.xml | nan
-2025-06-16 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025031608/wk-form4_1750106489.xml | nan
-2025-05-27 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025027982/wk-form4_1748379957.xml | nan
-2025-05-27 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025027981/wk-form4_1748379905.xml | nan
-2025-05-27 | 4 | https://www.sec.gov/Archives/edgar/data/1842279/000162828025027979/wk-form4_1748379828.xml | nan
-2025-05-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025023886/opal-20250508.htm | nan
-2025-04-25 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025020006/opal-20250421.htm | nan
-2025-04-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025019747/opal-20250424.htm | nan
-2025-04-23 | 8-K | https://www.sec.gov/Archives/edgar/data/1842279/000162828025019374/opal-20250422.htm | nan
-2025-03-17 | 10-K | https://www.sec.gov/Archives/edgar/data/1842279/000184227925000049/wdq-20241231.htm | nan","https://www.sec.gov/Archives/edgar/data/1842279/000162828025050643/wdq-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025050443/opal-20251106.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025048354/wk-form3_1762207549.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025048358/wk-form4_1762207597.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025046759/opal-20251028.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000184227925000061/opal-20251022.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000184754425000006/wk-form3_1759437893.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000184754425000008/wk-form4_1759438315.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025043107/opal-20250929.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000193308825000006/wk-form4_1755636646.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025038997/wdq-20250630.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025038987/opal-20250807.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025032166/opal-20250618.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025031616/wk-form4_1750106640.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025031608/wk-form4_1750106489.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025027982/wk-form4_1748379957.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025027981/wk-form4_1748379905.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025027979/wk-form4_1748379828.xml
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025023886/opal-20250508.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025020006/opal-20250421.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025019747/opal-20250424.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000162828025019374/opal-20250422.htm
-https://www.sec.gov/Archives/edgar/data/1842279/000184227925000049/wdq-20241231.htm",,,,,
-OWLT,"Owlet, Inc.",Healthcare,0001816708,12.78,226421.35,202168223.0,S-3,2025-11-21,https://www.sec.gov/Archives/edgar/data/1816708/000162828025053580/owlets-32025x11x13.htm,"2025-11-21 | S-3 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025053580/owlets-32025x11x13.htm | nan
-2025-11-14 | S-8 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025052389/owlt-sx82025x11x13.htm | nan
-2025-11-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000062/owlt-20250930.htm | nan
-2025-11-13 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000060/owlt-20251113.htm | nan
-2025-10-23 | 424B5 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045936/owlet-final424b5.htm | nan
-2025-10-23 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045943/owlt-20251021.htm | nan
-2025-10-21 | 424B5 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045737/owlet-424b5.htm | nan
-2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045154/wk-form4_1760577238.xml | nan
-2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045153/wk-form4_1760577208.xml | nan
-2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025045152/wk-form4_1760577175.xml | nan
-2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000119312525240517/ownership.xml | nan
-2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000119312525240511/ownership.xml | nan
-2025-10-14 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000044/owlt-20251008.htm | nan
-2025-10-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000040/owlt-20250930.htm | nan
-2025-09-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000036/owlt-20250911.htm | nan
-2025-08-13 | 8-K/A | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000032/owlt-20250807.htm | nan
-2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000026/owlt-20250630.htm | nan
-2025-08-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000020/owlt-20250805.htm | nan
-2025-08-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000181670825000019/owlt-20250807.htm | nan
-2025-06-16 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000162828025031614/a20250611creditagreementam.htm | nan
-2025-05-21 | 4 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025027139/wk-form4_1747876547.xml | nan
-2025-05-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000162828025023770/owlt-20250508.htm | nan
-2025-04-30 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1816708/000162828025021140/owlet_10kaxfy24.htm | nan
-2025-03-28 | 424B3 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025015465/owlet-final424b3.htm | nan
-2025-03-12 | S-8 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025012182/owlt-sx82025x03x11.htm | nan
-2025-03-11 | 10-K | https://www.sec.gov/Archives/edgar/data/1816708/000162828025012035/owlt-20241231.htm | nan
-2025-03-11 | S-3 | https://www.sec.gov/Archives/edgar/data/1816708/000162828025012065/owlets-3march2025.htm | nan
-2025-03-04 | 8-K | https://www.sec.gov/Archives/edgar/data/1816708/000162828025009814/owlt-20250304.htm | nan","https://www.sec.gov/Archives/edgar/data/1816708/000162828025053580/owlets-32025x11x13.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025052389/owlt-sx82025x11x13.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000062/owlt-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000060/owlt-20251113.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045936/owlet-final424b5.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045943/owlt-20251021.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045737/owlet-424b5.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045154/wk-form4_1760577238.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045153/wk-form4_1760577208.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025045152/wk-form4_1760577175.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000119312525240517/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000119312525240511/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000044/owlt-20251008.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000040/owlt-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000036/owlt-20250911.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000032/owlt-20250807.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000026/owlt-20250630.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000020/owlt-20250805.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000181670825000019/owlt-20250807.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025031614/a20250611creditagreementam.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025027139/wk-form4_1747876547.xml
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025023770/owlt-20250508.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025021140/owlet_10kaxfy24.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025015465/owlet-final424b3.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025012182/owlt-sx82025x03x11.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025012035/owlt-20241231.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025012065/owlets-3march2025.htm
-https://www.sec.gov/Archives/edgar/data/1816708/000162828025009814/owlt-20250304.htm",,,,,
-RTAC,Renatus Tactical Acquisition Corp I Class A Ordinary Shares,Financial Services,0002035173,10.7,227095.55,333425771.0,10-Q,2025-11-19,https://www.sec.gov/Archives/edgar/data/2035173/000121390025112604/ea0264695-10q_renatus1.htm,"2025-11-19 | 10-Q | https://www.sec.gov/Archives/edgar/data/2035173/000121390025112604/ea0264695-10q_renatus1.htm | nan
+NREF,"NexPoint Real Estate Finance, Inc.",Real Estate,0001786248,14.3,53740.1,253145680.0,10-Q,2025-11-13,https://www.sec.gov/Archives/edgar/data/1786248/000162828025052000/nref-20250930.htm,"2025-11-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/1786248/000162828025052000/nref-20250930.htm | nan
+2025-11-04 | 424B5 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925033056/nref20251101_424b5.htm | nan
+2025-11-04 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925033072/nref20251101_8k.htm | nan
+2025-10-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925032287/nref20251030_8k.htm | nan
+2025-10-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925030861/nref20251010_8k.htm | nan
+2025-10-01 | 424B5 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925030192/nref20250930_424b5.htm | nan
+2025-10-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925030194/nref20250930_8k.htm | nan
+2025-09-24 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925029836/rdgdoc.xml | nan
+2025-08-27 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925027863/nref20250827_8k.htm | nan
+2025-08-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1786248/000178624825000016/nref-20250630.htm | nan
+2025-07-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925024038/nref20250731_8k.htm | nan
+2025-07-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925023653/nref20250727_8k.htm | nan
+2025-05-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925017824/nref20250520_8k.htm | nan
+2025-05-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925013974/nref20250501_8k.htm | nan
+2025-04-10 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011687/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011267/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011264/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011265/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011266/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011263/rdgdoc.xml | nan
+2025-04-07 | 4 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925011268/rdgdoc.xml | nan
+2025-03-28 | 8-K | https://www.sec.gov/Archives/edgar/data/1786248/000143774925009866/nref20250328_8k.htm | nan
+2025-03-27 | 10-K | https://www.sec.gov/Archives/edgar/data/1786248/000178624825000004/nref-20241231.htm | nan
+2025-03-14 | 424B5 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925007771/nref20250314_424b5.htm | nan
+2025-03-14 | 424B5 | https://www.sec.gov/Archives/edgar/data/1786248/000143774925007770/nref20250314c_424b5.htm | nan","https://www.sec.gov/Archives/edgar/data/1786248/000162828025052000/nref-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925033056/nref20251101_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925033072/nref20251101_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925032287/nref20251030_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925030861/nref20251010_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925030192/nref20250930_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925030194/nref20250930_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925029836/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925027863/nref20250827_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000178624825000016/nref-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925024038/nref20250731_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925023653/nref20250727_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925017824/nref20250520_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925013974/nref20250501_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011687/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011267/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011264/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011265/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011266/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011263/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925011268/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925009866/nref20250328_8k.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000178624825000004/nref-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925007771/nref20250314_424b5.htm
+https://www.sec.gov/Archives/edgar/data/1786248/000143774925007770/nref20250314c_424b5.htm",,,,,
+RBB,RBB Bancorp,Financial Services,0001499422,20.25,45262.8,345029195.0,10-Q,2025-11-07,https://www.sec.gov/Archives/edgar/data/1499422/000143774925033871/rbb20250930_10q.htm,"2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1499422/000143774925033871/rbb20250930_10q.htm | nan
+2025-10-21 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925031363/rbb20250912_8k.htm | nan
+2025-08-21 | 4 | https://www.sec.gov/Archives/edgar/data/1499422/000143774925027532/rdgdoc.xml | nan
+2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1499422/000143774925025734/rbb20250630_10q.htm | nan
+2025-07-22 | 4 | https://www.sec.gov/Archives/edgar/data/1499422/000143774925023261/rdgdoc.xml | nan
+2025-07-22 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925023134/rbb20250519_8k.htm | nan
+2025-06-06 | 4 | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019745/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019358/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019357/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019356/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019355/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019354/rdgdoc.xml | nan
+2025-06-03 | 4/A | https://www.sec.gov/Archives/edgar/data/1499422/000143774925019353/rdgdoc.xml | nan
+2025-05-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925018802/rbb20250527_8k.htm | nan
+2025-05-23 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925018206/rbb20250520_8k.htm | nan
+2025-05-22 | 4 | https://www.sec.gov/Archives/edgar/data/1499422/000143774925018210/rdgdoc.xml | nan
+2025-04-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925013395/rbb20250307_8k.htm | nan
+2025-04-18 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925012352/rbb20250418_8k.htm | nan
+2025-04-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925011698/rbb20250410_8k.htm | nan
+2025-03-17 | 10-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925008002/rbb20241231_10k.htm | nan
+2025-03-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925006844/rbb20250310_8k.htm | nan
+2025-02-04 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925002652/rbb20241125_8k.htm | nan
+2025-01-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1499422/000143774925001293/rbb20250116_8k.htm | nan","https://www.sec.gov/Archives/edgar/data/1499422/000143774925033871/rbb20250930_10q.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925031363/rbb20250912_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925027532/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925025734/rbb20250630_10q.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925023261/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925023134/rbb20250519_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019745/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019358/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019357/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019356/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019355/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019354/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925019353/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925018802/rbb20250527_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925018206/rbb20250520_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925018210/rdgdoc.xml
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925013395/rbb20250307_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925012352/rbb20250418_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925011698/rbb20250410_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925008002/rbb20241231_10k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925006844/rbb20250310_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925002652/rbb20241125_8k.htm
+https://www.sec.gov/Archives/edgar/data/1499422/000143774925001293/rbb20250116_8k.htm",,,,,
+RMAX,"RE/MAX Holdings, Inc.",Real Estate,0001581091,8.26,179541.4,165656233.0,8-K,2025-10-30,https://www.sec.gov/Archives/edgar/data/1581091/000110465925104414/tm2529824d1_8k.htm,"2025-10-30 | 10-Q | https://www.sec.gov/Archives/edgar/data/1581091/000110465925104431/rmax-20250930x10q.htm | nan
+2025-10-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925104414/tm2529824d1_8k.htm | nan
+2025-10-02 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000158650525000003/form4-10032025_011039.xml | nan
+2025-10-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925095681/tm2527693d1_8k.htm | nan
+2025-08-20 | 3 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925022533/form3-08202025_110854.xml | nan
+2025-08-20 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925022534/form4-08202025_110811.xml | nan
+2025-07-29 | 10-Q | https://www.sec.gov/Archives/edgar/data/1581091/000155837025009743/rmax-20250630x10q.htm | nan
+2025-07-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925071745/tm2521950d1_8k.htm | nan
+2025-07-17 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000139834425013240/fp0094500-1_4.xml | nan
+2025-06-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925060102/tm2518139d1_8k.htm | nan
+2025-05-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925051001/tm2515624d2_8k.htm | nan
+2025-05-20 | S-8 | https://www.sec.gov/Archives/edgar/data/1581091/000110465925051030/tm2515624d1_s8.htm | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013491/form4-05162025_060517.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013490/form4-05162025_060515.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013489/form4-05162025_060512.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013488/form4-05162025_060509.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013487/form4-05162025_060507.xml | nan
+2025-05-16 | 4 | https://www.sec.gov/Archives/edgar/data/1581091/000141588925013486/form4-05162025_060504.xml | nan
+2025-05-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925043523/tm2513784d1_8k.htm | nan
+2025-03-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925029865/tm2510953d1_8k.htm | nan
+2025-02-20 | 10-K | https://www.sec.gov/Archives/edgar/data/1581091/000155837025001224/rmax-20241231x10k.htm | nan
+2025-02-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925015665/tm257135d1_8k.htm | nan
+2025-01-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465925002028/tm252667d1_8k.htm | nan
+2024-10-31 | 8-K | https://www.sec.gov/Archives/edgar/data/1581091/000110465924113061/tm2427177d1_8k.htm | nan","https://www.sec.gov/Archives/edgar/data/1581091/000110465925104431/rmax-20250930x10q.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925104414/tm2529824d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000158650525000003/form4-10032025_011039.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925095681/tm2527693d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925022533/form3-08202025_110854.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925022534/form4-08202025_110811.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000155837025009743/rmax-20250630x10q.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925071745/tm2521950d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000139834425013240/fp0094500-1_4.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925060102/tm2518139d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925051001/tm2515624d2_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925051030/tm2515624d1_s8.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013491/form4-05162025_060517.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013490/form4-05162025_060515.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013489/form4-05162025_060512.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013488/form4-05162025_060509.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013487/form4-05162025_060507.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000141588925013486/form4-05162025_060504.xml
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925043523/tm2513784d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925029865/tm2510953d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000155837025001224/rmax-20241231x10k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925015665/tm257135d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465925002028/tm252667d1_8k.htm
+https://www.sec.gov/Archives/edgar/data/1581091/000110465924113061/tm2427177d1_8k.htm",,,,,
+RTAC,Renatus Tactical Acquisition Corp I Class A Ordinary Shares,Financial Services,0002035173,10.705,227960.1,333425771.0,10-Q,2025-11-19,https://www.sec.gov/Archives/edgar/data/2035173/000121390025112604/ea0264695-10q_renatus1.htm,"2025-11-19 | 10-Q | https://www.sec.gov/Archives/edgar/data/2035173/000121390025112604/ea0264695-10q_renatus1.htm | nan
 2025-08-13 | 10-Q | https://www.sec.gov/Archives/edgar/data/2035173/000121390025075637/ea0252181-10q_renatus1.htm | nan
 2025-06-25 | 10-Q | https://www.sec.gov/Archives/edgar/data/2035173/000121390025057854/ea0246490-10q_renatus1.htm | nan
 2025-06-05 | 3 | https://www.sec.gov/Archives/edgar/data/2035173/000114036125021567/form3.xml | nan
@@ -497,7 +962,7 @@ https://www.sec.gov/Archives/edgar/data/2035173/000114036125019435/ny20045296x16
 https://www.sec.gov/Archives/edgar/data/2035173/000114036125019080/form3.xml
 https://www.sec.gov/Archives/edgar/data/2035173/000114036125019079/form3.xml
 https://www.sec.gov/Archives/edgar/data/2035173/000114036125019077/form3.xml",,,,,
-SCM,Stellus Capital Investment Corporation,Financial Services,0001551901,12.04,206950.9,336909515.0,8-K,2025-11-24,https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm,"2025-11-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm | nan
+SCM,Stellus Capital Investment Corporation,Financial Services,0001551901,12.09,209179.8,337886874.0,8-K,2025-11-24,https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm,"2025-11-24 | 8-K | https://www.sec.gov/Archives/edgar/data/1551901/000110465925115422/tm2526928d1_8k.htm | nan
 2025-11-10 | 10-Q | https://www.sec.gov/Archives/edgar/data/1551901/000110465925109139/scm-20250930x10q.htm | nan
 2025-09-26 | 8-K | https://www.sec.gov/Archives/edgar/data/1551901/000110465925093911/tm2526928d1_8k.htm | nan
 2025-09-23 | 424B2 | https://www.sec.gov/Archives/edgar/data/1551901/000110465925092346/scm-20250909x424b2.htm | nan
@@ -530,114 +995,71 @@ https://www.sec.gov/Archives/edgar/data/1551901/000110465925028060/scm-20250325x
 https://www.sec.gov/Archives/edgar/data/1551901/000110465925027679/scm-20250325x424b2.htm
 https://www.sec.gov/Archives/edgar/data/1551901/000155837025002182/scm-20241231x10k.htm
 https://www.sec.gov/Archives/edgar/data/1551901/000110465924113515/tm2427269d1_8k.htm",,,,,
-TRON,Tron Inc.,Consumer Cyclical,0001956744,1.7,1194577.5,57229133.0,8-K,2025-11-12,https://www.sec.gov/Archives/edgar/data/1956744/000149315225021757/form8-k.htm,"2025-11-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000149315225021757/form8-k.htm | nan
-2025-11-10 | 10-Q | https://www.sec.gov/Archives/edgar/data/1956744/000149315225021526/form10-q.htm | nan
-2025-10-17 | S-3/A | https://www.sec.gov/Archives/edgar/data/1956744/000149315225018367/forms-3a.htm | nan
-2025-09-02 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225026144/form8-k.htm | nan
-2025-09-02 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225026127/form8-k.htm | nan
-2025-08-29 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225026036/form8-k.htm | nan
-2025-08-28 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225025808/ownership.xml | nan
-2025-08-22 | S-3/A | https://www.sec.gov/Archives/edgar/data/1956744/000164117225025261/forms-3a.htm | nan
-2025-08-18 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225024648/ownership.xml | nan
-2025-08-18 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225024645/ownership.xml | nan
-2025-08-18 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225024649/ownership.xml | nan
-2025-08-11 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225022909/form8-k.htm | nan
-2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1956744/000164117225022765/form10-q.htm | nan
-2025-07-28 | S-3 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225021114/forms-3.htm | nan
-2025-07-23 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225020664/form8-k.htm | nan
-2025-07-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225019987/form8-k.htm | nan
-2025-07-16 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225019830/form8-k.htm | nan
-2025-07-03 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225017890/ownership.xml | nan
-2025-07-03 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225017889/ownership.xml | nan
-2025-06-30 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225017055/form8-k.htm | nan
-2025-06-25 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225016563/ownership.xml | nan
-2025-06-25 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225016562/ownership.xml | nan
-2025-06-25 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225016565/ownership.xml | nan
-2025-06-24 | 4 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225016334/ownership.xml | nan
-2025-06-20 | 8-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225015738/form8-k.htm | nan
-2025-05-29 | S-3 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225012794/forms-3.htm | nan
-2025-05-22 | S-8 | https://www.sec.gov/Archives/edgar/data/1956744/000164117225012050/forms-8.htm | nan
-2025-03-31 | 10-K | https://www.sec.gov/Archives/edgar/data/1956744/000164117225001862/form10-k.htm | nan
-2024-12-19 | 10-K/A | https://www.sec.gov/Archives/edgar/data/1956744/000149315224050661/form10-ka.htm | nan
-2024-12-06 | 424B5 | https://www.sec.gov/Archives/edgar/data/1956744/000149315224048993/form424b5.htm | nan","https://www.sec.gov/Archives/edgar/data/1956744/000149315225021757/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000149315225021526/form10-q.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000149315225018367/forms-3a.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225026144/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225026127/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225026036/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225025808/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225025261/forms-3a.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225024648/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225024645/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225024649/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225022909/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225022765/form10-q.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225021114/forms-3.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225020664/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225019987/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225019830/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225017890/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225017889/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225017055/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225016563/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225016562/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225016565/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225016334/ownership.xml
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225015738/form8-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225012794/forms-3.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225012050/forms-8.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000164117225001862/form10-k.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000149315224050661/form10-ka.htm
-https://www.sec.gov/Archives/edgar/data/1956744/000149315224048993/form424b5.htm",,,,,
-VERI,"Veritone, Inc.",Technology,0001615165,4.265,4986392.45,217416913.0,8-K,2025-11-10,https://www.sec.gov/Archives/edgar/data/1615165/000161516525000031/veri-20251110.htm,"2025-11-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000031/veri-20251110.htm | nan
-2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000027/veri-20250930.htm | nan
-2025-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000022/veri-20251106.htm | nan
-2025-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000024/veri-20251106.htm | nan
-2025-10-17 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000119312525241997/d33523d8k.htm | nan
-2025-10-16 | 424B5 | https://www.sec.gov/Archives/edgar/data/1615165/000119312525241593/d56947d424b5.htm | nan
-2025-10-16 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000119312525240869/d48526d8k.htm | nan
-2025-10-16 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000119312525240645/d68192d8k.htm | nan
-2025-10-15 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000016/veri-20251014.htm | nan
-2025-09-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000119312525202294/d43084d8k.htm | nan
-2025-09-11 | 424B5 | https://www.sec.gov/Archives/edgar/data/1615165/000119312525201372/d946096d424b5.htm | nan
-2025-09-10 | 424B5 | https://www.sec.gov/Archives/edgar/data/1615165/000119312525200112/d946096d424b5.htm | nan
-2025-09-03 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000119312525195046/d85076d8k.htm | nan
-2025-08-13 | 4 | https://www.sec.gov/Archives/edgar/data/1615165/000141588925021529/form4-08132025_120806.xml | nan
-2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000012/veri-20250630.htm | nan
-2025-08-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1615165/000161516525000009/veri-20250807.htm | nan
-2025-06-30 | 424B5 | https://www.sec.gov/Archives/edgar/data/1615165/000119312525152125/d12256d424b5.htm | nan
-2025-06-16 | 424B5 | https://www.sec.gov/Archives/edgar/data/1615165/000119312525141106/d12203d424b5.htm | nan
-2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1615165/000141588925017244/form4-06132025_050638.xml | nan
-2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1615165/000141588925017243/form4-06132025_050636.xml | nan
-2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1615165/000141588925017242/form4-06132025_050634.xml | nan
-2025-06-13 | 4 | https://www.sec.gov/Archives/edgar/data/1615165/000141588925017241/form4-06132025_050632.xml | nan
-2025-04-01 | 10-K | https://www.sec.gov/Archives/edgar/data/1615165/000095017025048602/veri-20241231.htm | nan
-2025-04-01 | S-8 | https://www.sec.gov/Archives/edgar/data/1615165/000095017025048672/s-8_march_2025_espp_shar.htm | nan","https://www.sec.gov/Archives/edgar/data/1615165/000161516525000031/veri-20251110.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000027/veri-20250930.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000022/veri-20251106.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000024/veri-20251106.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525241997/d33523d8k.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525241593/d56947d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525240869/d48526d8k.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525240645/d68192d8k.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000016/veri-20251014.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525202294/d43084d8k.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525201372/d946096d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525200112/d946096d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525195046/d85076d8k.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000141588925021529/form4-08132025_120806.xml
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000012/veri-20250630.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000161516525000009/veri-20250807.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525152125/d12256d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000119312525141106/d12203d424b5.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000141588925017244/form4-06132025_050638.xml
-https://www.sec.gov/Archives/edgar/data/1615165/000141588925017243/form4-06132025_050636.xml
-https://www.sec.gov/Archives/edgar/data/1615165/000141588925017242/form4-06132025_050634.xml
-https://www.sec.gov/Archives/edgar/data/1615165/000141588925017241/form4-06132025_050632.xml
-https://www.sec.gov/Archives/edgar/data/1615165/000095017025048602/veri-20241231.htm
-https://www.sec.gov/Archives/edgar/data/1615165/000095017025048672/s-8_march_2025_espp_shar.htm",,,,,
-WDH,Waterdrop Inc.,Financial Services,0001823986,1.83,208735.45,66216076.0,6-K,2025-09-04,https://www.sec.gov/Archives/edgar/data/1823986/000110465925087282/tm2524976d1_6k.htm,"2025-09-04 | 6-K | https://www.sec.gov/Archives/edgar/data/1823986/000110465925087282/tm2524976d1_6k.htm | nan
+TBRG,"TruBridge, Inc.",Healthcare,0001169445,22.3912,91211.3,336004669.0,8-K,2025-12-01,https://www.sec.gov/Archives/edgar/data/1169445/000119312525303161/d700980d8k.htm,"2025-12-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525303161/d700980d8k.htm | nan
+2025-11-20 | 4/A | https://www.sec.gov/Archives/edgar/data/1169445/000131417325000010/primary_doc.xml | nan
+2025-11-19 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000131417325000009/primary_doc.xml | nan
+2025-11-18 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000208989625000006/wk-form4_1763477818.xml | nan
+2025-11-14 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000092189525003134/form414298002_11142025.xml | nan
+2025-11-07 | 10-Q | https://www.sec.gov/Archives/edgar/data/1169445/000116944525000077/tbrg-20250930.htm | nan
+2025-11-06 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000143774925033614/cpsi20251106_8k.htm | nan
+2025-10-15 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000208989625000004/wk-form4_1760567312.xml | nan
+2025-10-06 | 3 | https://www.sec.gov/Archives/edgar/data/1169445/000208989625000002/wk-form3_1759780946.xml | nan
+2025-10-03 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525229309/d894776d8k.htm | nan
+2025-08-15 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000205677425000005/wk-form4_1755279576.xml | nan
+2025-08-08 | 10-Q | https://www.sec.gov/Archives/edgar/data/1169445/000116944525000073/tbrg-20250630.htm | nan
+2025-08-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000143774925025532/cpsi20250807_8k.htm | nan
+2025-07-28 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000162828025036250/wk-form4_1753739121.xml | nan
+2025-07-03 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000162828025034221/wk-form4_1751571632.xml | nan
+2025-07-01 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525154014/d22042d8k.htm | nan
+2025-05-23 | 4 | https://www.sec.gov/Archives/edgar/data/1169445/000131417325000005/primary_doc.xml | nan
+2025-05-13 | S-8 | https://www.sec.gov/Archives/edgar/data/1169445/000119312525118828/d905051ds8.htm | nan
+2025-05-08 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525115975/d848279d8k.htm | nan
+2025-05-07 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000143774925015133/cpsi20250507_8k.htm | nan
+2025-03-17 | 10-K | https://www.sec.gov/Archives/edgar/data/1169445/000116944525000042/tbrg-20241231.htm | nan
+2025-03-10 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000143774925006839/cpsi20250310_8k.htm | nan
+2025-02-12 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525024808/d931144d8k.htm | nan
+2025-01-02 | 8-K | https://www.sec.gov/Archives/edgar/data/1169445/000119312525000145/d456480d8k.htm | nan","https://www.sec.gov/Archives/edgar/data/1169445/000119312525303161/d700980d8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000131417325000010/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000131417325000009/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000208989625000006/wk-form4_1763477818.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000092189525003134/form414298002_11142025.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000116944525000077/tbrg-20250930.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000143774925033614/cpsi20251106_8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000208989625000004/wk-form4_1760567312.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000208989625000002/wk-form3_1759780946.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525229309/d894776d8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000205677425000005/wk-form4_1755279576.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000116944525000073/tbrg-20250630.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000143774925025532/cpsi20250807_8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000162828025036250/wk-form4_1753739121.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000162828025034221/wk-form4_1751571632.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525154014/d22042d8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000131417325000005/primary_doc.xml
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525118828/d905051ds8.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525115975/d848279d8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000143774925015133/cpsi20250507_8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000116944525000042/tbrg-20241231.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000143774925006839/cpsi20250310_8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525024808/d931144d8k.htm
+https://www.sec.gov/Archives/edgar/data/1169445/000119312525000145/d456480d8k.htm",,,,,
+WDH,Waterdrop Inc.,Financial Services,0001823986,1.885,217898.0,68387095.0,6-K,2025-09-04,https://www.sec.gov/Archives/edgar/data/1823986/000110465925087282/tm2524976d1_6k.htm,"2025-09-04 | 6-K | https://www.sec.gov/Archives/edgar/data/1823986/000110465925087282/tm2524976d1_6k.htm | nan
 2025-06-05 | 6-K | https://www.sec.gov/Archives/edgar/data/1823986/000110465925056664/tm2517246d1_6k.htm | nan
 2025-04-25 | 20-F | https://www.sec.gov/Archives/edgar/data/1823986/000141057825000891/wdh-20241231x20f.htm | nan","https://www.sec.gov/Archives/edgar/data/1823986/000110465925087282/tm2524976d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1823986/000110465925056664/tm2517246d1_6k.htm
 https://www.sec.gov/Archives/edgar/data/1823986/000141057825000891/wdh-20241231x20f.htm",,,,,
+YRD,Yiren Digital Ltd.,Financial Services,0001631761,4.385,68255.3,190094265.0,6-K,2025-11-26,https://www.sec.gov/Archives/edgar/data/1631761/000110465925116150/tm2532175d1_6k.htm,"2025-11-26 | 6-K | https://www.sec.gov/Archives/edgar/data/1631761/000110465925116150/tm2532175d1_6k.htm | nan
+2025-08-22 | 6-K | https://www.sec.gov/Archives/edgar/data/1631761/000110465925081533/tm2524094d1_6k.htm | nan
+2025-07-24 | 6-K | https://www.sec.gov/Archives/edgar/data/1631761/000110465925070369/tm2521643d1_6k.htm | nan
+2025-06-13 | 6-K | https://www.sec.gov/Archives/edgar/data/1631761/000110465925059094/tm2517852d1_6k.htm | nan
+2025-04-28 | 20-F | https://www.sec.gov/Archives/edgar/data/1631761/000141057825000931/yrd-20241231x20f.htm | nan","https://www.sec.gov/Archives/edgar/data/1631761/000110465925116150/tm2532175d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1631761/000110465925081533/tm2524094d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1631761/000110465925070369/tm2521643d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1631761/000110465925059094/tm2517852d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1631761/000141057825000931/yrd-20241231x20f.htm",,,,,
+ZEPP,Zepp Health Corporation,Technology,0001720446,26.815,352803.05,106903286.0,6-K,2025-11-05,https://www.sec.gov/Archives/edgar/data/1720446/000110465925106586/tm2530298d1_6k.htm,"2025-11-05 | 6-K | https://www.sec.gov/Archives/edgar/data/1720446/000110465925106586/tm2530298d1_6k.htm | nan
+2025-08-04 | 6-K | https://www.sec.gov/Archives/edgar/data/1720446/000110465925073254/tm2522459d1_6k.htm | nan
+2025-05-21 | 20-F/A | https://www.sec.gov/Archives/edgar/data/1720446/000110465925051310/tm2515532d1_20fa.htm | nan
+2025-04-25 | 20-F | https://www.sec.gov/Archives/edgar/data/1720446/000141057825000903/zepp-20241231x20f.htm | nan","https://www.sec.gov/Archives/edgar/data/1720446/000110465925106586/tm2530298d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1720446/000110465925073254/tm2522459d1_6k.htm
+https://www.sec.gov/Archives/edgar/data/1720446/000110465925051310/tm2515532d1_20fa.htm
+https://www.sec.gov/Archives/edgar/data/1720446/000141057825000903/zepp-20241231x20f.htm",,,,,
