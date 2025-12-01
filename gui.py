@@ -355,9 +355,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log_tail.setPlainText("\n".join(self.live_buffer))
 
         if self.live_tail_autoscroll:
-            sb.setValue(sb.maximum())
+            self._set_scrollbar_value(sb, sb.maximum())
         else:
-            sb.setValue(min(prev_value, sb.maximum()))
+            self._set_scrollbar_value(sb, min(prev_value, sb.maximum()))
 
     def _update_progress_bar_from_msg(self, msg: str):
         # Extract the pipeline message without the timestamp prefix so we can
@@ -597,9 +597,19 @@ class MainWindow(QtWidgets.QMainWindow):
         prev_value = sb.value()
         self.app_log_view.setPlainText(text)
         if self.app_log_autoscroll:
-            sb.setValue(sb.maximum())
+            self._set_scrollbar_value(sb, sb.maximum())
         else:
-            sb.setValue(min(prev_value, sb.maximum()))
+            self._set_scrollbar_value(sb, min(prev_value, sb.maximum()))
+
+    def _set_scrollbar_value(self, scrollbar: QtWidgets.QScrollBar, value: int) -> None:
+        """Set a scrollbar's value after pending layout updates settle.
+
+        QTextEdit/QPlainTextEdit will often auto-scroll to the cursor when their
+        content changes. Deferring the scrollbar update to the next event loop
+        pass ensures we override that behavior when auto-scroll is disabled.
+        """
+
+        QtCore.QTimer.singleShot(0, lambda: scrollbar.setValue(value))
 
     def _toggle_live_tail_autoscroll(self, state: int) -> None:
         self.live_tail_autoscroll = state == QtCore.Qt.Checked
