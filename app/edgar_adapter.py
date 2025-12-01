@@ -82,6 +82,8 @@ def _normalize_ticker(value: object) -> str:
 class EdgarAdapter:
     """Central adapter for all EDGAR interactions."""
 
+    _RUNWAY_LOG_PREFIX = "edgar_runway"
+
     def __init__(self, cfg: Optional[dict] = None):
         if cfg is None:
             cfg = load_config()
@@ -454,6 +456,20 @@ class EdgarAdapter:
         self._rate_limit()
         return download_text(url)
 
+    def _log_runway_warning(self, code: str, filing: object, **fields) -> None:
+        filing_fields = {
+            "ticker": _normalize_ticker(getattr(filing, "ticker", "") or getattr(filing, "symbol", "")),
+            "cik": _normalize_cik(getattr(filing, "cik", "") or getattr(filing, "cik_str", "")),
+            "form": getattr(filing, "form", ""),
+            "filed_at": getattr(filing, "filing_date", ""),
+            "accession": getattr(filing, "accession_no", ""),
+        }
+        payload = {**filing_fields, **{k: v for k, v in fields.items() if v}}
+        context = ", ".join(
+            f"{k}={v}" for k, v in payload.items() if v is not None and str(v) != ""
+        )
+        logger.warning(f"{self._RUNWAY_LOG_PREFIX}: {code} [{context}]")
+
     def _render_statement(self, statement) -> Optional["pd.DataFrame"]:
         try:
             rendered = statement.render(standard=True)
@@ -527,11 +543,26 @@ class EdgarAdapter:
 
         financials = Financials.extract(filing)
         if financials is None:
+            self._log_runway_warning("missing_xbrl", filing)
             return None
 
         income_df = self._render_statement(financials.income_statement())
+        if income_df is None:
+            self._log_runway_warning("statement_missing", filing, statement="income")
+        elif getattr(income_df, "empty", False):
+            self._log_runway_warning("no_usable_periods", filing, statement="income")
+
         balance_df = self._render_statement(financials.balance_sheet())
+        if balance_df is None:
+            self._log_runway_warning("statement_missing", filing, statement="balance")
+        elif getattr(balance_df, "empty", False):
+            self._log_runway_warning("no_usable_periods", filing, statement="balance")
+
         cashflow_df = self._render_statement(financials.cashflow_statement())
+        if cashflow_df is None:
+            self._log_runway_warning("statement_missing", filing, statement="cashflow")
+        elif getattr(cashflow_df, "empty", False):
+            self._log_runway_warning("no_usable_periods", filing, statement="cashflow")
 
         defaults = {}  # placeholder for router defaults
         try:
