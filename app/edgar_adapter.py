@@ -25,6 +25,21 @@ from app.universe_filters import load_drop_filters, should_drop_record
 
 logger = logging.getLogger(__name__)
 
+
+def partition_completed_and_pending(
+    all_tickers: Iterable[str], completed_tickers: Iterable[str]
+) -> tuple[set[str], set[str]]:
+    """Return completed and pending ticker sets for a filings fetch.
+
+    The helper is intentionally simple and deterministic so it can be tested
+    without requiring any network calls or executor machinery.
+    """
+
+    completed_set = {ticker for ticker in completed_tickers if ticker}
+    all_set = {ticker for ticker in all_tickers if ticker}
+    pending_set = all_set - completed_set
+    return completed_set, pending_set
+
 _ADAPTER: "EdgarAdapter" | None = None
 _ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
 _ACCESSION_FALLBACK_RE = re.compile(r"(\d{10})[-_]?(\d{2})[-_]?(\d{6})")
@@ -373,6 +388,9 @@ class EdgarAdapter:
 
         stats = {"tickers": 0, "raw_filings": 0, "kept_filings": 0}
         per_ticker: list[dict] = []
+        completed_tickers: set[str] = set()
+        timed_out = False
+        fetch_start = time.monotonic()
 
         with self._rate_limit_lock:
             self.rate_limit_wait_secs = 0.0
@@ -389,6 +407,7 @@ class EdgarAdapter:
                     on_batch(batch, ticker_norm)
 
         workers = self._filing_fetch_workers()
+        timeout_seconds = self._filing_fetch_timeout()
         to_process: list[tuple[int, str]] = []
         for idx, ticker in enumerate(ticker_list, start=1):
             ticker_norm = _normalize_ticker(ticker)
@@ -402,6 +421,13 @@ class EdgarAdapter:
                 continue
             to_process.append((idx, ticker_norm))
 
+        logger.info(
+            "[edgar filings] start: total_tickers=%s, timeout_seconds=%s, max_workers=%s",
+            len(to_process),
+            timeout_seconds,
+            workers,
+        )
+
         if workers <= 1:
             for idx, ticker_norm in to_process:
                 batch, per_ticker_stats = self._fetch_filings_for_ticker(
@@ -414,6 +440,7 @@ class EdgarAdapter:
                     total=total,
                 )
                 _handle_batch(batch, ticker_norm, per_ticker_stats)
+                completed_tickers.add(ticker_norm)
 
                 if progress_fn and (idx % 25 == 0 or idx == total):
                     pct = int((idx / max(total, 1)) * 100)
@@ -422,8 +449,14 @@ class EdgarAdapter:
                     )
         else:
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                futures = {
-                    executor.submit(
+                futures = {}
+                for idx, ticker_norm in to_process:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "[edgar filings] worker_start: batch_size=1, tickers=[%s]",
+                            ticker_norm,
+                        )
+                    future = executor.submit(
                         self._fetch_filings_for_ticker,
                         ticker_norm,
                         whitelist=whitelist,
@@ -432,17 +465,21 @@ class EdgarAdapter:
                         stop_flag=stop_flag,
                         idx=idx,
                         total=total,
-                    ): ticker_norm
-                    for idx, ticker_norm in to_process
-                }
+                    )
+                    futures[future] = ticker_norm
 
                 completed = 0
-                timeout_seconds = self._filing_fetch_timeout()
                 pending = set(futures.keys())
+
+                def _iter_completed(current_pending):
+                    try:
+                        return as_completed(current_pending, timeout=timeout_seconds)
+                    except TypeError:  # compatibility with patched/mocked as_completed
+                        return as_completed(current_pending)
 
                 while pending:
                     try:
-                        for future in as_completed(pending, timeout=timeout_seconds):
+                        for future in _iter_completed(pending):
                             pending.discard(future)
                             ticker_norm = futures[future]
                             try:
@@ -466,6 +503,13 @@ class EdgarAdapter:
                                 batch = []
 
                             _handle_batch(batch, ticker_norm, per_ticker_stats)
+                            completed_tickers.add(ticker_norm)
+                            if logger.isEnabledFor(logging.DEBUG):
+                                logger.debug(
+                                    "[edgar filings] worker_done: batch_size=%s, tickers=[%s]",
+                                    len(batch),
+                                    ticker_norm,
+                                )
 
                             completed += 1
                             if progress_fn and (completed % 25 == 0 or completed == total):
@@ -474,10 +518,22 @@ class EdgarAdapter:
                                     f"[edgar filings] {completed}/{total} tickers ({pct}%)"
                                 )
                     except TimeoutError:
+                        elapsed = round(time.monotonic() - fetch_start, 3)
                         stalled = [futures[future] for future in pending]
+                        completed_now, pending_now = partition_completed_and_pending(
+                            [ticker for _, ticker in to_process], completed_tickers
+                        )
+                        pending_now |= set(stalled)
+                        completed_now -= set(stalled)
+                        timed_out = True
+
                         logger.warning(
-                            "EDGAR filings fetch timed out after %s sec for tickers: %s",
+                            "[edgar filings] timeout: elapsed=%ss, timeout=%ss, "
+                            "completed=%s, pending=%s, pending_tickers=%s",
+                            elapsed,
                             timeout_seconds,
+                            len(completed_now),
+                            len(pending_now),
                             stalled,
                         )
                         if progress_fn:
@@ -488,16 +544,6 @@ class EdgarAdapter:
                             )
                         for future in list(pending):
                             future.cancel()
-                        for ticker_norm in stalled:
-                            timeout_stats = {
-                                "ticker": ticker_norm,
-                                "raw_count": 0,
-                                "kept_count": 0,
-                                "duration_ms": timeout_seconds * 1000,
-                                "fetch_ms": 0,
-                                "cik": "",
-                            }
-                            _handle_batch([], ticker_norm, timeout_stats)
                         pending.clear()
                         break
 
@@ -516,6 +562,22 @@ class EdgarAdapter:
                 stats["raw_max"] = max(raw_counts)
             except ValueError:
                 pass
+
+        completed_now, pending_now = partition_completed_and_pending(
+            [ticker for _, ticker in to_process], completed_tickers
+        )
+
+        stats["timeout_pending"] = len(pending_now)
+        stats["scheduled_tickers"] = len(to_process)
+        stats["timed_out"] = timed_out
+
+        summary_line = (
+            "[edgar filings] summary: "
+            f"total={len(to_process)} "
+            f"completed={len(completed_now)} "
+            f"timeout_pending={len(pending_now)}"
+        )
+        logger.info(summary_line)
 
         summary_msg = (
             "EDGAR_FILINGS_SUMMARY: "
