@@ -27,7 +27,7 @@ from app.fmp import (
     fetch_filings as fetch_filings_fmp,
 )
 from app.edgar_adapter import EdgarAdapter, set_adapter
-from app.runway_utils import compute_runway_quarters
+from app.runway_utils import compute_runway_quarters, write_runway_diagnostics
 from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
@@ -1014,6 +1014,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         "RunwayQuarters",
         "HasRunway",
         "RunwaySourceURL",
+        "RunwayReasonCode",
+        "RunwayReasonDetail",
         "Desc",
         "Accession",
         "MasterTxtURL",
@@ -1024,9 +1026,15 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             df_fil = pd.DataFrame()
 
         work = df_fil.copy()
-        for col in ["RunwayQuarters", "HasRunway", "RunwaySourceURL"]:
+        for col in [
+            "RunwayQuarters",
+            "HasRunway",
+            "RunwaySourceURL",
+            "RunwayReasonCode",
+            "RunwayReasonDetail",
+        ]:
             if col not in work.columns:
-                work[col] = pd.NA
+                work[col] = "" if col.startswith("RunwayReason") else pd.NA
 
         if work.empty:
             has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
@@ -1039,7 +1047,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         runway_forms = (
             US_RUNWAY_FORM_PREFIXES + FPI_ANNUAL_FORM_PREFIXES + FPI_INTERIM_FORM_PREFIXES
         )
-        cache: dict[str, float | None] = {}
+        cache: dict[str, tuple[float | None, str, str]] = {}
 
         for idx, rec in work.iterrows():
             form = str(rec.get(form_col, "")).upper()
@@ -1051,9 +1059,14 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 continue
 
             if url not in cache:
-                quarters, _ = compute_runway_quarters(str(url), adapter=adapter)
-                cache[url] = quarters
-            quarters = cache.get(url)
+                quarters, _, reason_code, reason_detail = compute_runway_quarters(
+                    str(url), adapter=adapter, return_reason=True
+                )
+                cache[url] = (quarters, reason_code, reason_detail)
+            cached = cache.get(url)
+            if cached is None:
+                continue
+            quarters, reason_code, reason_detail = cached
 
             if quarters is not None:
                 try:
@@ -1064,11 +1077,15 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 existing_url = work.at[idx, "RunwaySourceURL"]
                 if pd.isna(existing_url) or str(existing_url).strip() == "":
                     work.at[idx, "RunwaySourceURL"] = url
+            work.at[idx, "RunwayReasonCode"] = reason_code or ""
+            work.at[idx, "RunwayReasonDetail"] = reason_detail or ""
 
         has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
         has_runway = has_runway.infer_objects(copy=False)
         has_runway = has_runway.astype("boolean", copy=False)
         work["HasRunway"] = has_runway.fillna(False)
+        work["RunwayReasonCode"] = work.get("RunwayReasonCode", "").fillna("")
+        work["RunwayReasonDetail"] = work.get("RunwayReasonDetail", "").fillna("")
         return work
 
     def _prepare_filings_for_cache(
@@ -1437,6 +1454,12 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
 
     _log_stage_metrics("02_filings", df_all)
     _log_dropoff_metrics("01_universe_gated", "02_filings", df_prof, df_all)
+
+    try:
+        diagnostics_path = os.path.join(cfg["Paths"]["data"], "runway_diagnostics.csv")
+        write_runway_diagnostics(df_all, diagnostics_path)
+    except Exception:
+        logger.debug("failed to write runway diagnostics", exc_info=True)
 
     return df_all, total_eligible, total_drop_details
 

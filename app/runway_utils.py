@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Tuple
 
+import pandas as pd
+
 from app.edgar_adapter import get_adapter
 from edgar_core.runway import extract_runway_from_filing
 
@@ -67,8 +69,10 @@ def _runway_from_filing(url: str, adapter=None) -> float | None:
     return None
 
 
-def compute_runway_quarters(url: str, adapter=None) -> Tuple[float | None, bool]:
-    """Return (runway_quarters, used_primary_parser).
+def compute_runway_quarters(
+    url: str, adapter=None, return_reason: bool = False
+) -> Tuple[float | None, bool] | Tuple[float | None, bool, str, str]:
+    """Return (runway_quarters, used_primary_parser[, reason_code, reason_detail]).
 
     The primary path uses ``EdgarAdapter.runway_from_financials`` so gating
     logic aligns with the EDGAR-first pipeline. HTML parsing is only used as a
@@ -76,9 +80,14 @@ def compute_runway_quarters(url: str, adapter=None) -> Tuple[float | None, bool]
     """
 
     if not url:
-        return None, False
+        result_tuple = (None, False)
+        if return_reason:
+            return (*result_tuple, "", "")
+        return result_tuple
 
     adapter = adapter or get_adapter()
+    reason_code = "PARSER_ERROR"
+    reason_detail = ""
 
     try:
         primary_result = adapter.runway_from_financials(url, None)
@@ -88,8 +97,13 @@ def compute_runway_quarters(url: str, adapter=None) -> Tuple[float | None, bool]
     else:
         if primary_result:
             quarters = primary_result.get("runway_quarters")
+            reason_code = primary_result.get("reason_code", "")
+            reason_detail = primary_result.get("reason_detail", "")
             if quarters is not None and quarters > 0:
-                return round(float(quarters), 2), True
+                result_tuple = (round(float(quarters), 2), True)
+                if return_reason:
+                    return (*result_tuple, reason_code or "OK", reason_detail or "")
+                return result_tuple
 
     try:
         filing = adapter._resolve_filing(url)  # type: ignore[attr-defined]
@@ -102,12 +116,55 @@ def compute_runway_quarters(url: str, adapter=None) -> Tuple[float | None, bool]
             result = extract_runway_from_filing(filing)
             quarters = result.get("runway_quarters")
             if quarters is not None and quarters > 0:
-                return round(float(quarters), 2), True
+                result_tuple = (round(float(quarters), 2), True)
+                if return_reason:
+                    return (*result_tuple, "OK", "")
+                return result_tuple
         except Exception:
             logger.debug("runway_utils: extract_runway_from_filing failed", exc_info=True)
 
     fallback = _runway_from_filing(str(url), adapter=adapter)
-    return fallback, False
+    result_tuple = (fallback, False)
+    if return_reason:
+        fallback_code = reason_code or ("OK" if fallback else "")
+        return (*result_tuple, fallback_code, reason_detail)
+    return result_tuple
 
 
-__all__ = ["compute_runway_from_html", "compute_runway_quarters"]
+def write_runway_diagnostics(records, path: str) -> None:
+    """Write a lightweight diagnostics CSV for runway computation issues."""
+
+    df = pd.DataFrame(records)
+    if df.empty:
+        pd.DataFrame().to_csv(path, index=False)
+        return
+
+    columns = [
+        "Ticker",
+        "CIK",
+        "Form",
+        "FiledAt",
+        "Accession",
+        "RunwayQuarters",
+        "HasRunway",
+        "RunwaySourceURL",
+        "RunwayReasonCode",
+        "RunwayReasonDetail",
+    ]
+
+    for col in columns:
+        if col not in df.columns:
+            df[col] = pd.NA
+
+    mask = df["RunwayReasonCode"].fillna("").astype(str).str.upper().ne("OK")
+    missing_quarters = df["RunwayQuarters"].isna()
+    subset = df[mask | missing_quarters].copy()
+
+    subset.to_csv(path, index=False)
+
+
+__all__ = [
+    "compute_runway_from_html",
+    "compute_runway_quarters",
+    "write_runway_diagnostics",
+]
