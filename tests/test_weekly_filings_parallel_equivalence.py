@@ -21,7 +21,8 @@ def _make_cfg(tmp_path, workers: int) -> dict:
 @pytest.fixture(autouse=True)
 def patch_runway(monkeypatch):
     monkeypatch.setattr(
-        "app.pipeline.compute_runway_quarters", lambda url, adapter=None: (None, None)
+        "app.pipeline.compute_runway_quarters",
+        lambda url, adapter=None, **_: (None, None, "", ""),
     )
     yield
 

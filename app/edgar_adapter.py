@@ -25,6 +25,29 @@ from app.universe_filters import load_drop_filters, should_drop_record
 
 logger = logging.getLogger(__name__)
 
+RUNWAY_REASON_OK = "OK"
+RUNWAY_REASON_NO_XBRL = "NO_XBRL"
+RUNWAY_REASON_NO_BALANCE = "NO_BALANCE_SHEET"
+RUNWAY_REASON_NO_CASHFLOW = "NO_CASHFLOW"
+RUNWAY_REASON_NO_PERIODS = "NO_PERIODS"
+RUNWAY_REASON_UNSUPPORTED_FORM = "UNSUPPORTED_FORM"
+RUNWAY_REASON_PARSER_ERROR = "PARSER_ERROR"
+
+
+def partition_completed_and_pending(
+    all_tickers: Iterable[str], completed_tickers: Iterable[str]
+) -> tuple[set[str], set[str]]:
+    """Return completed and pending ticker sets for a filings fetch.
+
+    The helper is intentionally simple and deterministic so it can be tested
+    without requiring any network calls or executor machinery.
+    """
+
+    completed_set = {ticker for ticker in completed_tickers if ticker}
+    all_set = {ticker for ticker in all_tickers if ticker}
+    pending_set = all_set - completed_set
+    return completed_set, pending_set
+
 _ADAPTER: "EdgarAdapter" | None = None
 _ACCESSION_RE = re.compile(r"/data/(\d{1,10})/([\w-]+)/", re.IGNORECASE)
 _ACCESSION_FALLBACK_RE = re.compile(r"(\d{10})[-_]?(\d{2})[-_]?(\d{6})")
@@ -373,6 +396,9 @@ class EdgarAdapter:
 
         stats = {"tickers": 0, "raw_filings": 0, "kept_filings": 0}
         per_ticker: list[dict] = []
+        completed_tickers: set[str] = set()
+        timed_out = False
+        fetch_start = time.monotonic()
 
         with self._rate_limit_lock:
             self.rate_limit_wait_secs = 0.0
@@ -389,6 +415,7 @@ class EdgarAdapter:
                     on_batch(batch, ticker_norm)
 
         workers = self._filing_fetch_workers()
+        timeout_seconds = self._filing_fetch_timeout()
         to_process: list[tuple[int, str]] = []
         for idx, ticker in enumerate(ticker_list, start=1):
             ticker_norm = _normalize_ticker(ticker)
@@ -402,6 +429,13 @@ class EdgarAdapter:
                 continue
             to_process.append((idx, ticker_norm))
 
+        logger.info(
+            "[edgar filings] start: total_tickers=%s, timeout_seconds=%s, max_workers=%s",
+            len(to_process),
+            timeout_seconds,
+            workers,
+        )
+
         if workers <= 1:
             for idx, ticker_norm in to_process:
                 batch, per_ticker_stats = self._fetch_filings_for_ticker(
@@ -414,6 +448,7 @@ class EdgarAdapter:
                     total=total,
                 )
                 _handle_batch(batch, ticker_norm, per_ticker_stats)
+                completed_tickers.add(ticker_norm)
 
                 if progress_fn and (idx % 25 == 0 or idx == total):
                     pct = int((idx / max(total, 1)) * 100)
@@ -422,8 +457,14 @@ class EdgarAdapter:
                     )
         else:
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                futures = {
-                    executor.submit(
+                futures = {}
+                for idx, ticker_norm in to_process:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "[edgar filings] worker_start: batch_size=1, tickers=[%s]",
+                            ticker_norm,
+                        )
+                    future = executor.submit(
                         self._fetch_filings_for_ticker,
                         ticker_norm,
                         whitelist=whitelist,
@@ -432,17 +473,21 @@ class EdgarAdapter:
                         stop_flag=stop_flag,
                         idx=idx,
                         total=total,
-                    ): ticker_norm
-                    for idx, ticker_norm in to_process
-                }
+                    )
+                    futures[future] = ticker_norm
 
                 completed = 0
-                timeout_seconds = self._filing_fetch_timeout()
                 pending = set(futures.keys())
+
+                def _iter_completed(current_pending):
+                    try:
+                        return as_completed(current_pending, timeout=timeout_seconds)
+                    except TypeError:  # compatibility with patched/mocked as_completed
+                        return as_completed(current_pending)
 
                 while pending:
                     try:
-                        for future in as_completed(pending, timeout=timeout_seconds):
+                        for future in _iter_completed(pending):
                             pending.discard(future)
                             ticker_norm = futures[future]
                             try:
@@ -466,6 +511,13 @@ class EdgarAdapter:
                                 batch = []
 
                             _handle_batch(batch, ticker_norm, per_ticker_stats)
+                            completed_tickers.add(ticker_norm)
+                            if logger.isEnabledFor(logging.DEBUG):
+                                logger.debug(
+                                    "[edgar filings] worker_done: batch_size=%s, tickers=[%s]",
+                                    len(batch),
+                                    ticker_norm,
+                                )
 
                             completed += 1
                             if progress_fn and (completed % 25 == 0 or completed == total):
@@ -474,10 +526,22 @@ class EdgarAdapter:
                                     f"[edgar filings] {completed}/{total} tickers ({pct}%)"
                                 )
                     except TimeoutError:
+                        elapsed = round(time.monotonic() - fetch_start, 3)
                         stalled = [futures[future] for future in pending]
+                        completed_now, pending_now = partition_completed_and_pending(
+                            [ticker for _, ticker in to_process], completed_tickers
+                        )
+                        pending_now |= set(stalled)
+                        completed_now -= set(stalled)
+                        timed_out = True
+
                         logger.warning(
-                            "EDGAR filings fetch timed out after %s sec for tickers: %s",
+                            "[edgar filings] timeout: elapsed=%ss, timeout=%ss, "
+                            "completed=%s, pending=%s, pending_tickers=%s",
+                            elapsed,
                             timeout_seconds,
+                            len(completed_now),
+                            len(pending_now),
                             stalled,
                         )
                         if progress_fn:
@@ -488,16 +552,6 @@ class EdgarAdapter:
                             )
                         for future in list(pending):
                             future.cancel()
-                        for ticker_norm in stalled:
-                            timeout_stats = {
-                                "ticker": ticker_norm,
-                                "raw_count": 0,
-                                "kept_count": 0,
-                                "duration_ms": timeout_seconds * 1000,
-                                "fetch_ms": 0,
-                                "cik": "",
-                            }
-                            _handle_batch([], ticker_norm, timeout_stats)
                         pending.clear()
                         break
 
@@ -516,6 +570,22 @@ class EdgarAdapter:
                 stats["raw_max"] = max(raw_counts)
             except ValueError:
                 pass
+
+        completed_now, pending_now = partition_completed_and_pending(
+            [ticker for _, ticker in to_process], completed_tickers
+        )
+
+        stats["timeout_pending"] = len(pending_now)
+        stats["scheduled_tickers"] = len(to_process)
+        stats["timed_out"] = timed_out
+
+        summary_line = (
+            "[edgar filings] summary: "
+            f"total={len(to_process)} "
+            f"completed={len(completed_now)} "
+            f"timeout_pending={len(pending_now)}"
+        )
+        logger.info(summary_line)
 
         summary_msg = (
             "EDGAR_FILINGS_SUMMARY: "
@@ -618,15 +688,20 @@ class EdgarAdapter:
                     return months
         return default_months
 
-    def extract_financial_sections(self, filing_or_url, form_hint: Optional[str]) -> Optional[dict]:
+    def extract_financial_sections(
+        self, filing_or_url, form_hint: Optional[str]
+    ) -> tuple[Optional[dict], str, str]:
         filing = self._resolve_filing(filing_or_url)
         if filing is None:
-            return None
+            return None, RUNWAY_REASON_PARSER_ERROR, "unable to resolve filing"
 
         financials = Financials.extract(filing)
         if financials is None:
             self._log_runway_warning("missing_xbrl", filing)
-            return None
+            return None, RUNWAY_REASON_NO_XBRL, "missing XBRL/financials"
+
+        reason_code = RUNWAY_REASON_OK
+        reason_detail = ""
 
         income_df = self._render_statement(financials.income_statement())
         if income_df is None:
@@ -636,14 +711,22 @@ class EdgarAdapter:
 
         balance_df = self._render_statement(financials.balance_sheet())
         if balance_df is None:
+            reason_code = RUNWAY_REASON_NO_BALANCE
+            reason_detail = "balance sheet missing"
             self._log_runway_warning("statement_missing", filing, statement="balance")
         elif getattr(balance_df, "empty", False):
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "balance sheet empty"
             self._log_runway_warning("no_usable_periods", filing, statement="balance")
 
         cashflow_df = self._render_statement(financials.cashflow_statement())
         if cashflow_df is None:
+            reason_code = RUNWAY_REASON_NO_CASHFLOW
+            reason_detail = "cashflow statement missing"
             self._log_runway_warning("statement_missing", filing, statement="cashflow")
         elif getattr(cashflow_df, "empty", False):
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "cashflow statement empty"
             self._log_runway_warning("no_usable_periods", filing, statement="cashflow")
 
         defaults = {}  # placeholder for router defaults
@@ -669,16 +752,30 @@ class EdgarAdapter:
         ocf_value = self._find_value(cashflow_df, ocf_keywords)
         cash_value = self._find_value(balance_df, cash_keywords)
 
-        return {
-            "filing": filing,
-            "income": income_df,
-            "balance": balance_df,
-            "cashflow": cashflow_df,
-            "cash": cash_value,
-            "ocf": ocf_value,
-            "period_months": period_months,
-            "form_type": getattr(filing, "form", form_hint),
-        }
+        if ocf_value is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_CASHFLOW
+            reason_detail = "operating cash flow missing"
+        if cash_value is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_BALANCE
+            reason_detail = "cash/cash equivalents missing"
+        if period_months is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "no inferable periods"
+
+        return (
+            {
+                "filing": filing,
+                "income": income_df,
+                "balance": balance_df,
+                "cashflow": cashflow_df,
+                "cash": cash_value,
+                "ocf": ocf_value,
+                "period_months": period_months,
+                "form_type": getattr(filing, "form", form_hint),
+            },
+            reason_code,
+            reason_detail,
+        )
 
     def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
         """Compute runway using EDGAR/edgartools financial statements.
@@ -692,9 +789,11 @@ class EdgarAdapter:
         from parse.units import normalize_ocf_value
         from parse.postproc import finalize_runway_result
 
-        sections = self.extract_financial_sections(filing_or_url, form_hint)
+        sections, reason_code, reason_detail = self.extract_financial_sections(
+            filing_or_url, form_hint
+        )
         if not sections:
-            return None
+            return {"reason_code": reason_code, "reason_detail": reason_detail}
 
         ocf_quarterly, normalized_period, assumption = normalize_ocf_value(
             sections.get("ocf"), sections.get("period_months")
@@ -702,7 +801,7 @@ class EdgarAdapter:
         form_type = sections.get("form_type") or form_hint
 
         note = f"values parsed from EDGAR XBRL: {filing_or_url}"
-        return finalize_runway_result(
+        result = finalize_runway_result(
             cash=sections.get("cash"),
             ocf_raw=sections.get("ocf"),
             ocf_quarterly=ocf_quarterly,
@@ -714,6 +813,30 @@ class EdgarAdapter:
             status="OK" if sections.get("ocf") is not None else "Missing OCF",
             source_tags=["XBRL"],
         )
+
+        if result.get("runway_quarters") is not None:
+            reason_code = RUNWAY_REASON_OK
+            reason_detail = ""
+        elif reason_code == RUNWAY_REASON_OK:
+            if sections.get("cashflow") is None:
+                reason_code = RUNWAY_REASON_NO_CASHFLOW
+                reason_detail = "cashflow statement missing"
+            elif sections.get("balance") is None:
+                reason_code = RUNWAY_REASON_NO_BALANCE
+                reason_detail = "balance sheet missing"
+            elif result.get("period_months") is None:
+                reason_code = RUNWAY_REASON_NO_PERIODS
+                reason_detail = "no inferable periods"
+            elif sections.get("ocf") is None:
+                reason_code = RUNWAY_REASON_NO_CASHFLOW
+                reason_detail = "operating cash flow missing"
+            elif sections.get("cash") is None:
+                reason_code = RUNWAY_REASON_NO_BALANCE
+                reason_detail = "cash missing"
+
+        result["reason_code"] = reason_code
+        result["reason_detail"] = reason_detail
+        return result
 
     def stats_string(self) -> str:
         if not self.rate_limiter:

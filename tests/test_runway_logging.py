@@ -1,6 +1,9 @@
 import logging
 from types import SimpleNamespace
 
+import logging
+from types import SimpleNamespace
+
 import pandas as pd
 
 from app import edgar_adapter
@@ -28,7 +31,7 @@ def test_missing_xbrl_warning(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING):
         result = adapter.extract_financial_sections(filing, form_hint=filing.form)
 
-    assert result is None
+    assert result[0] is None
     warning_messages = [msg for msg in caplog.messages if "missing_xbrl" in msg]
     assert warning_messages, "expected missing_xbrl warning"
     assert "ticker=TST" in warning_messages[0]
