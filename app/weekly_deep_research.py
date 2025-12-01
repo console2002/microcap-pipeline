@@ -482,7 +482,8 @@ def run_weekly_deep_research(
         status = _status_from_row(mandatory_ok, subscore_count, materiality_label, biotech_field)
 
         evidence_primary = _aggregate_evidence(primary_links)
-        evidence_secondary = _aggregate_evidence(secondary_links)
+        # Secondary evidence placeholder; currently unused but kept for schema stability.
+        evidence_secondary = _aggregate_evidence(secondary_links) or ""
 
         price = getattr(row, "Price", None)
         if price is None or (isinstance(price, (float, int)) and pd.isna(price)):
@@ -518,6 +519,7 @@ def run_weekly_deep_research(
                 "Evidence (Primary links)": evidence_primary,
                 "Evidence (Secondary links)": evidence_secondary,
                 "EvidencePrimary": evidence_primary,
+                # Reserved for future secondary evidence inputs; normalized to empty string.
                 "EvidenceSecondary": evidence_secondary,
                 "PrimaryCatalystDate": catalyst_date,
                 "PrimaryCatalystType": catalyst_type,

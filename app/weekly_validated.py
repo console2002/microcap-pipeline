@@ -340,11 +340,13 @@ def build_validated_selections(
 
     validated_output: List[dict] = []
     for _, r in validated.iterrows():
-        primary_links = str(r.get("Evidence (Primary links)", "")).split(";") if r.get("Evidence (Primary links)") else []
+        primary_raw = r.get("Evidence (Primary links)")
+        primary_links = (
+            str(primary_raw).split(";") if pd.notna(primary_raw) and str(primary_raw).strip() else []
+        )
+        secondary_raw = r.get("Evidence (Secondary links)")
         secondary_links = (
-            str(r.get("Evidence (Secondary links)", "")).split(";")
-            if r.get("Evidence (Secondary links)")
-            else []
+            str(secondary_raw).split(";") if pd.notna(secondary_raw) and str(secondary_raw).strip() else []
         )
         primary_catalyst_url = _first_available(
             r, ["PrimaryCatalystURL", "PrimarySource", "PrimaryFilingURL"]
@@ -381,9 +383,16 @@ def build_validated_selections(
                 "RunwayEvidencePrimary": r.get("RunwayEvidencePrimary"),
                 "DilutionEvidencePrimary": r.get("DilutionEvidencePrimary"),
                 "CatalystEvidencePrimary": r.get("CatalystEvidencePrimary"),
-                "PrimarySource": primary_catalyst_url or (primary_links[0] if primary_links else r.get("RunwayEvidencePrimary")),
-                "SecondarySource": secondary_links[0] if secondary_links else r.get("EvidenceSecondary"),
+                "PrimarySource": primary_catalyst_url
+                or (primary_links[0] if primary_links else r.get("RunwayEvidencePrimary")),
+                # Reserved for future secondary evidence; normalize to empty string when absent.
+                "SecondarySource": (
+                    secondary_links[0]
+                    if secondary_links
+                    else ("" if pd.isna(r.get("EvidenceSecondary")) else r.get("EvidenceSecondary", ""))
+                ),
                 "Status": r.get("Status", "Validated"),
+                # Legacy mirror of Status kept for compatibility with older consumers.
                 "ValidationStatus": r.get("Status", "Validated"),
             }
         )

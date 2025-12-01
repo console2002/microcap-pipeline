@@ -568,10 +568,12 @@ def _write_canonical_events(events_df: pd.DataFrame, data_dir: str) -> pd.DataFr
                 "EventType": row.get("EventType", ""),
                 "EventTier": row.get("EventTier", ""),
                 "PrimarySourceURL": row.get("PrimarySourceURL", ""),
-                "SecondarySourceURL": row.get("SecondarySourceURL", ""),
+                # Reserved for future secondary evidence; keep column but normalize blanks.
+                "SecondarySourceURL": row.get("SecondarySourceURL") or "",
                 "Tier": event_tier,
                 "EventDate_canonical": event_date,
                 "PrimarySource": primary_url,
+                # Reserved for future secondary evidence; keep column but normalize blanks.
                 "SecondarySource": secondary_url,
             }
         )
