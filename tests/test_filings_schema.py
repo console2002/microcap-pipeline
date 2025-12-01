@@ -19,7 +19,8 @@ def test_filings_csv_includes_accession_and_master(monkeypatch, tmp_path):
     runlog, errlog = init_logs(cfg)
 
     monkeypatch.setattr(
-        "app.pipeline.compute_runway_quarters", lambda url, adapter=None: (None, None)
+        "app.pipeline.compute_runway_quarters",
+        lambda url, adapter=None, **_: (None, None, "", ""),
     )
 
     class DummyAdapter:
@@ -84,6 +85,8 @@ def test_filings_csv_includes_accession_and_master(monkeypatch, tmp_path):
         "RunwayQuarters",
         "HasRunway",
         "RunwaySourceURL",
+        "RunwayReasonCode",
+        "RunwayReasonDetail",
         "Desc",
         "Accession",
         "MasterTxtURL",

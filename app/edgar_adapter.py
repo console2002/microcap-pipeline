@@ -25,6 +25,14 @@ from app.universe_filters import load_drop_filters, should_drop_record
 
 logger = logging.getLogger(__name__)
 
+RUNWAY_REASON_OK = "OK"
+RUNWAY_REASON_NO_XBRL = "NO_XBRL"
+RUNWAY_REASON_NO_BALANCE = "NO_BALANCE_SHEET"
+RUNWAY_REASON_NO_CASHFLOW = "NO_CASHFLOW"
+RUNWAY_REASON_NO_PERIODS = "NO_PERIODS"
+RUNWAY_REASON_UNSUPPORTED_FORM = "UNSUPPORTED_FORM"
+RUNWAY_REASON_PARSER_ERROR = "PARSER_ERROR"
+
 
 def partition_completed_and_pending(
     all_tickers: Iterable[str], completed_tickers: Iterable[str]
@@ -680,15 +688,20 @@ class EdgarAdapter:
                     return months
         return default_months
 
-    def extract_financial_sections(self, filing_or_url, form_hint: Optional[str]) -> Optional[dict]:
+    def extract_financial_sections(
+        self, filing_or_url, form_hint: Optional[str]
+    ) -> tuple[Optional[dict], str, str]:
         filing = self._resolve_filing(filing_or_url)
         if filing is None:
-            return None
+            return None, RUNWAY_REASON_PARSER_ERROR, "unable to resolve filing"
 
         financials = Financials.extract(filing)
         if financials is None:
             self._log_runway_warning("missing_xbrl", filing)
-            return None
+            return None, RUNWAY_REASON_NO_XBRL, "missing XBRL/financials"
+
+        reason_code = RUNWAY_REASON_OK
+        reason_detail = ""
 
         income_df = self._render_statement(financials.income_statement())
         if income_df is None:
@@ -698,14 +711,22 @@ class EdgarAdapter:
 
         balance_df = self._render_statement(financials.balance_sheet())
         if balance_df is None:
+            reason_code = RUNWAY_REASON_NO_BALANCE
+            reason_detail = "balance sheet missing"
             self._log_runway_warning("statement_missing", filing, statement="balance")
         elif getattr(balance_df, "empty", False):
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "balance sheet empty"
             self._log_runway_warning("no_usable_periods", filing, statement="balance")
 
         cashflow_df = self._render_statement(financials.cashflow_statement())
         if cashflow_df is None:
+            reason_code = RUNWAY_REASON_NO_CASHFLOW
+            reason_detail = "cashflow statement missing"
             self._log_runway_warning("statement_missing", filing, statement="cashflow")
         elif getattr(cashflow_df, "empty", False):
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "cashflow statement empty"
             self._log_runway_warning("no_usable_periods", filing, statement="cashflow")
 
         defaults = {}  # placeholder for router defaults
@@ -731,16 +752,30 @@ class EdgarAdapter:
         ocf_value = self._find_value(cashflow_df, ocf_keywords)
         cash_value = self._find_value(balance_df, cash_keywords)
 
-        return {
-            "filing": filing,
-            "income": income_df,
-            "balance": balance_df,
-            "cashflow": cashflow_df,
-            "cash": cash_value,
-            "ocf": ocf_value,
-            "period_months": period_months,
-            "form_type": getattr(filing, "form", form_hint),
-        }
+        if ocf_value is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_CASHFLOW
+            reason_detail = "operating cash flow missing"
+        if cash_value is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_BALANCE
+            reason_detail = "cash/cash equivalents missing"
+        if period_months is None and reason_code == RUNWAY_REASON_OK:
+            reason_code = RUNWAY_REASON_NO_PERIODS
+            reason_detail = "no inferable periods"
+
+        return (
+            {
+                "filing": filing,
+                "income": income_df,
+                "balance": balance_df,
+                "cashflow": cashflow_df,
+                "cash": cash_value,
+                "ocf": ocf_value,
+                "period_months": period_months,
+                "form_type": getattr(filing, "form", form_hint),
+            },
+            reason_code,
+            reason_detail,
+        )
 
     def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
         """Compute runway using EDGAR/edgartools financial statements.
@@ -754,9 +789,11 @@ class EdgarAdapter:
         from parse.units import normalize_ocf_value
         from parse.postproc import finalize_runway_result
 
-        sections = self.extract_financial_sections(filing_or_url, form_hint)
+        sections, reason_code, reason_detail = self.extract_financial_sections(
+            filing_or_url, form_hint
+        )
         if not sections:
-            return None
+            return {"reason_code": reason_code, "reason_detail": reason_detail}
 
         ocf_quarterly, normalized_period, assumption = normalize_ocf_value(
             sections.get("ocf"), sections.get("period_months")
@@ -764,7 +801,7 @@ class EdgarAdapter:
         form_type = sections.get("form_type") or form_hint
 
         note = f"values parsed from EDGAR XBRL: {filing_or_url}"
-        return finalize_runway_result(
+        result = finalize_runway_result(
             cash=sections.get("cash"),
             ocf_raw=sections.get("ocf"),
             ocf_quarterly=ocf_quarterly,
@@ -776,6 +813,30 @@ class EdgarAdapter:
             status="OK" if sections.get("ocf") is not None else "Missing OCF",
             source_tags=["XBRL"],
         )
+
+        if result.get("runway_quarters") is not None:
+            reason_code = RUNWAY_REASON_OK
+            reason_detail = ""
+        elif reason_code == RUNWAY_REASON_OK:
+            if sections.get("cashflow") is None:
+                reason_code = RUNWAY_REASON_NO_CASHFLOW
+                reason_detail = "cashflow statement missing"
+            elif sections.get("balance") is None:
+                reason_code = RUNWAY_REASON_NO_BALANCE
+                reason_detail = "balance sheet missing"
+            elif result.get("period_months") is None:
+                reason_code = RUNWAY_REASON_NO_PERIODS
+                reason_detail = "no inferable periods"
+            elif sections.get("ocf") is None:
+                reason_code = RUNWAY_REASON_NO_CASHFLOW
+                reason_detail = "operating cash flow missing"
+            elif sections.get("cash") is None:
+                reason_code = RUNWAY_REASON_NO_BALANCE
+                reason_detail = "cash missing"
+
+        result["reason_code"] = reason_code
+        result["reason_detail"] = reason_detail
+        return result
 
     def stats_string(self) -> str:
         if not self.rate_limiter:

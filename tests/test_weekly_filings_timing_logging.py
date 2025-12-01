@@ -69,7 +69,8 @@ def _fake_fetch(self, ticker, *, whitelist, start_expr, progress_fn=None, stop_f
 def test_weekly_filings_summary_includes_roles_and_rl_wait(monkeypatch, tmp_path, caplog):
     monkeypatch.setattr(EdgarAdapter, "_fetch_filings_for_ticker", _fake_fetch, raising=False)
     monkeypatch.setattr(
-        "app.pipeline.compute_runway_quarters", lambda url, adapter=None: (None, None)
+        "app.pipeline.compute_runway_quarters",
+        lambda url, adapter=None, **_: (None, None, "", ""),
     )
 
     cfg = _make_cfg(tmp_path)
