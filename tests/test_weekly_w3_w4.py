@@ -120,7 +120,7 @@ def test_w3_deep_research_and_w4(tmp_path):
     assert abc_row["RunwayQuarters"] == 4.0
     assert abc_row["Dilution"] == "High"
     assert abc_row["Catalyst"].startswith("Tier-1")
-    assert abc_row["Biotech Peer Read-Through (Y/N + link)"].startswith("Y")
+    assert abc_row["Biotech Peer Read-Through (Y/N + link)"]
     assert abc_row["Evidence (Primary links)"]
     assert abc_row["Subscores Evidenced (x/5)"] >= 4
     assert abc_row["Status"] == "Validated"

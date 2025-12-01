@@ -7,7 +7,9 @@ from typing import Callable, Dict, List, Tuple
 
 import pandas as pd
 
+from app.biotech_utils import is_biotech
 from app.config import load_config
+from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 MANDATORY_FIELDS = ["RunwayQuarters", "Dilution", "Catalyst"]
@@ -24,13 +26,6 @@ def _load_csv(path: str) -> pd.DataFrame:
         return pd.read_csv(path, encoding="utf-8")
     except pd.errors.EmptyDataError:
         return pd.DataFrame()
-
-
-def _is_biotech(sector: str, industry: str) -> bool:
-    text = f"{sector} {industry}".lower()
-    return "biotech" in text or "biotechnology" in text
-
-
 def _emit_progress(progress_fn: Callable[[str], None] | None, message: str) -> None:
     if progress_fn is None:
         return
@@ -103,8 +98,14 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], int]:
     biotech_peer = str(
         row.get("BiotechPeerRead", row.get("Biotech Peer Read-Through (Y/N + link)", ""))
     ).strip()
-    biotech_needs_peer = biotech_peer.upper().startswith("Y") or biotech_peer.upper().startswith("TBD")
-    biotech_ok = not (biotech_needs_peer and biotech_peer.upper().startswith("TBD"))
+    biotech_peer_upper = biotech_peer.upper()
+    biotech_candidate = is_biotech(str(row.get("Sector", "")), str(row.get("Industry", "")))
+
+    if BIOTECH_PEER_REQUIRED_FOR_VALIDATION and biotech_candidate:
+        biotech_ok = biotech_peer_upper.startswith("Y_")
+    else:
+        biotech_needs_peer = biotech_peer_upper.startswith("Y") or biotech_peer_upper.startswith("TBD")
+        biotech_ok = not (biotech_needs_peer and biotech_peer_upper.startswith("TBD"))
 
     gates = {
         "C1": runway_ok,

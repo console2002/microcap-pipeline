@@ -8,12 +8,20 @@ from typing import Callable, Iterable, List
 
 import pandas as pd
 
+from app.biotech_utils import (
+    classify_peer_events,
+    get_biotech_peers,
+    is_biotech,
+    PeerEventClassification,
+)
 from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
+from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
 DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
 RUNWAY_FORMS = ("10-Q", "10-K", "20-F", "6-K", "40-F")
+PEER_EVENTS_LOOKBACK_DAYS = 180
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +41,67 @@ def _load_csv(path: str, required: Iterable[str] | None = None) -> pd.DataFrame:
         if missing:
             raise RuntimeError(f"{path} missing required columns: {', '.join(missing)}")
     return df
+
+
+def _prepare_events(events: pd.DataFrame) -> pd.DataFrame:
+    if events is None or events.empty:
+        return pd.DataFrame()
+
+    df = events.copy()
+    df["event_date_canonical"] = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+    date_cols = [
+        "EventDate",
+        "event_date",
+        "FilingDate",
+        "Date",
+    ]
+    for col in date_cols:
+        if col in df.columns:
+            df["event_date_canonical"] = df["event_date_canonical"].fillna(
+                pd.to_datetime(df[col], errors="coerce")
+            )
+    df["event_date_canonical"] = df["event_date_canonical"].dt.tz_localize(None)
+    return df
+
+
+def _biotech_peer_read_from_events(
+    ticker: str,
+    sector: str,
+    industry: str,
+    events: pd.DataFrame,
+    universe: pd.DataFrame,
+) -> tuple[str, str]:
+    """Compute BiotechPeerRead string and evidence."""
+
+    if not is_biotech(sector, industry):
+        return "N:NonBiotech", ""
+
+    peers = get_biotech_peers(universe, ticker, sector, industry)
+    if not peers:
+        return "N:NoPeers", ""
+
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    lookback_start = now.normalize() - pd.Timedelta(days=PEER_EVENTS_LOOKBACK_DAYS)
+    peer_events = events[events.get("Ticker", pd.Series(dtype=str)).isin(peers)].copy()
+    if not peer_events.empty:
+        peer_events = peer_events[
+            (peer_events["event_date_canonical"] >= lookback_start)
+            & (peer_events["event_date_canonical"] <= now)
+        ]
+
+    classification: PeerEventClassification = classify_peer_events(peer_events)
+
+    mapping = {
+        "NONE": "N:NoPeerEvent",
+        "POSITIVE": "Y_POS",
+        "NEGATIVE": "Y_NEG",
+        "MIXED": "Y_MIXED",
+    }
+    base = mapping.get(classification.code, "N:NoPeerEvent")
+    evidence = classification.evidence
+    if base.startswith("Y") and evidence:
+        base = f"{base}:{evidence}"
+    return base, evidence
 
 
 def _dilution_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str | None]:
@@ -127,11 +196,6 @@ def _insider_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str | N
     return score, last_date, _aggregate_evidence(evidence)
 
 
-def _biotech_peer_flag(sector: str, industry: str) -> str:
-    combined = f"{sector} {industry}".lower()
-    return "Y" if "biotech" in combined or "biotechnology" in combined else "N"
-
-
 def _materiality(subscore_count: int, catalyst: str, mandatory_ok: bool) -> str:
     """Return a PASS/FAIL Materiality string.
 
@@ -202,10 +266,14 @@ def _status_from_row(
     subscore_count: int,
     materiality: str,
     biotech_peer: str,
+    is_biotech_candidate: bool,
+    require_biotech_peer: bool,
 ) -> str:
     materiality_lower = materiality.lower()
     materiality_ok = materiality_lower.startswith("pass")
-    biotech_ok = not biotech_peer.startswith("TBD")
+    biotech_ok = True
+    if require_biotech_peer and is_biotech_candidate:
+        biotech_ok = isinstance(biotech_peer, str) and biotech_peer.startswith("Y_")
     if mandatory_ok and subscore_count >= 4 and materiality_ok and biotech_ok:
         return "Validated"
     return "TBD — exclude"
@@ -298,10 +366,12 @@ def run_weekly_deep_research(
     shortlist_path = os.path.join(data_dir, "20_candidate_shortlist.csv")
     filings_path = os.path.join(data_dir, "02_filings.csv")
     events_path = os.path.join(data_dir, "09_events.csv")
+    universe_path = os.path.join(data_dir, "01_universe_gated.csv")
 
     shortlist = _load_csv(shortlist_path)
     filings = _load_csv(filings_path)
-    events = _load_csv(events_path)
+    events = _prepare_events(_load_csv(events_path))
+    universe = _load_csv(universe_path)
 
     required_shortlist = ["Ticker", "Company", "CIK"]
     for col in required_shortlist:
@@ -432,12 +502,10 @@ def run_weekly_deep_research(
                 )
             else:
                 _emit_form_incomplete(progress_fn, str(ticker), entry["form"], "missing filing URL")
-        biotech_flag = _biotech_peer_flag(str(sector), str(industry))
-        biotech_peer_field = "N"
-        biotech_peer_evidence = ""
-        if biotech_flag == "Y":
-            biotech_peer_evidence = "Peer: stub"
-            biotech_peer_field = f"Y:{biotech_peer_evidence}" if biotech_peer_evidence else "TBD"
+        biotech_peer_field, biotech_peer_evidence = _biotech_peer_read_from_events(
+            str(ticker), str(sector), str(industry), events, universe
+        )
+        biotech_flag = "Y" if is_biotech(sector, industry) else "N"
 
         dilution_label = dilution if dilution in {"High", "Low"} else "TBD"
         catalyst_label = catalyst
@@ -478,8 +546,26 @@ def run_weekly_deep_research(
         materiality_label = materiality_raw
 
         conviction = _conviction_from_subscores(subscore_count, catalyst_label, materiality_label)
-        biotech_field = biotech_peer_field if biotech_flag == "Y" else "N"
-        status = _status_from_row(mandatory_ok, subscore_count, materiality_label, biotech_field)
+        biotech_field = biotech_peer_field if biotech_flag == "Y" else "N:NonBiotech"
+        status = _status_from_row(
+            mandatory_ok,
+            subscore_count,
+            materiality_label,
+            biotech_field,
+            biotech_flag == "Y",
+            BIOTECH_PEER_REQUIRED_FOR_VALIDATION,
+        )
+        if (
+            BIOTECH_PEER_REQUIRED_FOR_VALIDATION
+            and biotech_flag == "Y"
+            and not biotech_field.startswith("Y_")
+            and status != "Validated"
+        ):
+            logger.info(
+                "[biotech_peer] excluded_from_validation: ticker=%s, reason=NoPeerEvidence, BiotechPeerRead=%s",
+                ticker,
+                biotech_field,
+            )
 
         evidence_primary = _aggregate_evidence(primary_links)
         # Secondary evidence placeholder; currently unused but kept for schema stability.
@@ -527,7 +613,7 @@ def run_weekly_deep_research(
                 "LastDilutionEventDate": last_dilution_date,
                 "LastInsiderBuyDate": last_insider_date,
                 "GoingConcernFlag": going_concern,
-                "BiotechPeerRead": biotech_flag,
+                "BiotechPeerRead": biotech_field,
                 "Biotech Peer Read-Through (Y/N + link)": biotech_field,
                 "BiotechPeerEvidence": biotech_peer_evidence,
                 "SubscoresEvidencedCount": subscore_count,
