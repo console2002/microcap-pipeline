@@ -324,16 +324,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._set_stage_progress(stage, 100)
 
         fraction = re.search(
-            r"\[(?P<stage>[a-z_]+)\]\s+(?P<done>\d+)\/(?P<total>\d+)", body
+            r"\[(?P<stage>[a-z_\s]+)\]\s+(?P<done>\d+)\/(?P<total>\d+)",
+            body,
+            flags=re.IGNORECASE,
         )
         if fraction:
             stage_name = fraction.group("stage")
             done = int(fraction.group("done"))
             total = max(int(fraction.group("total")), 1)
             pct = max(0, min(100, int((done / total) * 100)))
+            normalized_stage = stage_name.strip().lower().replace(" ", "_")
+            alias_map = {
+                "edgar_filings": "filings",
+            }
+            target = alias_map.get(normalized_stage, normalized_stage)
             target_stage = (
-                stage_name
-                if stage_name in {"profiles", "filings", "prices"}
+                target
+                if target in {"profiles", "filings", "prices"}
                 else self.current_stage
             )
             if target_stage:

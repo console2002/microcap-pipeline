@@ -395,7 +395,26 @@ class EdgarAdapter:
 
                 for future in as_completed(futures):
                     ticker_norm = futures[future]
-                    batch, per_ticker_stats = future.result()
+                    try:
+                        batch, per_ticker_stats = future.result()
+                    except Exception as exc:  # pragma: no cover - defensive guard
+                        logger.warning(
+                            "EDGAR filings fetch crashed for %s: %s", ticker_norm, exc
+                        )
+                        per_ticker_stats = {
+                            "ticker": ticker_norm,
+                            "raw_count": 0,
+                            "kept_count": 0,
+                            "duration_ms": 0,
+                            "fetch_ms": 0,
+                            "cik": "",
+                        }
+                        if progress_fn:
+                            progress_fn(
+                                f"[edgar filings] error {ticker_norm}: {exc}"
+                            )
+                        batch = []
+
                     _handle_batch(batch, ticker_norm, per_ticker_stats)
 
         rl_wait = 0.0
