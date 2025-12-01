@@ -188,7 +188,7 @@ def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
         missing_reasons.append("Materiality fail")
 
     reason = "; ".join(missing_reasons) if missing_reasons else "Did not meet validation rule"
-    return "TBD — exclude", reason
+    return "TBD - exclude", reason
 
 
 def _log_weekly_summary(data_dir: str, progress_fn: Callable[[str], None] | None = None) -> None:
@@ -395,6 +395,8 @@ def build_validated_selections(
                 "Ticker": r.get("Ticker"),
                 "Company": r.get("Company"),
                 "CIK": r.get("CIK"),
+                "Sector": r.get("Sector"),
+                "Industry": r.get("Industry"),
                 "Reason": r.get("Reason", "Did not meet validation rule"),
                 "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
                 "Status": r.get("Status"),
