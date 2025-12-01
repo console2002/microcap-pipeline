@@ -120,3 +120,37 @@ def test_validation_flag_effects():
         require_biotech_peer=True,
     )
     assert status_non_biotech == "Validated"
+
+
+def test_weekly_validated_enforces_biotech_peer_when_enabled(monkeypatch):
+    import app.weekly_validated as weekly_validated
+
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
+
+    biotech_row = pd.Series(
+        {
+            "Sector": "Healthcare",
+            "Industry": "Biotechnology",
+            "RunwayQuarters": 4,
+            "RunwayEvidencePrimary": "url",
+            "Dilution": "High",
+            "DilutionEvidencePrimary": "url",
+            "Catalyst": "Tier-1",
+            "CatalystEvidencePrimary": "url",
+            "Subscores Evidenced (x/5)": 4,
+            "Materiality (pass/fail + note)": "PASS - test",
+            "BiotechPeerRead": "N:NoPeerEvent",
+        }
+    )
+
+    status_biotech, reason_biotech = weekly_validated.evaluate_validation(biotech_row)
+    assert status_biotech == "TBD - exclude"
+    assert "Biotech peer missing" in reason_biotech
+
+    non_biotech_row = biotech_row.copy()
+    non_biotech_row["Sector"] = "Technology"
+    non_biotech_row["Industry"] = "Software"
+    non_biotech_row["BiotechPeerRead"] = "N:NonBiotech"
+
+    status_non_biotech, _ = weekly_validated.evaluate_validation(non_biotech_row)
+    assert status_non_biotech == "Validated"
