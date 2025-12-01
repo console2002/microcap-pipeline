@@ -1,14 +1,12 @@
 Ticker,Company,CIK,Sector,Industry,Reason,Materiality,Status
-PETS,"PetMed Express, Inc.",1040130,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-DTSQ,DT Cloud Star Acquisition Corporation,2017950,,,Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-BLFY,Blue Foundry Bancorp,1846017,,,Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-SCLX,Scilex Holding Company,1820190,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-BTM,Bitcoin Depot Inc.,1901799,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-RILY,"B. Riley Financial, Inc.",1464790,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-LOAN,"Manhattan Bridge Capital, Inc.",1080340,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-LOVE,The Lovesac Company,1701758,,,Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-ISBA,Isabella Bank Corporation,842517,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-APACU,StoneBridge Acquisition II Corporation,2043630,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-VIASP,"Via Renewables, Inc.",1606268,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-VWAV,"VisionWave Holdings, Inc.",1845942,,,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
-FGBI,"First Guaranty Bancshares, Inc.",1408534,,,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD — exclude
+MOV,"Movado Group, Inc.",72573,Consumer Cyclical,Luxury Goods,Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+DSP,Viant Technology Inc.,1828791,Technology,Software - Application,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+VERI,"Veritone, Inc.",1615165,Technology,Software - Infrastructure,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+OPAL,OPAL Fuels Inc.,1842279,Utilities,Regulated Gas,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+STRW,Strawberry Fields REIT LLC,1782430,Real Estate,REIT - Healthcare Facilities,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+PBFS,"Pioneer Bancorp, Inc.",1769663,Financial Services,Banks - Regional,Mandatory subscore missing: Runway; Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+GIW,GigCapital8 Corp.,2080019,Financial Services,Asset Management,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+HYAC,Haymaker Acquisition Corp. III,1819253,Financial Services,Shell Companies,Subscores <4/5; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+MBVI,M3-Brigade Acquisition VI Corp. Class A Ordinary Shares,2073928,Financial Services,Asset Management,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+BDCI,BTC Development Corp. Class A Ordinary Shares,2042292,Financial Services,Asset Management,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
+RTAC,Renatus Tactical Acquisition Corp I Class A Ordinary Shares,2035173,Financial Services,Shell Companies,Mandatory subscore missing: Runway; Materiality fail,FAIL - mandatory subscore missing,TBD - exclude
