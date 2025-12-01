@@ -427,6 +427,8 @@ class EdgarAdapter:
                     for idx, ticker_norm in to_process
                 }
 
+                completed = 0
+
                 for future in as_completed(futures):
                     ticker_norm = futures[future]
                     try:
@@ -450,6 +452,13 @@ class EdgarAdapter:
                         batch = []
 
                     _handle_batch(batch, ticker_norm, per_ticker_stats)
+
+                    completed += 1
+                    if progress_fn and (completed % 25 == 0 or completed == total):
+                        pct = int((completed / max(total, 1)) * 100)
+                        progress_fn(
+                            f"[edgar filings] {completed}/{total} tickers ({pct}%)"
+                        )
 
         rl_wait = 0.0
         with self._rate_limit_lock:
