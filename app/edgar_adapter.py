@@ -158,14 +158,15 @@ class EdgarAdapter:
             workers = 1
         return workers if workers and workers > 0 else 1
 
-    def _filing_fetch_timeout(self) -> int:
+    def _filing_fetch_timeout(self) -> int | None:
         workers_cfg = self.cfg.get("Workers", {}) if isinstance(self.cfg, dict) else {}
         edgar_cfg = workers_cfg.get("EDGAR") or workers_cfg.get("Edgar") or {}
         try:
-            timeout = int(edgar_cfg.get("TimeoutSeconds", 300))
+            timeout = edgar_cfg.get("TimeoutSeconds")
+            timeout = int(timeout) if timeout is not None else None
         except (TypeError, ValueError):
-            timeout = 300
-        return timeout if timeout and timeout > 0 else 300
+            timeout = None
+        return timeout if timeout and timeout > 0 else None
 
     def _resolve_filing(self, filing_or_url) -> Optional[Filing]:
         if isinstance(filing_or_url, Filing):
@@ -429,10 +430,11 @@ class EdgarAdapter:
                 continue
             to_process.append((idx, ticker_norm))
 
+        timeout_display = timeout_seconds if timeout_seconds is not None else "disabled"
         logger.info(
             "[edgar filings] start: total_tickers=%s, timeout_seconds=%s, max_workers=%s",
             len(to_process),
-            timeout_seconds,
+            timeout_display,
             workers,
         )
 
@@ -480,6 +482,12 @@ class EdgarAdapter:
                 pending = set(futures.keys())
 
                 def _iter_completed(current_pending):
+                    if timeout_seconds is None:
+                        try:
+                            return as_completed(current_pending)
+                        except TypeError:  # compatibility with patched/mocked as_completed
+                            return as_completed(current_pending)
+
                     try:
                         return as_completed(current_pending, timeout=timeout_seconds)
                     except TypeError:  # compatibility with patched/mocked as_completed
