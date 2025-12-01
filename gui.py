@@ -509,10 +509,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self._render_live_buffer()
 
     def refresh_app_log(self):
-        paths = load_config()["Paths"]
-        logs_dir = paths.get("logs", "")
-        app_log_path = os.path.join(logs_dir, "app.log")
-        content = self._read_file(app_log_path)
+        try:
+            paths = load_config()["Paths"]
+            logs_dir = paths.get("logs", "")
+            app_log_path = os.path.join(logs_dir, "app.log")
+            content = self._read_file(app_log_path)
+        except Exception as e:
+            # Never let file read errors break the periodic refresh loop.
+            self._render_app_log(f"Error loading app.log: {e}")
+            return
 
         if not content:
             self._render_app_log("")
@@ -524,8 +529,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def _read_file(self, path: str) -> str:
         if not os.path.exists(path):
             return ""
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
+
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read()
+        except OSError:
+            return ""
 
     def _load_progress_lines(self, path: str) -> list[str]:
         content = self._read_file(path)
