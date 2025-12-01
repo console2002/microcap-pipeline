@@ -294,6 +294,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # show disk logs once more at end
         self.refresh_logs()
+        self.worker = None
+
+    def _stop_worker(self, wait_ms: int = 10000) -> None:
+        if self.worker and self.worker.isRunning():
+            self.status_label.setText("Stopping run…")
+            self.worker.request_stop()
+            finished = self.worker.wait(wait_ms)
+            if not finished and self.worker.isRunning():
+                self.status_label.setText("Forcing worker shutdown…")
+                self.worker.terminate()
+                self.worker.wait(wait_ms)
+        self.worker = None
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self.timer.stop()
+        self._stop_worker()
+        super().closeEvent(event)
 
     def _render_live_buffer(self, append_only: bool = False):
         if append_only and self.live_buffer:

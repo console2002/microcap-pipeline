@@ -1225,6 +1225,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         if df_unique.empty:
             return
 
+        # Drop any columns that are entirely NA before concatenation to avoid
+        # pandas changing dtype inference rules around empty/all-NA columns.
+        df_unique = df_unique.dropna(axis=1, how="all")
         df_working = pd.concat([df_working, df_unique], ignore_index=True)
         df_working = _purge_filings_by_lookback(df_working, cfg)
         df_working, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(
