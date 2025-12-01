@@ -11,7 +11,7 @@
   },
   "Workers": {
     "EDGAR": {
-      "Workers": 2
+      "Workers": 4
     }
   },
   "MaxWorkers": 4,
