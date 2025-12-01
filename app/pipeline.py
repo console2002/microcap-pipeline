@@ -825,6 +825,22 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     df_prof = pd.DataFrame(prof_rows)
 
     if not df_prof.empty:
+        industry_series = (
+            df_prof.get("Industry", pd.Series(dtype="object"))
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+        )
+        shell_mask = industry_series == "shell companies"
+        dropped_shell = int(shell_mask.sum())
+        if dropped_shell > 0:
+            df_prof = df_prof.loc[~shell_mask].copy()
+            _emit(
+                progress_fn,
+                f"profiles: guard dropped {dropped_shell} shell-company profiles that bypassed fetch_profiles filter",
+            )
+
         df_prof = df_prof.copy()
 
         obj_cols = df_prof.select_dtypes(include=["object", "string"]).columns

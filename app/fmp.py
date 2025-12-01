@@ -178,6 +178,8 @@ def fetch_profiles(
 
     otc_pattern = re.compile(r"(?i)\b(?:OTC|OTCQX|OTCQB|PINK|GREY)\b")
 
+    shell_dropped = 0
+
     for idx, batch in enumerate(batches, start=1):
         _check_cancel(stop_flag)
 
@@ -226,6 +228,14 @@ def fetch_profiles(
             if mcap is not None and mcap > cfg["HardGates"]["CapMax"]:
                 continue
 
+            industry_raw = rec.get("Industry") or rec.get("industry")
+            industry_norm = (
+                str(industry_raw).strip().lower() if industry_raw is not None else None
+            )
+            if industry_norm == "shell companies":
+                shell_dropped += 1
+                continue
+
             out.append({
                 "Ticker": ticker,
                 "CIK": cik_txt,
@@ -239,6 +249,12 @@ def fetch_profiles(
                 "Price": price,
                 "UpdatedAt": datetime.utcnow().isoformat()
             })
+
+    if shell_dropped:
+        logger.info(
+            "fetch_profiles: dropped %d shell companies (Industry == 'Shell Companies')",
+            shell_dropped,
+        )
 
     return out
 
