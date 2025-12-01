@@ -242,6 +242,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.app_log_autoscroll_checkbox.stateChanged.connect(
             self._toggle_app_log_autoscroll
         )
+        self.app_log_search = QtWidgets.QLineEdit()
+        self.app_log_search.setPlaceholderText("Search log entries…")
+        self.app_log_search.textChanged.connect(self._apply_app_log_filter)
+        self.app_log_lines: list[str] = []
 
         log_tab_layout = QtWidgets.QVBoxLayout()
         log_header_row = QtWidgets.QHBoxLayout()
@@ -249,6 +253,10 @@ class MainWindow(QtWidgets.QMainWindow):
         log_header_row.addStretch(1)
         log_header_row.addWidget(self.app_log_autoscroll_checkbox)
         log_tab_layout.addLayout(log_header_row)
+        log_search_row = QtWidgets.QHBoxLayout()
+        log_search_row.addWidget(QtWidgets.QLabel("Search:"))
+        log_search_row.addWidget(self.app_log_search)
+        log_tab_layout.addLayout(log_search_row)
         log_tab_layout.addWidget(self.app_log_view)
         self.log_tab.setLayout(log_tab_layout)
 
@@ -517,14 +525,16 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             # Never let file read errors break the periodic refresh loop.
             self._render_app_log(f"Error loading app.log: {e}")
+            self.app_log_lines = []
             return
 
         if not content:
+            self.app_log_lines = []
             self._render_app_log("")
             return
 
-        lines = content.splitlines()[-1000:]
-        self._render_app_log("\n".join(lines))
+        self.app_log_lines = content.splitlines()[-1000:]
+        self._apply_app_log_filter()
 
     def _read_file(self, path: str) -> str:
         if not os.path.exists(path):
@@ -600,6 +610,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self._set_scrollbar_value(sb, sb.maximum())
         else:
             self._set_scrollbar_value(sb, min(prev_value, sb.maximum()))
+
+    def _apply_app_log_filter(self) -> None:
+        term = self.app_log_search.text().strip()
+        if term:
+            needle = term.lower()
+            filtered = [
+                line for line in self.app_log_lines if needle in line.lower()
+            ]
+        else:
+            filtered = self.app_log_lines
+
+        self._render_app_log("\n".join(filtered))
 
     def _set_scrollbar_value(self, scrollbar: QtWidgets.QScrollBar, value: int) -> None:
         """Set a scrollbar's value after pending layout updates settle.
