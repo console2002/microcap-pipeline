@@ -26,13 +26,13 @@ def test_validation_rules_and_conviction_logic():
     biotech_missing = base.copy()
     biotech_missing["Biotech Peer Read-Through (Y/N + link)"] = "TBD"
     status, reason = evaluate_validation(biotech_missing)
-    assert status == "TBD — exclude"
+    assert status == "TBD - exclude"
     assert "Biotech" in reason
 
     missing_subscore = base.copy()
     missing_subscore["DilutionEvidencePrimary"] = ""
     status, reason = evaluate_validation(missing_subscore)
-    assert status == "TBD — exclude"
+    assert status == "TBD - exclude"
     assert reason.startswith("Mandatory subscore missing")
 
     assert _conviction_from_subscores(4, "Tier-1", "PASS - Tier1") == "High"
