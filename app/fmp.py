@@ -459,6 +459,8 @@ def fetch_filings(
                 "FiledAt": filed_raw,
                 "URL": _normalize_sec_url(source_url),
                 "Desc": desc_text,
+                "Accession": rec.get("accessionNumber") or rec.get("accessionNo") or "",
+                "MasterTxtURL": rec.get("finalLinkTxt") or rec.get("reportUrl") or "",
             })
 
     return out

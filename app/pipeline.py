@@ -965,6 +965,22 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
 
 def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag, progress_fn):
+    required_filing_cols = [
+        "CIK",
+        "URL",
+        "Ticker",
+        "Company",
+        "Form",
+        "FiledAt",
+        "Age",
+        "RunwayQuarters",
+        "HasRunway",
+        "RunwaySourceURL",
+        "Desc",
+        "Accession",
+        "MasterTxtURL",
+    ]
+
     def _attach_runway_metrics(df_fil: pd.DataFrame) -> pd.DataFrame:
         if df_fil is None:
             df_fil = pd.DataFrame()
@@ -1121,18 +1137,7 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
 
         df_fil = _purge_filings_by_lookback(df_fil, cfg)
 
-        expected_cols = [
-            "CIK",
-            "Ticker",
-            "Company",
-            "Form",
-            "FiledAt",
-            "Age",
-            "URL",
-            "RunwayQuarters",
-            "HasRunway",
-            "RunwaySourceURL",
-        ]
+        expected_cols = required_filing_cols.copy()
         for col in expected_cols:
             if col not in df_fil.columns:
                 df_fil[col] = pd.Series(dtype="object")
@@ -1225,9 +1230,16 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         if df_unique.empty:
             return
 
-        # Drop any columns that are entirely NA before concatenation to avoid
-        # pandas changing dtype inference rules around empty/all-NA columns.
-        df_unique = df_unique.dropna(axis=1, how="all")
+        # Drop any non-required columns that are entirely NA before
+        # concatenation to avoid pandas changing dtype inference rules around
+        # empty/all-NA columns.
+        drop_cols = [
+            col
+            for col in df_unique.columns
+            if col not in required_filing_cols and df_unique[col].isna().all()
+        ]
+        if drop_cols:
+            df_unique = df_unique.drop(columns=drop_cols)
         df_working = pd.concat([df_working, df_unique], ignore_index=True)
         df_working = _purge_filings_by_lookback(df_working, cfg)
         df_working, gate_eligible, gate_drop_details = _apply_runway_gate_to_filings(

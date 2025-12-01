@@ -259,6 +259,13 @@ class EdgarAdapter:
             logger.warning("EDGAR filings fetch failed for %s: %s", ticker_norm, exc)
             filings_list = []
 
+        def _first_attr(obj: object, attrs: list[str]) -> str:
+            for attr in attrs:
+                value = getattr(obj, attr, None)
+                if value:
+                    return str(value)
+            return ""
+
         try:
             for filing in filings_list:
                 form_value = getattr(filing, "form", "")
@@ -273,6 +280,29 @@ class EdgarAdapter:
                     or ""
                 )
 
+                accession_value = _first_attr(
+                    filing,
+                    [
+                        "accession_no",
+                        "accession",
+                        "accession_number",
+                        "accession_number_no_dashes",
+                        "accessionNumber",
+                    ],
+                )
+
+                master_txt_url = _first_attr(
+                    filing,
+                    [
+                        "txt_url",
+                        "text_url",
+                        "master_text_url",
+                        "full_text_url",
+                        "primary_document_url",
+                        "primary_doc_url",
+                    ],
+                )
+
                 batch.append(
                     {
                         "CIK": _normalize_cik(getattr(filing, "cik", "")),
@@ -282,6 +312,8 @@ class EdgarAdapter:
                         "FiledAt": filed_at,
                         "URL": filing_url,
                         "Desc": "",
+                        "Accession": accession_value,
+                        "MasterTxtURL": master_txt_url,
                     }
                 )
         except Exception as exc:
