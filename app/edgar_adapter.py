@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from datetime import date, datetime, timedelta
 from threading import Lock
 from typing import Callable, Iterable, Optional
@@ -134,6 +134,15 @@ class EdgarAdapter:
         except (TypeError, ValueError):
             workers = 1
         return workers if workers and workers > 0 else 1
+
+    def _filing_fetch_timeout(self) -> int:
+        workers_cfg = self.cfg.get("Workers", {}) if isinstance(self.cfg, dict) else {}
+        edgar_cfg = workers_cfg.get("EDGAR") or workers_cfg.get("Edgar") or {}
+        try:
+            timeout = int(edgar_cfg.get("TimeoutSeconds", 300))
+        except (TypeError, ValueError):
+            timeout = 300
+        return timeout if timeout and timeout > 0 else 300
 
     def _resolve_filing(self, filing_or_url) -> Optional[Filing]:
         if isinstance(filing_or_url, Filing):
@@ -428,37 +437,69 @@ class EdgarAdapter:
                 }
 
                 completed = 0
+                timeout_seconds = self._filing_fetch_timeout()
+                pending = set(futures.keys())
 
-                for future in as_completed(futures):
-                    ticker_norm = futures[future]
+                while pending:
                     try:
-                        batch, per_ticker_stats = future.result()
-                    except Exception as exc:  # pragma: no cover - defensive guard
+                        for future in as_completed(pending, timeout=timeout_seconds):
+                            pending.discard(future)
+                            ticker_norm = futures[future]
+                            try:
+                                batch, per_ticker_stats = future.result()
+                            except Exception as exc:  # pragma: no cover - defensive guard
+                                logger.warning(
+                                    "EDGAR filings fetch crashed for %s: %s", ticker_norm, exc
+                                )
+                                per_ticker_stats = {
+                                    "ticker": ticker_norm,
+                                    "raw_count": 0,
+                                    "kept_count": 0,
+                                    "duration_ms": 0,
+                                    "fetch_ms": 0,
+                                    "cik": "",
+                                }
+                                if progress_fn:
+                                    progress_fn(
+                                        f"[edgar filings] error {ticker_norm}: {exc}"
+                                    )
+                                batch = []
+
+                            _handle_batch(batch, ticker_norm, per_ticker_stats)
+
+                            completed += 1
+                            if progress_fn and (completed % 25 == 0 or completed == total):
+                                pct = int((completed / max(total, 1)) * 100)
+                                progress_fn(
+                                    f"[edgar filings] {completed}/{total} tickers ({pct}%)"
+                                )
+                    except TimeoutError:
+                        stalled = [futures[future] for future in pending]
                         logger.warning(
-                            "EDGAR filings fetch crashed for %s: %s", ticker_norm, exc
+                            "EDGAR filings fetch timed out after %s sec for tickers: %s",
+                            timeout_seconds,
+                            stalled,
                         )
-                        per_ticker_stats = {
-                            "ticker": ticker_norm,
-                            "raw_count": 0,
-                            "kept_count": 0,
-                            "duration_ms": 0,
-                            "fetch_ms": 0,
-                            "cik": "",
-                        }
                         if progress_fn:
                             progress_fn(
-                                f"[edgar filings] error {ticker_norm}: {exc}"
+                                "[edgar filings] timeout waiting for tickers: {}".format(
+                                    ", ".join(stalled)
+                                )
                             )
-                        batch = []
-
-                    _handle_batch(batch, ticker_norm, per_ticker_stats)
-
-                    completed += 1
-                    if progress_fn and (completed % 25 == 0 or completed == total):
-                        pct = int((completed / max(total, 1)) * 100)
-                        progress_fn(
-                            f"[edgar filings] {completed}/{total} tickers ({pct}%)"
-                        )
+                        for future in list(pending):
+                            future.cancel()
+                        for ticker_norm in stalled:
+                            timeout_stats = {
+                                "ticker": ticker_norm,
+                                "raw_count": 0,
+                                "kept_count": 0,
+                                "duration_ms": timeout_seconds * 1000,
+                                "fetch_ms": 0,
+                                "cik": "",
+                            }
+                            _handle_batch([], ticker_norm, timeout_stats)
+                        pending.clear()
+                        break
 
         rl_wait = 0.0
         with self._rate_limit_lock:
