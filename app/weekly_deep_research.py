@@ -150,6 +150,8 @@ def classify_dilution_filing(filing: Filing) -> str:
         "registered direct offering",
         "sell shares",
     ]
+    # Only treat strong termination phrases as overhang removal; boilerplate "may be terminated"
+    # is deliberately excluded so creation language still wins.
     termination_keywords = [
         "has been terminated",
         "is hereby terminated",
@@ -163,10 +165,10 @@ def classify_dilution_filing(filing: Filing) -> str:
         "program has expired",
     ]
 
-    if any(keyword in lower_text for keyword in creation_keywords):
-        return DILUTION_CREATION
     if any(keyword in lower_text for keyword in termination_keywords):
         return DILUTION_TERMINATION
+    if any(keyword in lower_text for keyword in creation_keywords):
+        return DILUTION_CREATION
     return DILUTION_UNKNOWN
 
 
@@ -283,38 +285,18 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
         }
 
     events_sorted = sorted(events, key=_event_sort_key, reverse=True)
-    latest_creation = next(
-        (ev for ev in events_sorted if ev["classification"] == DILUTION_CREATION), None
-    )
-    latest_termination = next(
-        (ev for ev in events_sorted if ev["classification"] == DILUTION_TERMINATION), None
-    )
-    latest_unknown = next((ev for ev in events_sorted if ev["classification"] == DILUTION_UNKNOWN), None)
 
-    def _is_more_recent(a: Optional[dict], b: Optional[dict]) -> bool:
-        if a is None:
+    def _overhang_from_event(event: dict) -> bool:
+        classification = event.get("classification")
+        if classification == DILUTION_TERMINATION:
             return False
-        if b is None:
+        if classification == DILUTION_CREATION:
             return True
-        return _event_sort_key(a) >= _event_sort_key(b)
-
-    driver_event: Optional[dict] = None
-    overhang_present: Optional[bool] = None
-
-    if _is_more_recent(latest_creation, latest_termination):
-        driver_event = latest_creation
-        overhang_present = True
-    elif _is_more_recent(latest_termination, latest_creation):
-        driver_event = latest_termination
-        overhang_present = False
-    elif latest_unknown:
-        driver_event = latest_unknown
         # Default to caution: unknown dilution filings usually introduce overhang.
-        overhang_present = True
+        return True
 
-    if driver_event is None:
-        driver_event = events_sorted[0]
-        overhang_present = True
+    driver_event = events_sorted[0]
+    overhang_present = _overhang_from_event(driver_event)
 
     evidence_candidates = [driver_event.get("url", ""), *(ev.get("url", "") for ev in events_sorted)]
     evidence = _aggregate_evidence(evidence_candidates)
