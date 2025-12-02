@@ -32,7 +32,7 @@ from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
 from app.http import HttpClient
 from app.lockfile import clear_lock, create_lock, is_locked
-from app.logging_utils import setup_logging
+from app.logging_utils import log_diag, setup_logging
 from app.pipeline_metrics import dropoff_stats, stage_stats
 from app.shortlist import build_shortlist
 from app.filings_filters import (
@@ -48,6 +48,18 @@ from deep_research import run as deep_research_run
 
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        val = float(value)
+        if np.isnan(val):
+            return None
+        return val
+    except Exception:
+        return None
 
 
 def _log_stage_metrics(stage: str, records) -> None:
@@ -623,6 +635,21 @@ def _apply_runway_gate_to_filings(
         passed, reason = _forms_support_runway(forms, country)
         if passed:
             eligible.add(ticker)
+            info = ticker_details.get(
+                ticker,
+                {"forms_normalized": set(), "urls": []},
+            )
+            log_diag(
+                stage="runway",
+                ticker=ticker,
+                cik=None,
+                decision="runway_selected",
+                details="core filings satisfied",
+                fields={
+                    "forms": sorted(info.get("forms_normalized", [])),
+                    "country": country,
+                },
+            )
             return
 
         info = ticker_details.setdefault(
@@ -635,6 +662,17 @@ def _apply_runway_gate_to_filings(
             info,
             country,
             normalized_forms=forms,
+        )
+        log_diag(
+            stage="runway",
+            ticker=ticker,
+            cik=None,
+            decision="runway_missing",
+            details=reason,
+            fields={
+                "forms": sorted(forms),
+                "country": country,
+            },
         )
 
     for ticker in candidate_tickers:
@@ -824,6 +862,24 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
     df_prof = pd.DataFrame(prof_rows)
 
+    def _log_universe_decision(row: pd.Series, decision: str, reason: str) -> None:
+        ticker_val = str(row.get("Ticker", "")).strip().upper()
+        if not ticker_val:
+            return
+        log_diag(
+            stage="universe",
+            ticker=ticker_val,
+            cik=str(row.get("CIK", "")).strip() or None,
+            decision=decision,
+            details=reason,
+            fields={
+                "exchange": str(row.get("Exchange", "")),
+                "price": _safe_float(row.get("Price")) or _safe_float(row.get("Close")),
+                "adv20": _safe_float(row.get("ADV20")),
+                "market_cap": _safe_float(row.get("MarketCap")),
+            },
+        )
+
     if not df_prof.empty:
         industry_series = (
             df_prof.get("Industry", pd.Series(dtype="object"))
@@ -835,6 +891,8 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
         shell_mask = industry_series == "shell companies"
         dropped_shell = int(shell_mask.sum())
         if dropped_shell > 0:
+            for _, shell_row in df_prof.loc[shell_mask].iterrows():
+                _log_universe_decision(shell_row, "gate_fail", "shell_company")
             df_prof = df_prof.loc[~shell_mask].copy()
             _emit(
                 progress_fn,
@@ -943,6 +1001,8 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
             )
             dropped_bad = int(bad_quote_mask.sum())
             if dropped_bad > 0:
+                for _, bad_row in df_prof.loc[bad_quote_mask].iterrows():
+                    _log_universe_decision(bad_row, "gate_fail", "missing_or_bad_quote")
                 df_prof = df_prof.loc[~bad_quote_mask].copy()
                 _emit(
                     progress_fn,
@@ -998,6 +1058,8 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
 
             dropped = int(drop_mask.sum())
             if dropped > 0:
+                for _, drop_row in df_prof.loc[drop_mask].iterrows():
+                    _log_universe_decision(drop_row, "gate_fail", "spread_cap")
                 df_prof = df_prof.loc[~drop_mask].copy()
                 _emit(
                     progress_fn,
@@ -1014,6 +1076,9 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     )
     _log_step(runlog, "profiles", rows_added, t0, "append+purge")
     _emit(progress_fn, f"profiles: done {rows_added} new rows {client.stats_string()}")
+
+    for _, pass_row in df_prof.iterrows():
+        _log_universe_decision(pass_row, "gate_pass", "universe_pass")
 
     return pd.read_csv(csv_path(cfg["Paths"]["data"], "profiles"), encoding="utf-8")
 

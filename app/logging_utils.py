@@ -6,8 +6,10 @@ edgar_core and WEEKLY modules emit to a file handler for diagnostics.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from datetime import datetime
 from typing import Iterable
 
 from app.config import load_config
@@ -55,4 +57,64 @@ def setup_logging() -> None:
     _LOGGING_CONFIGURED = True
 
 
-__all__ = ["setup_logging"]
+__all__ = ["setup_logging", "log_diag"]
+
+
+_DIAG_CONFIG: dict | None = None
+
+
+def _diagnostics_settings(cfg: dict | None = None) -> dict:
+    global _DIAG_CONFIG
+
+    if _DIAG_CONFIG is not None:
+        return _DIAG_CONFIG
+
+    if cfg is None:
+        try:
+            cfg = load_config()
+        except Exception:
+            cfg = {}
+
+    diag_cfg = cfg.get("Diagnostics") or {}
+    enabled = bool(diag_cfg.get("Enabled"))
+    path = diag_cfg.get("Path") or os.path.join(
+        cfg.get("Paths", {}).get("data", "data"), "run_diagnostics.jsonl"
+    )
+
+    _DIAG_CONFIG = {"enabled": enabled, "path": path}
+    return _DIAG_CONFIG
+
+
+def log_diag(
+    *,
+    stage: str,
+    ticker: str,
+    cik: str | None,
+    decision: str,
+    details: str,
+    fields: dict | None = None,
+    cfg: dict | None = None,
+) -> None:
+    settings = _diagnostics_settings(cfg)
+    if not settings.get("enabled"):
+        return
+
+    record = {
+        "ts": datetime.utcnow().isoformat() + "Z",
+        "stage": stage,
+        "ticker": ticker,
+        "cik": cik or "",
+        "decision": decision,
+        "details": details,
+        "fields": fields or {},
+    }
+
+    try:
+        path = settings.get("path") or "run_diagnostics.jsonl"
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False)
+            f.write("\n")
+    except Exception:
+        logger = logging.getLogger(__name__)
+        logger.debug("diagnostics logging failed", exc_info=True)

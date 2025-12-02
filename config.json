@@ -30,6 +30,10 @@
     "data": "./data",
     "logs": "./logs"
   },
+  "Diagnostics": {
+    "Enabled": false,
+    "Path": "data/run_diagnostics.jsonl"
+  },
   "Universe": {
     "Source": "SEC",
     "RefreshCadence": "weekly",

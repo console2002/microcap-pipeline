@@ -24,6 +24,15 @@ def load_config(path: str = "config.json") -> Dict[str, Any]:
     os.makedirs(cfg["Paths"]["data"], exist_ok=True)
     os.makedirs(cfg["Paths"]["logs"], exist_ok=True)
 
+    diag_cfg = cfg.get("Diagnostics") or {}
+    if not isinstance(diag_cfg, dict):
+        diag_cfg = {}
+    diag_cfg.setdefault(
+        "Path", os.path.join(cfg.get("Paths", {}).get("data", "data"), "run_diagnostics.jsonl")
+    )
+    diag_cfg.setdefault("Enabled", False)
+    cfg["Diagnostics"] = diag_cfg
+
     return cfg
 
 def save_config(cfg: Dict[str, Any], path: str = "config.json") -> None:
