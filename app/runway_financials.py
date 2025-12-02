@@ -122,20 +122,6 @@ def _infer_period_from_columns(df: pd.DataFrame) -> Optional[int]:
         return None
 
     value_cols = _value_columns(df)
-    parsed_dates = []
-    for col in value_cols:
-        try:
-            parsed = pd.to_datetime(col)
-        except Exception:
-            continue
-        parsed_dates.append(parsed)
-
-    if len(parsed_dates) >= 2:
-        parsed_dates.sort()
-        delta_months = abs(parsed_dates[-1] - parsed_dates[-2]).days / 30.0
-        for months in (3, 6, 9, 12):
-            if abs(delta_months - months) < 1.5:
-                return months
 
     for months, pattern in _PERIOD_PATTERNS.items():
         try:
