@@ -12,7 +12,31 @@ from app.config import load_config
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv, log_line, utc_now_iso
 
+# Validation gates are orchestrated in W4. The gate booleans below feed into
+# both Status and ValidationStatus for 40_validated_selections.csv. The current
+# W4 implementation uses the following decision flags:
+# - GATE_UNIVERSE: price/ADV20/cap hard gates are still respected at W4.
+# - GATE_MANDATORY_SUBSCORES: Dilution, Runway, Catalyst all scored with primary
+#   evidence; Secondary evidence is optional per weekly.txt.
+# - GATE_RUNWAY_NUMERIC: RunwayQuarters must be numeric and positive.
+# - GATE_SUBSCORE_COUNT: SubscoresEvidencedCount >= 4 as in W3.
+# - GATE_BIOTECH_PEER: biotech names require a positive peer read-through.
+# - GATE_MATERIALITY: materiality must not be a failing state.
+#
+# Status/ValidationStatus are set to "Validated" only when every gate above is
+# true; otherwise they are marked "TBD - exclude" with an aggregated Reason.
+# Mandatory score fields originate from 30_deep_research.csv (W3) and are
+# optionally enriched with overlapping fields from 01_universe_gated.csv and
+# 20_candidate_shortlist.csv during the merge below.
 MANDATORY_FIELDS = ["RunwayQuarters", "Dilution", "Catalyst"]
+VALIDATION_GATE_ORDER = [
+    "GATE_UNIVERSE",
+    "GATE_MANDATORY_SUBSCORES",
+    "GATE_RUNWAY_NUMERIC",
+    "GATE_SUBSCORE_COUNT",
+    "GATE_BIOTECH_PEER",
+    "GATE_MATERIALITY",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +80,23 @@ def _has_value(val) -> bool:
     return pd.notna(val) and str(val).strip() not in {"", "nan", "TBD", "Unknown"}
 
 
+def _first_available_value(row: pd.Series, keys: List[str]):
+    for key in keys:
+        if key in row:
+            val = row.get(key)
+            if pd.notna(val):
+                return val
+    return None
+
+
+def _coerce_float(value) -> float | None:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if pd.isna(numeric) else numeric
+
+
 def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bool:
     if isinstance(value_fields, str):
         value_fields = [value_fields]
@@ -79,25 +120,30 @@ def _materiality_passed(materiality: str) -> bool:
     return lowered.startswith("pass")
 
 
-def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], int]:
-    dilution_ok = _subscore_evidenced(row, ["Dilution", "DilutionScore"], "DilutionEvidencePrimary")
+def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str, str], int, float | None]:
+    dilution_value = _first_available_value(row, ["Dilution", "DilutionScore"])
+    dilution_scored = _has_value(dilution_value)
+    dilution_evidence = _has_value(row.get("DilutionEvidencePrimary"))
 
-    def _parse_runway(row: pd.Series) -> float | None:
-        for field in ["RunwayQuarters", "Runway (qtrs)"]:
-            value = row.get(field)
-            try:
-                numeric = float(value)
-            except (TypeError, ValueError):
-                continue
-            if pd.notna(numeric) and numeric > 0:
-                return numeric
-        return None
-
-    runway_value = _parse_runway(row)
+    runway_value = None
+    for field in ["RunwayQuarters", "Runway (qtrs)"]:
+        runway_value = _coerce_float(row.get(field))
+        if runway_value is not None:
+            break
+    runway_numeric_ok = runway_value is not None and runway_value > 0
     runway_evidence_ok = _has_value(row.get("RunwayEvidencePrimary"))
-    runway_ok = runway_value is not None and runway_evidence_ok
 
-    catalyst_ok = _subscore_evidenced(row, ["Catalyst", "CatalystScore"], "CatalystEvidencePrimary")
+    catalyst_value = _first_available_value(
+        row,
+        ["Catalyst", "CatalystScore", "PrimaryCatalystType"],
+    )
+    catalyst_scored = _has_value(catalyst_value)
+    catalyst_evidence = any(
+        _has_value(row.get(field))
+        for field in ["CatalystEvidencePrimary", "PrimaryCatalystURL", "PrimarySource"]
+    )
+
+    mandatory_subscores_ok = dilution_scored and dilution_evidence and runway_evidence_ok and catalyst_scored and catalyst_evidence
 
     subscore_count = int(row.get("Subscores Evidenced (x/5)", row.get("SubscoresEvidencedCount", 0)) or 0)
 
@@ -107,24 +153,61 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], int]:
     biotech_peer = str(
         row.get("BiotechPeerRead", row.get("Biotech Peer Read-Through (Y/N + link)", ""))
     ).strip()
-    biotech_peer_upper = biotech_peer.upper()
     biotech_candidate = is_biotech(str(row.get("Sector", "")), str(row.get("Industry", "")))
 
-    if BIOTECH_PEER_REQUIRED_FOR_VALIDATION and biotech_candidate:
-        biotech_ok = biotech_peer_upper.startswith("Y_")
+    def _biotech_peer_pass(peer_value: str) -> bool:
+        normalized = str(peer_value or "").strip().upper()
+        return normalized.startswith("Y") or normalized.startswith("PASS") or normalized.startswith("OK")
+
+    if biotech_candidate:
+        biotech_ok = _biotech_peer_pass(biotech_peer)
     else:
-        biotech_needs_peer = biotech_peer_upper.startswith("Y") or biotech_peer_upper.startswith("TBD")
-        biotech_ok = not (biotech_needs_peer and biotech_peer_upper.startswith("TBD"))
+        biotech_ok = True
+
+    price_value = _coerce_float(_first_available_value(row, ["Price", "DiscoveryPrice", "Close"]))
+    adv_value = _coerce_float(_first_available_value(row, ["ADV20", "ADV20_k"]))
+    cap_value = _coerce_float(_first_available_value(row, ["MarketCap", "Cap_Musd", "Cap($M)"]))
+
+    universe_failures: list[str] = []
+    if price_value is None or price_value < 1.0:
+        universe_failures.append("Price<1")
+    if adv_value is None or adv_value < 40_000:
+        universe_failures.append("ADV<40k")
+    if cap_value is None or cap_value >= 400_000_000:
+        universe_failures.append("Cap≥400M")
+    universe_ok = len(universe_failures) == 0
 
     gates = {
-        "C1": runway_ok,
-        "C2": dilution_ok,
-        "C3": catalyst_ok,
-        "C4": subscore_count >= 4,
-        "C5": biotech_ok,
-        "C6": materiality_ok,
+        "GATE_UNIVERSE": universe_ok,
+        "GATE_MANDATORY_SUBSCORES": mandatory_subscores_ok,
+        "GATE_RUNWAY_NUMERIC": runway_numeric_ok,
+        "GATE_SUBSCORE_COUNT": subscore_count >= 4,
+        "GATE_BIOTECH_PEER": biotech_ok,
+        "GATE_MATERIALITY": materiality_ok,
     }
-    return gates, subscore_count
+
+    reasons = {
+        "GATE_UNIVERSE": ", ".join(universe_failures) if universe_failures else "",
+        "GATE_MANDATORY_SUBSCORES": "; ".join(
+            [
+                msg
+                for msg in [
+                    None if dilution_scored else "Dilution missing/unknown",
+                    None if dilution_evidence else "Dilution evidence missing",
+                    None if runway_evidence_ok else "Runway evidence missing",
+                    None if catalyst_scored else "Catalyst missing/unknown",
+                    None if catalyst_evidence else "Catalyst evidence missing",
+                ]
+                if msg
+            ]
+        ),
+        "GATE_RUNWAY_NUMERIC": "Runway missing/invalid" if not runway_numeric_ok else "",
+        "GATE_SUBSCORE_COUNT": "Subscores <4/5" if subscore_count < 4 else "",
+        "GATE_BIOTECH_PEER": "Biotech peer read missing/failed" if biotech_candidate and not biotech_ok else "",
+        "GATE_MATERIALITY": "Materiality fail" if not materiality_ok else "",
+    }
+
+    return gates, reasons, subscore_count, runway_value
 
 
 def summarize_validation_gates(df_deep: pd.DataFrame) -> dict:
@@ -134,24 +217,14 @@ def summarize_validation_gates(df_deep: pd.DataFrame) -> dict:
     Returns a dict with at least:
         {
             "N_rows": int,
-            "C1_pass": int,
-            "C1_fail": int,
-            "C2_pass": int,
-            "C2_fail": int,
-            "C3_pass": int,
-            "C3_fail": int,
-            "C4_pass": int,
-            "C4_fail": int,
-            "C5_pass": int,
-            "C5_fail": int,
-            "C6_pass": int,
-            "C6_fail": int,
+            "{gate}_pass": int,
+            "{gate}_fail": int,
             "N_validated_all_true": int,
             "N_any_gate_false": int,
         }
     """
 
-    gate_labels = ["C1", "C2", "C3", "C4", "C5", "C6"]
+    gate_labels = VALIDATION_GATE_ORDER
     stats = {"N_rows": len(df_deep), "N_validated_all_true": 0, "N_any_gate_false": 0}
 
     for label in gate_labels:
@@ -159,7 +232,7 @@ def summarize_validation_gates(df_deep: pd.DataFrame) -> dict:
         stats[f"{label}_fail"] = 0
 
     for _, row in df_deep.iterrows():
-        gates, _ = _compute_validation_gates(row)
+        gates, _, _, _ = _compute_validation_gates(row)
         all_true = all(gates.values())
         if all_true:
             stats["N_validated_all_true"] += 1
@@ -178,26 +251,13 @@ def summarize_validation_gates(df_deep: pd.DataFrame) -> dict:
 def evaluate_validation(row: pd.Series) -> Tuple[str, str]:
     """Return (status, reason) using W3/W4 gating rules."""
 
-    gates, subscore_count = _compute_validation_gates(row)
+    gates, reasons, _, _ = _compute_validation_gates(row)
 
     if all(gates.values()):
         return "Validated", ""
 
-    missing_reasons = []
-    if not gates["C1"]:
-        missing_reasons.append("Mandatory subscore missing: Runway")
-    if not gates["C2"]:
-        missing_reasons.append("Mandatory subscore missing: Dilution")
-    if not gates["C3"]:
-        missing_reasons.append("Mandatory subscore missing: Catalyst")
-    if not gates["C4"]:
-        missing_reasons.append("Subscores <4/5")
-    if not gates["C5"]:
-        missing_reasons.append("Biotech peer missing")
-    if not gates["C6"]:
-        missing_reasons.append("Materiality fail")
-
-    reason = "; ".join(missing_reasons) if missing_reasons else "Did not meet validation rule"
+    missing_reasons = [reasons.get(label, "") for label in VALIDATION_GATE_ORDER if not gates.get(label)]
+    reason = "; ".join([r for r in missing_reasons if r]) or "Did not meet validation rule"
     return "TBD - exclude", reason
 
 
@@ -285,12 +345,24 @@ def build_validated_selections(
 
     statuses: List[str] = []
     reasons: List[str] = []
+    gate_flags: Dict[str, List[bool]] = {label: [] for label in VALIDATION_GATE_ORDER}
     for _, row in merged.iterrows():
-        status, reason = evaluate_validation(row)
+        gates, gate_reasons, _, _ = _compute_validation_gates(row)
+        if all(gates.values()):
+            status, reason = "Validated", ""
+        else:
+            reason_parts = [gate_reasons.get(label, "") for label in VALIDATION_GATE_ORDER if not gates.get(label)]
+            reason = "; ".join([part for part in reason_parts if part]) or "Did not meet validation rule"
+            status = "TBD - exclude"
         statuses.append(status)
         reasons.append(reason)
+        for label in VALIDATION_GATE_ORDER:
+            gate_flags[label].append(bool(gates.get(label)))
+
     merged["Status"] = statuses
     merged["Reason"] = reasons
+    for label in VALIDATION_GATE_ORDER:
+        merged[label] = gate_flags[label]
 
     validated = merged[merged["Status"] == "Validated"].copy()
     exclusions = merged[merged["Status"] != "Validated"].copy()
@@ -332,6 +404,8 @@ def build_validated_selections(
         "SecondarySource",
         "Status",
         "ValidationStatus",
+        # Optional gate debug fields to align 40_validated with weekly.txt.
+        *VALIDATION_GATE_ORDER,
     ]
     exclusion_fields = [
         "Ticker",
@@ -342,13 +416,8 @@ def build_validated_selections(
         "Reason",
         "Materiality",
         "Status",
+        *VALIDATION_GATE_ORDER,
     ]
-
-    def _first_available(row: pd.Series, keys: list[str]):
-        for key in keys:
-            if key in row and pd.notna(row.get(key)):
-                return row.get(key)
-        return None
 
     validated_output: List[dict] = []
     for _, r in validated.iterrows():
@@ -360,7 +429,7 @@ def build_validated_selections(
         secondary_links = (
             str(secondary_raw).split(";") if pd.notna(secondary_raw) and str(secondary_raw).strip() else []
         )
-        primary_catalyst_url = _first_available(
+        primary_catalyst_url = _first_available_value(
             r, ["PrimaryCatalystURL", "PrimarySource", "PrimaryFilingURL"]
         )
         validated_output.append(
@@ -371,10 +440,10 @@ def build_validated_selections(
                 "Sector": r.get("Sector"),
                 "Industry": r.get("Industry"),
                 "Venue": r.get("Venue"),
-                "Price": _first_available(r, ["Price", "DiscoveryPrice", "Close"]),
-                "MarketCap": _first_available(r, ["MarketCap", "Cap_Musd", "Cap($M)"]),
-                "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
-                "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
+                "Price": _first_available_value(r, ["Price", "DiscoveryPrice", "Close"]),
+                "MarketCap": _first_available_value(r, ["MarketCap", "Cap_Musd", "Cap($M)"]),
+                "ADV20": _first_available_value(r, ["ADV20", "ADV20_k"]),
+                "Runway (qtrs)": _first_available_value(r, ["Runway (qtrs)", "RunwayQuarters"]),
                 "RunwayQuarters": r.get("RunwayQuarters"),
                 "RunwaySourceURL": r.get("RunwaySourceURL"),
                 "RunwaySourceFiledAt": r.get("RunwaySourceFiledAt"),
@@ -385,14 +454,14 @@ def build_validated_selections(
                 "BiotechPeerRead": r.get(
                     "BiotechPeerRead", r.get("Biotech Peer Read-Through (Y/N + link)")
                 ),
-                "SubscoresEvidencedCount": _first_available(
+                "SubscoresEvidencedCount": _first_available_value(
                     r, ["SubscoresEvidencedCount", "Subscores Evidenced (x/5)"]
                 ),
                 "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
                 "ConvictionScore": r.get("ConvictionScore"),
-                "PrimaryCatalystDate": _first_available(r, ["PrimaryCatalystDate", "EventDate"]),
-                "PrimaryCatalystType": _first_available(r, ["PrimaryCatalystType", "CatalystType"]),
-                "PrimaryCatalystTier": _first_available(r, ["PrimaryCatalystTier", "EventTier"]),
+                "PrimaryCatalystDate": _first_available_value(r, ["PrimaryCatalystDate", "EventDate"]),
+                "PrimaryCatalystType": _first_available_value(r, ["PrimaryCatalystType", "CatalystType"]),
+                "PrimaryCatalystTier": _first_available_value(r, ["PrimaryCatalystTier", "EventTier"]),
                 "PrimaryCatalystURL": primary_catalyst_url,
                 "RunwayEvidencePrimary": r.get("RunwayEvidencePrimary"),
                 "DilutionEvidencePrimary": r.get("DilutionEvidencePrimary"),
@@ -408,6 +477,7 @@ def build_validated_selections(
                 "Status": r.get("Status", "Validated"),
                 # Legacy mirror of Status kept for compatibility with older consumers.
                 "ValidationStatus": r.get("Status", "Validated"),
+                **{label: bool(r.get(label)) for label in VALIDATION_GATE_ORDER},
             }
         )
 
@@ -423,21 +493,19 @@ def build_validated_selections(
                 "Reason": r.get("Reason", "Did not meet validation rule"),
                 "Materiality": r.get("Materiality", r.get("Materiality (pass/fail + note)")),
                 "Status": r.get("Status"),
+                **{label: bool(r.get(label)) for label in VALIDATION_GATE_ORDER},
             }
         )
 
     stats = summarize_validation_gates(merged)
+    gate_parts = [f"{label}={stats[f'{label}_pass']}/{stats[f'{label}_fail']}" for label in VALIDATION_GATE_ORDER]
+    gate_text = " ".join(gate_parts)
     msg = (
         "WEEKLY_VALIDATION "
         f"N_rows={stats['N_rows']} "
         f"N_validated_all_true={stats['N_validated_all_true']} "
         f"N_any_gate_false={stats['N_any_gate_false']} "
-        f"C1={stats['C1_pass']}/{stats['C1_fail']} "
-        f"C2={stats['C2_pass']}/{stats['C2_fail']} "
-        f"C3={stats['C3_pass']}/{stats['C3_fail']} "
-        f"C4={stats['C4_pass']}/{stats['C4_fail']} "
-        f"C5={stats['C5_pass']}/{stats['C5_fail']} "
-        f"C6={stats['C6_pass']}/{stats['C6_fail']}"
+        f"{gate_text}"
     )
     logger.info(msg)
     _log_progress_line(msg, progress_fn)

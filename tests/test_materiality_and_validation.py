@@ -102,6 +102,9 @@ def test_validation_reasons_and_pass_fail():
     base_row = {
         "Ticker": "AAA",
         "CIK": "0000000001",
+        "Price": 2.0,
+        "ADV20": 50_000,
+        "MarketCap": 200_000_000,
         "RunwayQuarters": 3.0,
         "Runway (qtrs)": "3.0",
         "RunwayEvidencePrimary": "https://example.com/runway",
@@ -123,7 +126,7 @@ def test_validation_reasons_and_pass_fail():
     missing_runway["Runway (qtrs)"] = ""
     status, reason = evaluate_validation(pd.Series(missing_runway))
     assert status.startswith("TBD")
-    assert "Mandatory subscore missing: Runway" in reason
+    assert "Runway missing/invalid" in reason
 
     weak_materiality = base_row.copy()
     weak_materiality["Materiality"] = "FAIL - weak profile"
