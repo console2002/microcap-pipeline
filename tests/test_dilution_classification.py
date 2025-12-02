@@ -66,6 +66,13 @@ def test_classify_dilution_filing_reads_exhibits() -> None:
     assert classify_dilution_filing(filing) == DILUTION_CREATION
 
 
+def test_classify_dilution_filing_preserves_exhibits_on_truncation() -> None:
+    long_body = "A" * 50_000
+    exhibit = _StubExhibit("EX-10.1", "The sales agreement has been terminated effective immediately.")
+    filing = _StubFiling(text=long_body, exhibits=[exhibit])
+    assert classify_dilution_filing(filing) == DILUTION_TERMINATION
+
+
 def test_dilution_details_prefers_most_recent_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
     from app import weekly_deep_research as wdr
 

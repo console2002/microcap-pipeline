@@ -94,7 +94,9 @@ def _extract_filing_text(filing: Filing, max_chars: int = 40_000) -> str:
 
     We favor ``Filing.text()`` and fall back to ``html()`` if necessary.
     Select exhibits (EX-1.*, EX-10.*) are appended to capture sales
-    agreements or terminations that sometimes live in exhibits.
+    agreements or terminations that sometimes live in exhibits. The body is
+    truncated first to preserve budget for exhibits so they are always
+    scanned.
     """
 
     text_blob = ""
@@ -119,7 +121,20 @@ def _extract_filing_text(filing: Filing, max_chars: int = 40_000) -> str:
         except Exception:
             continue
 
-    combined = "\n\n".join(part for part in [text_blob, *exhibit_texts] if part)
+    max_body_chars = int(max_chars * 0.7)
+    body_part = (text_blob or "")[:max_body_chars]
+    remaining = max(max_chars - len(body_part), 0)
+
+    parts: list[str] = [body_part] if body_part else []
+    for exhibit_text in exhibit_texts:
+        if remaining <= 0:
+            break
+        snippet = exhibit_text[:remaining]
+        if snippet:
+            parts.append(snippet)
+            remaining -= len(snippet)
+
+    combined = "\n\n".join(part for part in parts if part)
     return combined[:max_chars]
 
 
