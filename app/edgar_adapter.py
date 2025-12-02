@@ -31,6 +31,8 @@ from app.runway_financials import (
     compute_runway_from_financials,
 )
 from app.universe_filters import load_drop_filters, should_drop_record
+from parse.postproc import finalize_runway_result
+from parse.units import round_half_up
 
 
 logger = logging.getLogger(__name__)
@@ -667,18 +669,52 @@ class EdgarAdapter:
             or ""
         )
 
-        return {
-            "runway_quarters": computation.runway_quarters,
-            "period_months": computation.period_months,
-            "cash": computation.cash,
-            "ocf": computation.ocf,
-            "reason_code": computation.reason_code,
-            "reason_detail": computation.reason_detail,
-            "filing_date": getattr(filing, "filing_date", ""),
-            "filing_url": source_url,
-            "form_type": getattr(filing, "form", form_hint),
-            "source_tags": ["XBRL"],
-        }
+        period_months = computation.period_months
+        ocf_quarterly = None
+        ocf_for_finalize = computation.ocf if period_months else None
+        if ocf_for_finalize is not None:
+            try:
+                quarters = period_months / 3.0
+                ocf_quarterly = ocf_for_finalize / quarters if quarters else None
+            except Exception:
+                ocf_quarterly = None
+
+        result = finalize_runway_result(
+            cash=computation.cash,
+            ocf_raw=ocf_for_finalize,
+            ocf_quarterly=ocf_quarterly,
+            period_months=period_months,
+            assumption="edgartools financials",
+            note=computation.reason_detail or "",
+            form_type=getattr(filing, "form", form_hint),
+            units_scale=1,
+            status="OK" if computation.reason_code == RUNWAY_REASON_OK else computation.reason_code,
+            source_tags=["XBRL"],
+        )
+
+        if computation.runway_quarters is not None:
+            result["runway_quarters_raw"] = computation.runway_quarters
+            result["runway_quarters"] = round_half_up(computation.runway_quarters)
+            result["runway_quarters_display"] = round_half_up(computation.runway_quarters, 2)
+            result["runway_months_display"] = round_half_up(computation.runway_quarters * 3, 2)
+
+        result.update(
+            {
+                "period_months": period_months,
+                "cash": computation.cash,
+                "ocf": computation.ocf,
+                "reason_code": computation.reason_code,
+                "reason_detail": computation.reason_detail,
+                "filing_date": getattr(filing, "filing_date", ""),
+                "filing_url": source_url,
+                "form_type": getattr(filing, "form", form_hint),
+                "source_tags": ["XBRL"],
+            }
+        )
+
+        result.setdefault("runway_quarters", computation.runway_quarters)
+
+        return result
 
     def stats_string(self) -> str:
         if not self.rate_limiter:
