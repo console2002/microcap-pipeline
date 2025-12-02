@@ -77,7 +77,7 @@ W2.3 Candidate Shortlist
     - Price, MarketCap, ADV20
     - PrimaryCatalystType, PrimaryCatalystDate
     - PrimaryFilingURL (EDGAR)
-    - Any secondary link if already known (PR/Reuters/etc., optional at this stage).
+    - Secondary link (NOT IMPLEMENTED) – reserved for future secondary evidence (PR/Reuters/etc.). May be left blank; current pipeline MUST NOT rely on this field for any gating or scoring.
 
 # W3 – DEEP RESEARCH (SUBSCORES & MATERIALITY)
 
@@ -85,8 +85,8 @@ Goal: For each name in 20_candidate_shortlist.csv, compute 5 subscores + materia
 
 W3.1 Evidence model
 - Each subscore requires:
-  - Primary evidence: SEC / registry source (10-Q/K, 20-F, 6-K, 8-K, S-3, etc.).
-  - Secondary evidence: company PR or major newswire (where applicable).
+  - Primary evidence (REQUIRED: SEC / registry source (10-Q/K, 20-F, 6-K, 8-K, S-3, etc.).
+  - Secondary evidence (NOT IMPLEMENTED):  – reserved for future secondary evidence (PR/Reuters/etc.). May be left blank; current pipeline MUST NOT rely on this field for any gating or scoring.
 - Mandatory subscores: Dilution, Runway, Catalyst.
 - Optional but preferred: Governance, Insider.
 - For foreign filers, treat 20-F and 6-K (and exhibits) as analogues to 10-K/10-Q.
@@ -105,7 +105,7 @@ W3.2 Subscores definitions (per ticker)
 - Store:
   - RunwayQuarters (numeric).
   - RunwayEvidencePrimary (EDGAR URLs, section refs).
-  - RunwayEvidenceSecondary (if used).
+  - RunwayEvidenceSecondary (NOT IMPLEMENTED) – reserved for future secondary evidence (PR/Reuters/etc.). May be left blank; current pipeline MUST NOT rely on this field for any gating or scoring..
 
 2) Dilution / Overhang
 - Sources:
@@ -117,7 +117,7 @@ W3.2 Subscores definitions (per ticker)
   - DilutionScore (string/enum).
   - LastDilutionEventDate.
   - DilutionEvidencePrimary (filing URLs).
-  - DilutionEvidenceSecondary.
+  - DilutionEvidenceSecondary (NOT IMPLEMENTED) – reserved for future secondary evidence (PR/Reuters/etc.). May be left blank; current pipeline MUST NOT rely on this field for any gating or scoring.
 
 3) Catalyst
 - Based on:
@@ -126,7 +126,8 @@ W3.2 Subscores definitions (per ticker)
 - Score:
   - CatalystScore (e.g. Tier-1, Tier-2, None).
   - CatalystWindow (date range if needed).
-- Store primary/secondary evidence URLs.
+  - CatalystEvidencePrimary – REQUIRED. EDGAR/official source URLs used for Catalyst scoring.
+  - CatalystEvidenceSecondary – NOT IMPLEMENTED. Reserved for future secondary evidence (PR/Reuters/etc.); optional/blank and MUST NOT be used for any gating or scoring.
 
 4) Governance
 - Sources:
@@ -181,7 +182,8 @@ W3.5 W3 output CSV
   - Materiality
   - ConvictionScore (optional)
   - EvidencePrimary (one or more EDGAR URLs, possibly semicolon-separated)
-  - EvidenceSecondary (optional)
+  - EvidenceSecondary (NOT IMPLEMENTED) – reserved for future secondary evidence (PR/Reuters/etc.). May be left blank; current pipeline MUST NOT rely on this field for any gating or scoring.
+
   - Status (to be used by W4; see below)
 
 # W4 – VALIDATED CANDIDATE SET (FINAL WEEKLY SELECTIONS)
