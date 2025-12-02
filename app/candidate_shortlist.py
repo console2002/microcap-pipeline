@@ -45,14 +45,21 @@ def _select_primary_event(events: pd.DataFrame) -> dict:
     events["event_date"] = events.get("event_date")
     events["event_type"] = events.get("event_type", events.get("EventType", ""))
 
-    events["_tier_rank"] = events["event_tier"].apply(_tier_rank)
     events["_event_dt"] = pd.to_datetime(events["event_date"], errors="coerce")
-    events.sort_values([
-        "_tier_rank",
-        "_event_dt",
-        "event_date",
-    ], ascending=[False, False, False], inplace=True)
-    primary = events.iloc[0]
+
+    tier1 = events[events["event_tier"].str.contains("1", case=False, na=False)]
+    tier2 = events[events["event_tier"].str.contains("2", case=False, na=False)]
+
+    def _pick_latest(df: pd.DataFrame) -> pd.Series | None:
+        if df.empty:
+            return None
+        return df.sort_values(["_event_dt", "event_date"], ascending=[False, False]).iloc[0]
+
+    primary = _pick_latest(tier1)
+    if primary is None:
+        primary = _pick_latest(tier2)
+    if primary is None:
+        primary = _pick_latest(events) or events.iloc[0]
     return {
         "CatalystType": primary.get("event_type", ""),
         "EventDate": primary.get("event_date", ""),

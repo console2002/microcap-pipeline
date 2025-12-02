@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from edgar_core.eight_k import classify_event
+from edgar_core.eight_k import classify_eight_k_event
 
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
@@ -720,52 +720,48 @@ def _format_event_label(event: EightKEvent) -> str:
 
 
 def _classify_eight_k(parsed: EdgarEightKParseResult) -> dict:
+    """Translate parsed 8-K content into catalyst/dilution labels.
+
+    Inputs: ``EdgarEightKParseResult`` populated by edgartools ``Filing.obj()``
+    (EightK + Filing.exhibits + press releases). Outputs: normalized fields used
+    in ``_build_eight_k_event`` → ``_write_canonical_events`` → ``09_events.csv``
+    (e.g., EventType/EventTier/CatalystType/Tier1Type/Tier1Trigger).
+    """
+
     items = parsed.items_normalized
     actionable_items = [item for item in items if not item.startswith("9.01")]
-    event_text = (parsed.event_text or "").lower()
 
     if not actionable_items and not parsed.has_press_release:
         return {"ignore_reason": "no_actionable_items"}
 
-    dilution_tags: list[str] = []
-    dilution_keyword_map = {
-        "registered direct": "registered_direct",
-        "securities purchase agreement": "spa",
-        "purchase agreement": "purchase_agreement",
-        "underwriting agreement": "underwriting_agreement",
-        "subscription agreement": "subscription_agreement",
-        "at-the-market": "atm",
-        "equity line": "equity_line",
-        "convertible": "convertible",
-        "warrant": "warrant",
-        "offering": "offering",
-    }
-
-    for keyword, tag in dilution_keyword_map.items():
-        if keyword in event_text:
-            dilution_tags.append(tag)
+    classification = classify_eight_k_event(
+        parsed.eight_k, parsed.filing, parsed.event_text or parsed.press_release_text
+    )
 
     dilution_items = ("1.01", "1.02", "3.02")
-    is_dilution = any(item.startswith(dilution_items) for item in actionable_items) or bool(dilution_tags)
+    is_dilution = bool(classification.get("is_dilution")) or any(
+        item.startswith(dilution_items) for item in actionable_items
+    )
+    is_catalyst = (
+        classification.get("event_tier") in {"Tier-1", "Tier-2"}
+        or any(item.startswith("8.01") for item in actionable_items)
+        or parsed.has_press_release
+    )
 
-    catalyst_items = ("1.01", "1.02", "2.02", "5.02", "7.01", "8.01", "8.02", "8.03")
-    is_catalyst = is_dilution or any(item.startswith(catalyst_items) for item in actionable_items)
-    if not is_catalyst and parsed.has_press_release:
-        is_catalyst = True
-
-    classification = {
+    result = {
         "is_catalyst": is_catalyst,
         "is_dilution": is_dilution,
-        "dilution_tags": dilution_tags,
+        "dilution_tags": list(classification.get("dilution_tags") or []),
+        "tier": classification.get("event_tier"),
+        "tier1_type": classification.get("tier1_type"),
+        "tier1_trigger": classification.get("tier1_trigger"),
+        "event_type": classification.get("event_type"),
     }
 
-    if is_dilution:
-        classification["tier"] = "Tier-1"
-        classification["tier1_type"] = "Financing"
-    elif is_catalyst:
-        classification["tier"] = "Tier-2"
+    if result["tier"] not in {"Tier-1", "Tier-2"} and is_catalyst:
+        result["tier"] = "Tier-2"
 
-    return classification
+    return result
 
 
 def _best_tier(*tiers: str) -> str:
@@ -819,12 +815,6 @@ def _build_eight_k_event(
         if text and text not in dilution_tags:
             dilution_tags.append(text)
 
-    event_type_guess, heuristic_tier = classify_event(
-        _clean_text(getattr(parsed.filing, "form", "")) or "8-K",
-        parsed.items_normalized,
-        getattr(parsed, "event_text", ""),
-    )
-
     filing_date = _clean_text(getattr(parsed.filing, "filing_date", ""))
     if not filing_date:
         filed_at = getattr(row, "FiledAt", "")
@@ -844,10 +834,10 @@ def _build_eight_k_event(
     filing_url = _clean_text(getattr(row, "URL", "")) or _clean_text(getattr(parsed.filing, "url", ""))
     filing_url_txt = _clean_text(parsed.filing_url_txt)
 
-    event_tier = _best_tier(tier_raw, heuristic_tier)
-    event_type = event_type_guess
-    if classification.get("is_dilution") and event_tier != "Tier-1":
-        event_tier = "Tier-1"
+    event_tier = tier_raw if tier_raw in {"Tier-1", "Tier-2"} else "Other"
+    event_type = _clean_text(classification.get("event_type")) or "OtherEvent"
+    if classification.get("is_dilution") and event_tier == "Other":
+        event_tier = "Tier-2"
     if classification.get("is_dilution") and event_type == "OtherEvent":
         event_type = "Financing"
 

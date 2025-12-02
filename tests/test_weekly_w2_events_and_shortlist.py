@@ -5,10 +5,27 @@ from app.candidate_shortlist import build_candidate_shortlist
 from edgar_core.eight_k import classify_event
 
 
+class _FakeEightK:
+    def __init__(self, items, text):
+        self.items = items
+        self._text = text
+
+    def __getitem__(self, key):  # pragma: no cover - trivial delegation
+        return self._text
+
+
+class _FakeFiling:
+    def __init__(self):
+        self.exhibits = []
+
+
 def test_classify_event_and_canonical_table(tmp_path):
-    event_type, tier = classify_event("8-K", ["1.01"], "entered an at-the-market equity offering")
-    assert event_type == "ATM"
-    assert tier == "Tier-1"
+    event_type, tier = classify_event(
+        _FakeEightK(["1.01"], "entered an at-the-market equity offering"),
+        _FakeFiling(),
+    )
+    assert event_type == "ATM_CREATION"
+    assert tier == "Tier-2"
 
     events_df = pd.DataFrame(
         [
@@ -18,7 +35,7 @@ def test_classify_event_and_canonical_table(tmp_path):
                 "CIK": "0000000001",
                 "EventDate": "2024-05-01",
                 "FilingDate": "2024-05-01",
-                "EventType": "ATM",
+                "EventType": "ATM_TERMINATION",
                 "EventTier": "Tier-1",
                 "FilingURL": "https://www.sec.gov/aaa",
                 "Form": "8-K",
@@ -39,9 +56,25 @@ def test_classify_event_and_canonical_table(tmp_path):
     }
     assert required_cols.issubset(canonical.columns)
     row = canonical.iloc[0]
-    assert row["event_type"] == "ATM"
+    assert row["event_type"] == "ATM_TERMINATION"
     assert row["event_tier"] == "Tier-1"
     assert row["primary_source_url"].startswith("https://www.sec.gov")
+
+
+def test_atm_creation_vs_termination(tmp_path):
+    creation_type, creation_tier = classify_event(
+        _FakeEightK(["1.01", "8.01"], "entered into a sales agreement for an at-the-market offering"),
+        _FakeFiling(),
+    )
+    assert creation_type == "ATM_CREATION"
+    assert creation_tier == "Tier-2"
+
+    termination_type, termination_tier = classify_event(
+        _FakeEightK(["1.01"], "the sales agreement was terminated and no further sales will occur"),
+        _FakeFiling(),
+    )
+    assert termination_type == "ATM_TERMINATION"
+    assert termination_tier == "Tier-1"
 
 
 def test_build_candidate_shortlist_w2_columns(tmp_path):
