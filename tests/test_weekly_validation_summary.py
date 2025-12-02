@@ -2,11 +2,15 @@ import pandas as pd
 
 import pandas as pd
 
+import app.weekly_validated as weekly_validated
 from app.weekly_validated import evaluate_validation, summarize_validation_gates
 
 
 def _base_row():
     return {
+        "Price": 10.0,
+        "ADV20": 50_000,
+        "MarketCap": 100_000_000,
         "RunwayQuarters": 4,
         "Runway (qtrs)": 4,
         "RunwayEvidencePrimary": "http://runway",
@@ -25,60 +29,64 @@ def _base_row():
     }
 
 
-def test_summarize_validation_gates_counts():
+def test_summarize_validation_gates_counts(monkeypatch):
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
     rows = []
 
     # All gates pass
     rows.append(_base_row())
 
-    # C1 fail (runway evidence missing and no values)
-    runway_fail = _base_row()
-    runway_fail["RunwayQuarters"] = ""
-    runway_fail["Runway (qtrs)"] = ""
-    runway_fail["RunwayEvidencePrimary"] = ""
-    rows.append(runway_fail)
+    # Universe gate fail
+    universe_fail = _base_row()
+    universe_fail["Price"] = 0.5
+    rows.append(universe_fail)
 
-    # C2 fail (dilution evidence missing)
-    dilution_fail = _base_row()
-    dilution_fail["Dilution"] = ""
-    dilution_fail["DilutionScore"] = ""
-    dilution_fail["DilutionEvidencePrimary"] = ""
-    rows.append(dilution_fail)
+    # Mandatory subscores fail (remove dilution evidence and value)
+    mandatory_fail = _base_row()
+    mandatory_fail["Dilution"] = ""
+    mandatory_fail["DilutionScore"] = ""
+    mandatory_fail["DilutionEvidencePrimary"] = ""
+    rows.append(mandatory_fail)
 
-    # C3 fail (catalyst evidence missing)
-    catalyst_fail = _base_row()
-    catalyst_fail["Catalyst"] = ""
-    catalyst_fail["CatalystScore"] = ""
-    catalyst_fail["CatalystEvidencePrimary"] = ""
-    rows.append(catalyst_fail)
+    # Runway numeric fail (evidence present but no numeric value)
+    runway_numeric_fail = _base_row()
+    runway_numeric_fail["RunwayQuarters"] = ""
+    runway_numeric_fail["Runway (qtrs)"] = ""
+    rows.append(runway_numeric_fail)
 
-    # C6 fail (materiality)
+    # Subscore count fail
+    subscore_fail = _base_row()
+    subscore_fail["Subscores Evidenced (x/5)"] = 3
+    rows.append(subscore_fail)
+
+    # Biotech peer fail
+    biotech_fail = _base_row()
+    biotech_fail["Sector"] = "Healthcare"
+    biotech_fail["Industry"] = "Biotechnology"
+    biotech_fail["BiotechPeerRead"] = "TBD - pending"
+    rows.append(biotech_fail)
+
+    # Materiality fail
     materiality_fail = _base_row()
     materiality_fail["Materiality"] = "Fail - risk"
     materiality_fail["Materiality (pass/fail + note)"] = ""
     rows.append(materiality_fail)
-
-    # C5 fail (biotech TBD)
-    biotech_fail = _base_row()
-    biotech_fail["BiotechPeerRead"] = "TBD - pending"
-    rows.append(biotech_fail)
-
-    # C4 fail (insufficient subscores)
-    subscore_fail = _base_row()
-    subscore_fail["Subscores Evidenced (x/5)"] = 3
-    rows.append(subscore_fail)
 
     df = pd.DataFrame(rows)
 
     stats = summarize_validation_gates(df)
 
     assert stats["N_rows"] == 7
-    assert stats["C1_pass"] == 6 and stats["C1_fail"] == 1
-    assert stats["C2_pass"] == 6 and stats["C2_fail"] == 1
-    assert stats["C3_pass"] == 6 and stats["C3_fail"] == 1
-    assert stats["C4_pass"] == 6 and stats["C4_fail"] == 1
-    assert stats["C5_pass"] == 6 and stats["C5_fail"] == 1
-    assert stats["C6_pass"] == 6 and stats["C6_fail"] == 1
+    for label in [
+        "GATE_UNIVERSE",
+        "GATE_MANDATORY_SUBSCORES",
+        "GATE_RUNWAY_NUMERIC",
+        "GATE_SUBSCORE_COUNT",
+        "GATE_BIOTECH_PEER",
+        "GATE_MATERIALITY",
+    ]:
+        assert stats[f"{label}_pass"] == 6
+        assert stats[f"{label}_fail"] == 1
     assert stats["N_validated_all_true"] == 1
     assert stats["N_any_gate_false"] == 6
 
@@ -91,6 +99,7 @@ def test_evaluate_validation_alignment():
 
     failing_row = _base_row()
     failing_row["RunwayEvidencePrimary"] = ""
+    failing_row["RunwayQuarters"] = ""
     status_fail, reason_fail = evaluate_validation(pd.Series(failing_row))
     assert status_fail.startswith("TBD")
     assert "Runway" in reason_fail

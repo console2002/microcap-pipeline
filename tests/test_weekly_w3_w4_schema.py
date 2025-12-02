@@ -1,13 +1,21 @@
 import pandas as pd
 
+import app.weekly_validated as weekly_validated
 from app.weekly_deep_research import _conviction_from_subscores
 from app.weekly_validated import evaluate_validation
 
 
-def test_validation_rules_and_conviction_logic():
+def test_validation_rules_and_conviction_logic(monkeypatch):
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
     base = pd.Series(
         {
+            "Price": 5.0,
+            "ADV20": 60_000,
+            "MarketCap": 150_000_000,
+            "Sector": "Healthcare",
+            "Industry": "Biotechnology",
             "Dilution": "Low",
+            "RunwayQuarters": 6,
             "Runway (qtrs)": 6,
             "Catalyst": "Tier-1",
             "DilutionEvidencePrimary": "https://www.sec.gov/s3",
@@ -15,7 +23,7 @@ def test_validation_rules_and_conviction_logic():
             "CatalystEvidencePrimary": "https://www.sec.gov/8k",
             "Subscores Evidenced (x/5)": 5,
             "Materiality (pass/fail + note)": "PASS - Tier1",
-            "Biotech Peer Read-Through (Y/N + link)": "N",
+            "Biotech Peer Read-Through (Y/N + link)": "Y_peer",
         }
     )
 
@@ -33,7 +41,7 @@ def test_validation_rules_and_conviction_logic():
     missing_subscore["DilutionEvidencePrimary"] = ""
     status, reason = evaluate_validation(missing_subscore)
     assert status == "TBD - exclude"
-    assert reason.startswith("Mandatory subscore missing")
+    assert "Dilution evidence missing" in reason
 
     assert _conviction_from_subscores(4, "Tier-1", "PASS - Tier1") == "High"
     assert _conviction_from_subscores(5, "Tier-1", "PASS - Tier1") == "High"

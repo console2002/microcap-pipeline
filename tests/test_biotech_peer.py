@@ -159,6 +159,9 @@ def test_weekly_validated_enforces_biotech_peer_when_enabled(monkeypatch):
         {
             "Sector": "Healthcare",
             "Industry": "Biotechnology",
+            "Price": 5.0,
+            "ADV20": 50_000,
+            "MarketCap": 100_000_000,
             "RunwayQuarters": 4,
             "RunwayEvidencePrimary": "url",
             "Dilution": "High",
@@ -173,7 +176,7 @@ def test_weekly_validated_enforces_biotech_peer_when_enabled(monkeypatch):
 
     status_biotech, reason_biotech = weekly_validated.evaluate_validation(biotech_row)
     assert status_biotech == "TBD - exclude"
-    assert "Biotech peer missing" in reason_biotech
+    assert "Biotech peer read missing/failed" in reason_biotech
 
     non_biotech_row = biotech_row.copy()
     non_biotech_row["Sector"] = "Technology"

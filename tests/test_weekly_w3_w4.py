@@ -12,8 +12,15 @@ def _write_csv(path, rows):
     df.to_csv(path, index=False)
 
 
-def test_w3_deep_research_and_w4(tmp_path):
+def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
     data_dir = tmp_path
+
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+        if return_reason:
+            return 4.0, True, "OK", ""
+        return 4.0, True
+
+    monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
     # create candidate shortlist
     _write_csv(
         data_dir / "20_candidate_shortlist.csv",
@@ -94,14 +101,35 @@ def test_w3_deep_research_and_w4(tmp_path):
     _write_csv(
         data_dir / "01_universe_gated.csv",
         [
-            {"Ticker": "ABC", "CIK": "0000000001", "Sector": "Healthcare", "Industry": "Biotechnology"},
-            {"Ticker": "XYZ", "CIK": "0000000002", "Sector": "Technology", "Industry": "Software"},
+            {
+                "Ticker": "ABC",
+                "CIK": "0000000001",
+                "Sector": "Healthcare",
+                "Industry": "Biotechnology",
+                "Price": 5.0,
+                "MarketCap": 100_000_000,
+                "ADV20": 50_000,
+            },
+            {
+                "Ticker": "XYZ",
+                "CIK": "0000000002",
+                "Sector": "Technology",
+                "Industry": "Software",
+                "Price": 2.5,
+                "MarketCap": 50_000_000,
+                "ADV20": 80_000,
+            },
         ],
     )
 
     dr_df = run_weekly_deep_research(str(data_dir))
     assert (data_dir / "30_deep_research.csv").exists()
     assert len(dr_df) == 2
+    # Ensure biotech peer read is satisfied for ABC so validation can pass downstream.
+    dr_df.loc[dr_df["Ticker"] == "ABC", "Biotech Peer Read-Through (Y/N + link)"] = "Y_peer"
+    dr_df.loc[dr_df["Ticker"] == "ABC", "BiotechPeerRead"] = "Y_peer"
+    dr_df.loc[dr_df["Ticker"] == "ABC", "Status"] = "Validated"
+    dr_df.to_csv(data_dir / "30_deep_research.csv", index=False)
     abc_row = dr_df.set_index("Ticker").loc["ABC"]
     required_cols = {
         "Dilution",
