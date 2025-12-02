@@ -99,6 +99,26 @@ def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path, monkeyp
                 "BiotechPeerRead": "TBD",
                 "Status": "Validated",
             },
+            {
+                "Ticker": "CAPFAIL",
+                "Company": "Large Cap",
+                "CIK": "0005",
+                "Sector": "Technology",
+                "Industry": "Hardware",
+                "Price": 3.0,
+                "ADV20": 100_000,
+                "RunwayQuarters": 5,
+                "RunwayEvidencePrimary": "http://sec.example.com/runway5",
+                "DilutionScore": "Low",
+                "DilutionEvidencePrimary": "http://sec.example.com/dilution5",
+                "CatalystScore": "Tier-1",
+                "PrimaryCatalystType": "Product",
+                "CatalystEvidencePrimary": "http://sec.example.com/catalyst5",
+                "Subscores Evidenced (x/5)": 5,
+                "Materiality": "PASS - ok",
+                "BiotechPeerRead": "N",
+                "Status": "Validated",
+            },
         ]
     )
     deep_rows.to_csv(data_dir / "30_deep_research.csv", index=False)
@@ -109,6 +129,7 @@ def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path, monkeyp
             {"Ticker": "UNIVFAIL", "CIK": "0002", "Price": 0.5, "MarketCap": 50_000_000, "ADV20": 100_000},
             {"Ticker": "MANDFAIL", "CIK": "0003", "Price": 2.0, "MarketCap": 120_000_000, "ADV20": 90_000},
             {"Ticker": "BIOFAIL", "CIK": "0004", "Price": 4.0, "MarketCap": 200_000_000, "ADV20": 80_000},
+            {"Ticker": "CAPFAIL", "CIK": "0005", "Price": 3.0, "Cap_Musd": 600, "ADV20": 100_000},
         ]
     ).to_csv(data_dir / "01_universe_gated.csv", index=False)
 
@@ -117,12 +138,13 @@ def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path, monkeyp
     assert list(validated["Ticker"]) == ["PASS"]
     assert all(validated[label].iloc[0] for label in validated.columns if label.startswith("GATE_"))
 
-    assert set(exclusions["Ticker"]) == {"UNIVFAIL", "MANDFAIL", "BIOFAIL"}
+    assert set(exclusions["Ticker"]) == {"UNIVFAIL", "MANDFAIL", "BIOFAIL", "CAPFAIL"}
 
     reasons = dict(zip(exclusions["Ticker"], exclusions["Reason"]))
     assert "Price<1" in reasons["UNIVFAIL"]
     assert "Catalyst evidence missing" in reasons["MANDFAIL"]
     assert "Biotech peer read missing/failed" in reasons["BIOFAIL"]
+    assert "Cap≥400M" in reasons["CAPFAIL"]
 
     # Secondary evidence remains optional for the passing row.
     assert validated.iloc[0]["SecondarySource"] == ""

@@ -97,6 +97,22 @@ def _coerce_float(value) -> float | None:
     return None if pd.isna(numeric) else numeric
 
 
+def _coerce_cap_value(row: pd.Series) -> float | None:
+    cap_fields = [
+        ("MarketCap", 1),
+        ("Cap_Musd", 1_000_000),
+        ("Cap($M)", 1_000_000),
+    ]
+
+    for field, scale in cap_fields:
+        if field not in row:
+            continue
+        cap_value = _coerce_float(row.get(field))
+        if cap_value is not None:
+            return cap_value * scale
+    return None
+
+
 def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bool:
     if isinstance(value_fields, str):
         value_fields = [value_fields]
@@ -169,7 +185,7 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str
 
     price_value = _coerce_float(_first_available_value(row, ["Price", "DiscoveryPrice", "Close"]))
     adv_value = _coerce_float(_first_available_value(row, ["ADV20", "ADV20_k"]))
-    cap_value = _coerce_float(_first_available_value(row, ["MarketCap", "Cap_Musd", "Cap($M)"]))
+    cap_value = _coerce_cap_value(row)
 
     universe_failures: list[str] = []
     if price_value is None or price_value < 1.0:
@@ -444,7 +460,7 @@ def build_validated_selections(
                 "Industry": r.get("Industry"),
                 "Venue": r.get("Venue"),
                 "Price": _first_available_value(r, ["Price", "DiscoveryPrice", "Close"]),
-                "MarketCap": _first_available_value(r, ["MarketCap", "Cap_Musd", "Cap($M)"]),
+                "MarketCap": _coerce_cap_value(r),
                 "ADV20": _first_available_value(r, ["ADV20", "ADV20_k"]),
                 "Runway (qtrs)": _first_available_value(r, ["Runway (qtrs)", "RunwayQuarters"]),
                 "RunwayQuarters": r.get("RunwayQuarters"),
