@@ -146,6 +146,43 @@ def _normalize_burn_per_quarter(ocf_value: Optional[float], period_months: Optio
     return ocf_value / quarters
 
 
+def _statement_to_dataframe(statement):
+    if statement is None:
+        return None
+
+    def _attempt_to_dataframe(obj, *, with_kwargs: bool):
+        try:
+            if with_kwargs:
+                return obj.to_dataframe(presentation=True, include_unit=True)
+            return obj.to_dataframe()
+        except Exception:
+            return None
+
+    # Prefer direct to_dataframe with presentation/unit hints, then without args.
+    df = _attempt_to_dataframe(statement, with_kwargs=True)
+    if df is None:
+        df = _attempt_to_dataframe(statement, with_kwargs=False)
+
+    if df is not None:
+        return df
+
+    # Fall back to render() based statement stubs.
+    render_obj = None
+    try:
+        render_obj = statement.render(standard=True)
+    except Exception:
+        render_obj = None
+
+    if render_obj is None:
+        return None
+
+    df = _attempt_to_dataframe(render_obj, with_kwargs=True)
+    if df is None:
+        df = _attempt_to_dataframe(render_obj, with_kwargs=False)
+
+    return df
+
+
 def compute_runway_from_financials(financials) -> RunwayComputation:
     """Derive runway using edgartools Financials as the only source."""
 
@@ -189,15 +226,8 @@ def compute_runway_from_financials(financials) -> RunwayComputation:
             reason_detail="balance sheet missing",
         )
 
-    try:
-        cashflow_df = cashflow_stmt.to_dataframe(presentation=True, include_unit=True)
-    except Exception:
-        cashflow_df = None
-
-    try:
-        balance_df = balance_stmt.to_dataframe(presentation=True, include_unit=True)
-    except Exception:
-        balance_df = None
+    cashflow_df = _statement_to_dataframe(cashflow_stmt)
+    balance_df = _statement_to_dataframe(balance_stmt)
 
     ocf_value = None
     try:
