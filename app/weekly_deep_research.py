@@ -586,17 +586,14 @@ def run_weekly_deep_research(
 
     def _select_runway_details(candidate_filings: pd.DataFrame, form_col: str):
         if candidate_filings.empty:
-            return None, "", False
+            return None, "", "", False
 
         filings_with_form = candidate_filings.copy()
         filings_with_form[form_col] = filings_with_form.get(form_col, pd.Series(dtype=str)).astype(str)
         mask = filings_with_form[form_col].str.upper().str.startswith(RUNWAY_FORMS)
         subset = filings_with_form[mask]
         if subset.empty:
-            return None, "", False
-
-        subset = subset.copy()
-        subset["RunwayQuarters"] = pd.to_numeric(subset.get("RunwayQuarters"), errors="coerce")
+            return None, "", "", False
 
         def _sort_key(rec: pd.Series):
             age_val = rec.get("Age")
@@ -610,15 +607,7 @@ def run_weekly_deep_research(
 
         subset["_runway_sort"] = subset.apply(_sort_key, axis=1)
         subset = subset.sort_values(by="_runway_sort", ascending=True, na_position="last")
-        with_numeric = subset[subset["RunwayQuarters"].notna()]
-        target = with_numeric if not with_numeric.empty else subset
-        chosen = target.iloc[0]
-
-        quarters = chosen.get("RunwayQuarters")
-        try:
-            quarters = float(quarters) if pd.notna(quarters) else None
-        except Exception:
-            quarters = None
+        chosen = subset.iloc[0]
 
         evidence_url = (
             chosen.get("RunwaySourceURL")
@@ -626,12 +615,18 @@ def run_weekly_deep_research(
             or chosen.get("URL")
             or ""
         )
+        filed_at = chosen.get("FiledAt") or chosen.get("FilingDate") or chosen.get("Date") or ""
 
-        if quarters is None and evidence_url:
+        quarters = None
+        if evidence_url:
             adapter = get_adapter()
-            quarters, _ = compute_runway_quarters(str(evidence_url), adapter=adapter)
+            quarters, used_primary, reason_code, _ = compute_runway_quarters(
+                str(evidence_url), adapter=adapter, return_reason=True
+            )
+            if not (used_primary and reason_code == "OK"):
+                quarters = None
 
-        return quarters, evidence_url, pd.notna(quarters)
+        return quarters, evidence_url, filed_at, quarters is not None
 
     for row in shortlist.itertuples(index=False):
         ticker = getattr(row, "Ticker")
@@ -642,10 +637,11 @@ def run_weekly_deep_research(
         form_col = "FormType" if "FormType" in candidate_filings.columns else "Form"
 
         runway_link = ""
+        runway_filed_at = ""
         runway_quarters = None
         runway_evidence: list[str] = []
         if not candidate_filings.empty:
-            runway_quarters, runway_link, _ = _select_runway_details(
+            runway_quarters, runway_link, runway_filed_at, has_runway = _select_runway_details(
                 candidate_filings, form_col
             )
             if runway_link:
@@ -655,7 +651,7 @@ def run_weekly_deep_research(
                 logger.info(
                     "weekly_w3: runway missing numeric value for %s (%s) despite evidence", ticker, cik
                 )
-            elif runway_quarters is not None:
+            elif has_runway:
                 runway_numeric_count += 1
 
         dilution_details = _dilution_details(candidate_filings, form_col)
@@ -781,7 +777,7 @@ def run_weekly_deep_research(
         if price is None or (isinstance(price, (float, int)) and pd.isna(price)):
             price = getattr(row, "Close", None)
 
-        runway_display = str(runway_quarters) if runway_quarters is not None else "TBD"
+        runway_display = f"{runway_quarters:.2f}" if runway_quarters is not None else ""
 
         output_rows.append(
             {
@@ -795,6 +791,8 @@ def run_weekly_deep_research(
                 "ADV20": getattr(row, "ADV20", None),
                 "RunwayQuarters": runway_quarters,
                 "Runway (qtrs)": runway_display,
+                "RunwaySourceURL": runway_link,
+                "RunwaySourceFiledAt": runway_filed_at,
                 "DilutionScore": dilution,
                 "Dilution": dilution_label,
                 "DilutionKeyFilingURL": dilution_key_url,
@@ -866,6 +864,8 @@ def run_weekly_deep_research(
         "ADV20",
         "RunwayQuarters",
         "Runway (qtrs)",
+        "RunwaySourceURL",
+        "RunwaySourceFiledAt",
         "DilutionScore",
         "Dilution",
         "DilutionKeyFilingURL",

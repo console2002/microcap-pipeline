@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
 from typing import Tuple
 
 import pandas as pd
 
 from app.edgar_adapter import get_adapter
-from edgar_core.runway import extract_runway_from_filing
 
 logger = logging.getLogger(__name__)
 
@@ -48,35 +46,13 @@ def compute_runway_from_html(html_text: str) -> float | None:
     return round(cash_val / quarterly_burn, 2)
 
 
-def _runway_from_filing(url: str, adapter=None) -> float | None:
-    if not url:
-        return None
-    path = url
-    if url.startswith("file://"):
-        path = url.replace("file://", "")
-    candidate = Path(path)
-    if candidate.exists():
-        html_text = candidate.read_text(encoding="utf-8", errors="ignore")
-        return compute_runway_from_html(html_text)
-    if str(url).startswith("http"):
-        try:
-            edgar_adapter = adapter or get_adapter()
-            html_text = edgar_adapter.download_filing_text(str(url))
-            if html_text:
-                return compute_runway_from_html(html_text)
-        except Exception:
-            return None
-    return None
-
-
 def compute_runway_quarters(
     url: str, adapter=None, return_reason: bool = False
 ) -> Tuple[float | None, bool] | Tuple[float | None, bool, str, str]:
     """Return (runway_quarters, used_primary_parser[, reason_code, reason_detail]).
 
     The primary path uses ``EdgarAdapter.runway_from_financials`` so gating
-    logic aligns with the EDGAR-first pipeline. HTML parsing is only used as a
-    last-resort fallback.
+    logic aligns with the EDGAR-first pipeline.
     """
 
     if not url:
@@ -94,40 +70,21 @@ def compute_runway_quarters(
     except Exception:
         primary_result = None
         logger.debug("runway_utils: runway_from_financials failed", exc_info=True)
-    else:
-        if primary_result:
-            quarters = primary_result.get("runway_quarters")
-            reason_code = primary_result.get("reason_code", "")
-            reason_detail = primary_result.get("reason_detail", "")
-            if quarters is not None and quarters > 0:
-                result_tuple = (round(float(quarters), 2), True)
-                if return_reason:
-                    return (*result_tuple, reason_code or "OK", reason_detail or "")
-                return result_tuple
 
-    try:
-        filing = adapter._resolve_filing(url)  # type: ignore[attr-defined]
-    except Exception:
-        filing = None
-        logger.debug("runway_utils: _resolve_filing failed", exc_info=True)
+    if primary_result:
+        quarters = primary_result.get("runway_quarters")
+        reason_code = primary_result.get("reason_code", "") or ""
+        reason_detail = primary_result.get("reason_detail", "") or ""
 
-    if filing is not None:
-        try:
-            result = extract_runway_from_filing(filing)
-            quarters = result.get("runway_quarters")
-            if quarters is not None and quarters > 0:
-                result_tuple = (round(float(quarters), 2), True)
-                if return_reason:
-                    return (*result_tuple, "OK", "")
-                return result_tuple
-        except Exception:
-            logger.debug("runway_utils: extract_runway_from_filing failed", exc_info=True)
+        if reason_code == "OK" and quarters is not None and quarters > 0:
+            result_tuple = (round(float(quarters), 2), True)
+            if return_reason:
+                return (*result_tuple, reason_code, reason_detail)
+            return result_tuple
 
-    fallback = _runway_from_filing(str(url), adapter=adapter)
-    result_tuple = (fallback, False)
+    result_tuple = (None, False)
     if return_reason:
-        fallback_code = reason_code or ("OK" if fallback else "")
-        return (*result_tuple, fallback_code, reason_detail)
+        return (*result_tuple, reason_code or "", reason_detail or "")
     return result_tuple
 
 
