@@ -1,10 +1,13 @@
 import pandas as pd
 
+import app.weekly_validated as weekly_validated
 from app.weekly_validated import build_validated_selections
 
 
-def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path):
+def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path, monkeypatch):
     data_dir = tmp_path
+
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
 
     deep_rows = pd.DataFrame(
         [

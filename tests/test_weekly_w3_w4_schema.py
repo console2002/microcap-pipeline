@@ -1,10 +1,12 @@
 import pandas as pd
 
+import app.weekly_validated as weekly_validated
 from app.weekly_deep_research import _conviction_from_subscores
 from app.weekly_validated import evaluate_validation
 
 
-def test_validation_rules_and_conviction_logic():
+def test_validation_rules_and_conviction_logic(monkeypatch):
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
     base = pd.Series(
         {
             "Price": 5.0,

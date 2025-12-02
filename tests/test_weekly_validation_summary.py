@@ -2,6 +2,7 @@ import pandas as pd
 
 import pandas as pd
 
+import app.weekly_validated as weekly_validated
 from app.weekly_validated import evaluate_validation, summarize_validation_gates
 
 
@@ -28,7 +29,8 @@ def _base_row():
     }
 
 
-def test_summarize_validation_gates_counts():
+def test_summarize_validation_gates_counts(monkeypatch):
+    monkeypatch.setattr(weekly_validated, "BIOTECH_PEER_REQUIRED_FOR_VALIDATION", True)
     rows = []
 
     # All gates pass

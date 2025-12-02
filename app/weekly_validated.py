@@ -160,7 +160,10 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str
         return normalized.startswith("Y") or normalized.startswith("PASS") or normalized.startswith("OK")
 
     if biotech_candidate:
-        biotech_ok = _biotech_peer_pass(biotech_peer)
+        if BIOTECH_PEER_REQUIRED_FOR_VALIDATION:
+            biotech_ok = _biotech_peer_pass(biotech_peer)
+        else:
+            biotech_ok = True
     else:
         biotech_ok = True
 
