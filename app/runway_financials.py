@@ -34,6 +34,7 @@ _OCF_LABELS = [
     "Net cash provided by operating activities",
     "Net cash used in operating activities",
     "Net cash provided by (used in) operating activities",
+    "Net cash (used in) operating activities",
     "Operating cash flow",
 ]
 
