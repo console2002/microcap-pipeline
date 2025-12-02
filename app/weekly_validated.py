@@ -9,6 +9,7 @@ import pandas as pd
 
 from app.biotech_utils import is_biotech
 from app.config import load_config
+from app.logging_utils import log_diag
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv, log_line, utc_now_iso
 
@@ -375,6 +376,23 @@ def build_validated_selections(
             status = "TBD - exclude"
         statuses.append(status)
         reasons.append(reason)
+        log_diag(
+            stage="validated",
+            ticker=str(row.get("Ticker", "")),
+            cik=str(row.get("CIK", "")) or None,
+            decision="validated" if status == "Validated" else "excluded",
+            details=reason or "validated",
+            fields={
+                "GATE_UNIVERSE": bool(gates.get("GATE_UNIVERSE")),
+                "GATE_MANDATORY_SUBSCORES": bool(gates.get("GATE_MANDATORY_SUBSCORES")),
+                "GATE_RUNWAY_NUMERIC": bool(gates.get("GATE_RUNWAY_NUMERIC")),
+                "GATE_BIOTECH_PEER": bool(gates.get("GATE_BIOTECH_PEER")),
+                "exclusion_reason": reason,
+                "runway_quarters": row.get("RunwayQuarters"),
+                "dilution_score": row.get("DilutionScore", row.get("Dilution")),
+                "catalyst_type": row.get("PrimaryCatalystType"),
+            },
+        )
         for label in VALIDATION_GATE_ORDER:
             gate_flags[label].append(bool(gates.get(label)))
 

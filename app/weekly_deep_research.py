@@ -18,6 +18,7 @@ from app.biotech_utils import (
 )
 from app.config import load_config
 from app.edgar_adapter import get_adapter
+from app.logging_utils import log_diag
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
@@ -654,11 +655,38 @@ def run_weekly_deep_research(
             elif has_runway:
                 runway_numeric_count += 1
 
+        log_diag(
+            stage="runway",
+            ticker=str(ticker),
+            cik=str(cik) if pd.notna(cik) else None,
+            decision="runway_selected" if runway_quarters is not None else "runway_missing",
+            details="runway quarters computed" if runway_quarters is not None else "no runway quarters",
+            fields={
+                "selected_form": _normalize_form(candidate_filings.iloc[0][form_col]) if not candidate_filings.empty else "",
+                "form_date": str(runway_filed_at) if runway_filed_at else "",
+                "runway_quarters": runway_quarters,
+                "source_url": runway_link,
+            },
+        )
+
         dilution_details = _dilution_details(candidate_filings, form_col)
         dilution = dilution_details.get("score", "TBD")
         dilution_evidence = dilution_details.get("evidence", "")
         last_dilution_date = dilution_details.get("last_event_date")
         dilution_key_url = dilution_details.get("key_filing_url")
+        log_diag(
+            stage="dilution",
+            ticker=str(ticker),
+            cik=str(cik) if pd.notna(cik) else None,
+            decision="overhang_state",
+            details="dilution assessment",
+            fields={
+                "dilution_score": dilution,
+                "overhang_state": dilution,
+                "key_filing_date": last_dilution_date,
+                "key_filing_url": dilution_key_url,
+            },
+        )
         dilution_forms = list(
             _iter_filings_for_forms(candidate_filings, form_col, set(DILUTION_FORMS))
         )
@@ -672,6 +700,19 @@ def run_weekly_deep_research(
         cik_series = events.get("CIK", pd.Series(dtype=str))
         candidate_events = events[(ticker_series.astype(str) == str(ticker)) | (cik_series.astype(str) == str(cik))]
         catalyst, catalyst_date, catalyst_type, catalyst_url = _catalyst_details(candidate_events)
+        log_diag(
+            stage="events",
+            ticker=str(ticker),
+            cik=str(cik) if pd.notna(cik) else None,
+            decision="primary_catalyst_selected" if catalyst_type else "primary_catalyst_missing",
+            details="primary catalyst chosen" if catalyst_type else "no primary catalyst",
+            fields={
+                "catalyst_type": catalyst_type,
+                "catalyst_date": catalyst_date,
+                "tier": catalyst if catalyst else "",
+                "url": catalyst_url,
+            },
+        )
         governance, going_concern, governance_evidence = _governance_details(candidate_filings, form_col)
         governance_forms = list(
             _iter_filings_for_forms(

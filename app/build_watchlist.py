@@ -21,6 +21,7 @@ from edgar_core.eight_k import classify_eight_k_event
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
 from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
+from app.logging_utils import log_diag
 from app.utils import ensure_csv, log_line, utc_now_iso
 
 
@@ -847,8 +848,7 @@ def _build_eight_k_event(
         if catalyst_type == "Tier-1" and tier1_type:
             label_parts.append(tier1_type)
     catalyst_label = " ".join(part for part in label_parts if part)
-
-    return EightKEvent(
+    event = EightKEvent(
         cik=cik,
         ticker=ticker,
         filing_date=filing_date or "",
@@ -880,7 +880,24 @@ def _build_eight_k_event(
         event_tier=event_tier,
         primary_source_url=filing_url,
         secondary_source_url="",
-    ), None
+    )
+
+    log_diag(
+        stage="events",
+        ticker=event.ticker,
+        cik=event.cik,
+        decision="event_classified",
+        details=event.event_type,
+        fields={
+            "form": "8-K",
+            "event_type": event.event_type,
+            "tier": event.event_tier,
+            "items": [i.strip() for i in items_normalized.split(";") if i.strip()],
+            "accession": accession_no,
+        },
+    )
+
+    return event, None
 
 
 def _generate_eight_k_events(
