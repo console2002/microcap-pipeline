@@ -169,7 +169,9 @@ def classify_eight_k_event(
     ):
         event_type = "ContractAward"
         event_tier = "Tier-1"
-    elif _contains_any(combined_text, ["uplist", "listing", "nyse", "nasdaq", "spinoff", "spin-off"]):
+    elif _contains_any(combined_text, ["uplist", "listing", "nyse", "nasdaq", "spinoff", "spin-off"]) and not _contains_any(
+        combined_text, ["delist", "delisting"]
+    ):
         event_type = "ListingChange"
         event_tier = "Tier-1"
     elif any(str(item).startswith("2.02") for item in items):
@@ -178,9 +180,6 @@ def classify_eight_k_event(
     elif any(str(item).startswith("5.02") for item in items):
         event_type = "ManagementChange"
         event_tier = "Tier-2"
-    elif items:
-        event_tier = "Tier-2"
-
     # Enforce a narrow Tier-1 whitelist to avoid false positives from generic ATM filings.
     if event_tier == "Tier-1" and event_type not in TIER1_WHITELIST:
         event_tier = "Tier-2"

@@ -1,7 +1,8 @@
 import pandas as pd
 
-from app.build_watchlist import _write_canonical_events
+from app.build_watchlist import _classify_eight_k, _write_canonical_events
 from app.candidate_shortlist import build_candidate_shortlist
+from app.eight_k_parser import EdgarEightKParseResult
 from edgar_core.eight_k import classify_event
 
 
@@ -75,6 +76,31 @@ def test_atm_creation_vs_termination(tmp_path):
     )
     assert termination_type == "ATM_TERMINATION"
     assert termination_tier == "Tier-1"
+
+
+def test_non_actionable_item_not_catalyst():
+    parsed = EdgarEightKParseResult(
+        filing=_FakeFiling(),
+        eight_k=_FakeEightK(["Item 3.01"], "notice of delisting"),
+        items_raw=["Item 3.01"],
+        items_normalized=["3.01"],
+        exhibits=[],
+        press_releases=[],
+        press_release_text="",
+        event_text="",
+        filing_url_txt="",
+        primary_ex99_docs="",
+        primary_ex10_docs="",
+        has_press_release=False,
+        has_exhibits=False,
+        has_xbrl=False,
+        raw_submission_text="",
+    )
+
+    result = _classify_eight_k(parsed)
+
+    assert result["tier"] == "Other"
+    assert not result["is_catalyst"]
 
 
 def test_build_candidate_shortlist_w2_columns(tmp_path):
