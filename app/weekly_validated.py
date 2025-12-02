@@ -82,11 +82,20 @@ def _materiality_passed(materiality: str) -> bool:
 def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], int]:
     dilution_ok = _subscore_evidenced(row, ["Dilution", "DilutionScore"], "DilutionEvidencePrimary")
 
-    runway_numeric = _has_value(row.get("RunwayQuarters"))
-    runway_display = str(row.get("Runway (qtrs)", "")).strip()
-    runway_display_ok = runway_display not in {"", "nan", "TBD", "Unknown"}
+    def _parse_runway(row: pd.Series) -> float | None:
+        for field in ["RunwayQuarters", "Runway (qtrs)"]:
+            value = row.get(field)
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+            if pd.notna(numeric) and numeric > 0:
+                return numeric
+        return None
+
+    runway_value = _parse_runway(row)
     runway_evidence_ok = _has_value(row.get("RunwayEvidencePrimary"))
-    runway_ok = (runway_numeric or runway_display_ok) and runway_evidence_ok
+    runway_ok = runway_value is not None and runway_evidence_ok
 
     catalyst_ok = _subscore_evidenced(row, ["Catalyst", "CatalystScore"], "CatalystEvidencePrimary")
 
@@ -302,6 +311,8 @@ def build_validated_selections(
         "ADV20",
         "RunwayQuarters",
         "Runway (qtrs)",
+        "RunwaySourceURL",
+        "RunwaySourceFiledAt",
         "DilutionScore",
         "CatalystScore",
         "GovernanceScore",
@@ -365,6 +376,8 @@ def build_validated_selections(
                 "ADV20": _first_available(r, ["ADV20", "ADV20_k"]),
                 "Runway (qtrs)": _first_available(r, ["Runway (qtrs)", "RunwayQuarters"]),
                 "RunwayQuarters": r.get("RunwayQuarters"),
+                "RunwaySourceURL": r.get("RunwaySourceURL"),
+                "RunwaySourceFiledAt": r.get("RunwaySourceFiledAt"),
                 "DilutionScore": r.get("Dilution", r.get("DilutionScore")),
                 "CatalystScore": r.get("Catalyst", r.get("CatalystScore")),
                 "GovernanceScore": r.get("Governance", r.get("GovernanceScore")),

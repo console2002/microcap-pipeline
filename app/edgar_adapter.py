@@ -20,18 +20,22 @@ from app.config import (
     weekly_allowed_forms,
 )
 from app.rate_limit import RateLimiter
+from app.runway_financials import (
+    RUNWAY_REASON_NO_BALANCE,
+    RUNWAY_REASON_NO_CASHFLOW,
+    RUNWAY_REASON_NO_PERIODS,
+    RUNWAY_REASON_NO_XBRL,
+    RUNWAY_REASON_OK,
+    RUNWAY_REASON_PARSER_ERROR,
+    RUNWAY_REASON_UNSUPPORTED_FORM,
+    compute_runway_from_financials,
+)
 from app.universe_filters import load_drop_filters, should_drop_record
+from parse.postproc import finalize_runway_result
+from parse.units import round_half_up
 
 
 logger = logging.getLogger(__name__)
-
-RUNWAY_REASON_OK = "OK"
-RUNWAY_REASON_NO_XBRL = "NO_XBRL"
-RUNWAY_REASON_NO_BALANCE = "NO_BALANCE_SHEET"
-RUNWAY_REASON_NO_CASHFLOW = "NO_CASHFLOW"
-RUNWAY_REASON_NO_PERIODS = "NO_PERIODS"
-RUNWAY_REASON_UNSUPPORTED_FORM = "UNSUPPORTED_FORM"
-RUNWAY_REASON_PARSER_ERROR = "PARSER_ERROR"
 
 
 def partition_completed_and_pending(
@@ -246,6 +250,9 @@ class EdgarAdapter:
         idx: int = 0,
         total: int = 0,
     ) -> tuple[list[dict], dict]:
+        """Resolve a single ticker's filings list via edgartools."""
+
+        # Primary filings fetcher: all EDGAR list retrievals originate here.
         if stop_flag and stop_flag.get("stop"):
             raise CancelledRun("cancel requested during EDGAR filings")
 
@@ -630,220 +637,85 @@ class EdgarAdapter:
         )
         logger.warning(f"{self._RUNWAY_LOG_PREFIX}: {code} [{context}]")
 
-    def _render_statement(self, statement) -> Optional["pd.DataFrame"]:
-        try:
-            rendered = statement.render(standard=True)
-            return rendered.to_dataframe()
-        except Exception as exc:
-            logger.debug("Failed to render statement: %s", exc)
-        return None
+    def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
+        """Compute runway using edgartools Financials as the canonical source."""
 
-    def _extract_numeric(self, value) -> Optional[float]:
-        if value is None:
-            return None
-        if isinstance(value, (int, float)):
-            return float(value)
-        try:
-            text = str(value).strip()
-        except Exception:
-            return None
-        if not text:
-            return None
-        normalized = text.replace(",", "")
-        if normalized.startswith("(") and normalized.endswith(")"):
-            normalized = f"-{normalized[1:-1]}"
-        try:
-            return float(normalized)
-        except ValueError:
-            return None
-
-    def _find_value(self, df, keywords: list[str]) -> Optional[float]:
-        if df is None:
-            return None
-        value_cols = [
-            col
-            for col in df.columns
-            if col not in {"concept", "label", "level", "abstract", "dimension"}
-        ]
-        for keyword in keywords:
-            matches = df[df["label"].str.contains(keyword, case=False, na=False, regex=False)]
-            if matches.empty:
-                continue
-            row = matches.iloc[0]
-            for col in value_cols:
-                val = self._extract_numeric(row.get(col))
-                if val is not None:
-                    return val
-        return None
-
-    def _infer_period_from_columns(self, df, default_months: Optional[int]) -> Optional[int]:
-        if df is None:
-            return default_months
-        value_cols = [
-            col
-            for col in df.columns
-            if col not in {"concept", "label", "level", "abstract", "dimension"}
-        ]
-        patterns = {
-            3: re.compile(r"(THREE|3)\s+MONTH", re.IGNORECASE),
-            6: re.compile(r"(SIX|6)\s+MONTH", re.IGNORECASE),
-            9: re.compile(r"(NINE|9)\s+MONTH", re.IGNORECASE),
-            12: re.compile(r"(TWELVE|12)\s+MONTH|FISCAL YEAR|YEAR", re.IGNORECASE),
-        }
-        for col in value_cols:
-            for months, pattern in patterns.items():
-                if pattern.search(str(col) or ""):
-                    return months
-        return default_months
-
-    def extract_financial_sections(
-        self, filing_or_url, form_hint: Optional[str]
-    ) -> tuple[Optional[dict], str, str]:
         filing = self._resolve_filing(filing_or_url)
         if filing is None:
-            return None, RUNWAY_REASON_PARSER_ERROR, "unable to resolve filing"
+            return {"reason_code": RUNWAY_REASON_PARSER_ERROR, "reason_detail": "unable to resolve filing"}
 
-        financials = Financials.extract(filing)
+        financials = None
+        try:
+            financials = getattr(filing, "financials", None)
+        except Exception:
+            financials = None
+        if financials is None:
+            financials = Financials.extract(filing)
+
         if financials is None:
             self._log_runway_warning("missing_xbrl", filing)
-            return None, RUNWAY_REASON_NO_XBRL, "missing XBRL/financials"
+            return {"reason_code": RUNWAY_REASON_NO_XBRL, "reason_detail": "missing XBRL/financials"}
 
-        reason_code = RUNWAY_REASON_OK
-        reason_detail = ""
-
-        income_df = self._render_statement(financials.income_statement())
-        if income_df is None:
-            self._log_runway_warning("statement_missing", filing, statement="income")
-        elif getattr(income_df, "empty", False):
-            self._log_runway_warning("no_usable_periods", filing, statement="income")
-
-        balance_df = self._render_statement(financials.balance_sheet())
-        if balance_df is None:
-            reason_code = RUNWAY_REASON_NO_BALANCE
-            reason_detail = "balance sheet missing"
-            self._log_runway_warning("statement_missing", filing, statement="balance")
-        elif getattr(balance_df, "empty", False):
-            reason_code = RUNWAY_REASON_NO_PERIODS
-            reason_detail = "balance sheet empty"
-            self._log_runway_warning("no_usable_periods", filing, statement="balance")
-
-        cashflow_df = self._render_statement(financials.cashflow_statement())
-        if cashflow_df is None:
-            reason_code = RUNWAY_REASON_NO_CASHFLOW
-            reason_detail = "cashflow statement missing"
-            self._log_runway_warning("statement_missing", filing, statement="cashflow")
-        elif getattr(cashflow_df, "empty", False):
-            reason_code = RUNWAY_REASON_NO_PERIODS
-            reason_detail = "cashflow statement empty"
-            self._log_runway_warning("no_usable_periods", filing, statement="cashflow")
-
-        defaults = {}  # placeholder for router defaults
-        try:
-            from parse.router import _form_defaults
-
-            defaults = _form_defaults(form_hint)
-        except Exception:
-            defaults = {}
-
-        period_default = defaults.get("period_months_default") if isinstance(defaults, dict) else None
-        period_months = self._infer_period_from_columns(cashflow_df, period_default)
-
-        ocf_keywords = (defaults.get("ocf_keywords_provided") or []) + (
-            defaults.get("ocf_keywords_burn") or []
-        )
-        cash_keywords = [
-            "Cash and cash equivalents",
-            "Cash and cash equivalents, at end of period",
-            "Cash and cash equivalents at carrying value",
-        ]
-
-        ocf_value = self._find_value(cashflow_df, ocf_keywords)
-        cash_value = self._find_value(balance_df, cash_keywords)
-
-        if ocf_value is None and reason_code == RUNWAY_REASON_OK:
-            reason_code = RUNWAY_REASON_NO_CASHFLOW
-            reason_detail = "operating cash flow missing"
-        if cash_value is None and reason_code == RUNWAY_REASON_OK:
-            reason_code = RUNWAY_REASON_NO_BALANCE
-            reason_detail = "cash/cash equivalents missing"
-        if period_months is None and reason_code == RUNWAY_REASON_OK:
-            reason_code = RUNWAY_REASON_NO_PERIODS
-            reason_detail = "no inferable periods"
-
-        return (
-            {
-                "filing": filing,
-                "income": income_df,
-                "balance": balance_df,
-                "cashflow": cashflow_df,
-                "cash": cash_value,
-                "ocf": ocf_value,
-                "period_months": period_months,
-                "form_type": getattr(filing, "form", form_hint),
-            },
-            reason_code,
-            reason_detail,
+        computation = compute_runway_from_financials(
+            financials, form_hint=form_hint or getattr(filing, "form", None)
         )
 
-    def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
-        """Compute runway using EDGAR/edgartools financial statements.
+        if computation.runway_quarters is None and computation.reason_code == RUNWAY_REASON_OK:
+            computation.reason_code = RUNWAY_REASON_NO_CASHFLOW
+            computation.reason_detail = "operating cash flow missing"
 
-        This is the canonical runway path: filings are resolved via edgartools
-        and values are sourced from the rendered balance sheet and cash-flow
-        statement. Legacy HTML/iXBRL regex helpers remain available elsewhere
-        but are only used as fallbacks when this primary path cannot produce a
-        result.
-        """
-        from parse.units import normalize_ocf_value
-        from parse.postproc import finalize_runway_result
-
-        sections, reason_code, reason_detail = self.extract_financial_sections(
-            filing_or_url, form_hint
+        source_url = (
+            getattr(filing, "filing_url", None)
+            or getattr(filing, "homepage_url", None)
+            or getattr(filing, "url", None)
+            or ""
         )
-        if not sections:
-            return {"reason_code": reason_code, "reason_detail": reason_detail}
 
-        ocf_quarterly, normalized_period, assumption = normalize_ocf_value(
-            sections.get("ocf"), sections.get("period_months")
-        )
-        form_type = sections.get("form_type") or form_hint
+        period_months = computation.period_months
+        ocf_quarterly = None
+        ocf_for_finalize = computation.ocf if period_months else None
+        if ocf_for_finalize is not None:
+            try:
+                quarters = period_months / 3.0
+                ocf_quarterly = ocf_for_finalize / quarters if quarters else None
+            except Exception:
+                ocf_quarterly = None
 
-        note = f"values parsed from EDGAR XBRL: {filing_or_url}"
         result = finalize_runway_result(
-            cash=sections.get("cash"),
-            ocf_raw=sections.get("ocf"),
+            cash=computation.cash,
+            ocf_raw=ocf_for_finalize,
             ocf_quarterly=ocf_quarterly,
-            period_months=normalized_period,
-            assumption=assumption,
-            note=note,
-            form_type=form_type,
+            period_months=period_months,
+            assumption="edgartools financials",
+            note=computation.reason_detail or "",
+            form_type=getattr(filing, "form", form_hint),
             units_scale=1,
-            status="OK" if sections.get("ocf") is not None else "Missing OCF",
+            status="OK" if computation.reason_code == RUNWAY_REASON_OK else computation.reason_code,
             source_tags=["XBRL"],
         )
 
-        if result.get("runway_quarters") is not None:
-            reason_code = RUNWAY_REASON_OK
-            reason_detail = ""
-        elif reason_code == RUNWAY_REASON_OK:
-            if sections.get("cashflow") is None:
-                reason_code = RUNWAY_REASON_NO_CASHFLOW
-                reason_detail = "cashflow statement missing"
-            elif sections.get("balance") is None:
-                reason_code = RUNWAY_REASON_NO_BALANCE
-                reason_detail = "balance sheet missing"
-            elif result.get("period_months") is None:
-                reason_code = RUNWAY_REASON_NO_PERIODS
-                reason_detail = "no inferable periods"
-            elif sections.get("ocf") is None:
-                reason_code = RUNWAY_REASON_NO_CASHFLOW
-                reason_detail = "operating cash flow missing"
-            elif sections.get("cash") is None:
-                reason_code = RUNWAY_REASON_NO_BALANCE
-                reason_detail = "cash missing"
+        if computation.runway_quarters is not None:
+            result["runway_quarters_raw"] = computation.runway_quarters
+            result["runway_quarters"] = round_half_up(computation.runway_quarters)
+            result["runway_quarters_display"] = round_half_up(computation.runway_quarters, 2)
+            result["runway_months_display"] = round_half_up(computation.runway_quarters * 3, 2)
 
-        result["reason_code"] = reason_code
-        result["reason_detail"] = reason_detail
+        result.update(
+            {
+                "period_months": period_months,
+                "cash": computation.cash,
+                "ocf": computation.ocf,
+                "reason_code": computation.reason_code,
+                "reason_detail": computation.reason_detail,
+                "filing_date": getattr(filing, "filing_date", ""),
+                "filing_url": source_url,
+                "form_type": getattr(filing, "form", form_hint),
+                "source_tags": ["XBRL"],
+            }
+        )
+
+        result.setdefault("runway_quarters", computation.runway_quarters)
+
         return result
 
     def stats_string(self) -> str:

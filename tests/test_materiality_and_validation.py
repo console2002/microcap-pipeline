@@ -32,9 +32,16 @@ def test_materiality_and_conviction_rules():
     assert _conviction_from_subscores(4, "Tier-2", tier2) == "Medium"
 
 
-def test_runway_reuse_and_materiality_output(tmp_path, caplog):
+def test_runway_reuse_and_materiality_output(tmp_path, caplog, monkeypatch):
     data_dir = tmp_path
     caplog.set_level(logging.INFO)
+
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+        if return_reason:
+            return 3.5, True, "OK", ""
+        return 3.5, True
+
+    monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
 
     _write_csv(
         data_dir / "20_candidate_shortlist.csv",
@@ -85,7 +92,7 @@ def test_runway_reuse_and_materiality_output(tmp_path, caplog):
     assert len(dr_df) == 1
     row = dr_df.iloc[0]
     assert row["RunwayQuarters"] == 3.5
-    assert row["Runway (qtrs)"] == "3.5"
+    assert row["Runway (qtrs)"] == "3.50"
     assert row["RunwayEvidencePrimary"] == "https://example.com/aaa-10q"
     assert row["Materiality"].startswith("PASS") or row["Materiality"].startswith("FAIL")
     assert row["ConvictionScore"] in {"High", "Medium", "Low"}
@@ -113,7 +120,7 @@ def test_validation_reasons_and_pass_fail():
 
     missing_runway = base_row.copy()
     missing_runway["RunwayQuarters"] = None
-    missing_runway["Runway (qtrs)"] = "TBD"
+    missing_runway["Runway (qtrs)"] = ""
     status, reason = evaluate_validation(pd.Series(missing_runway))
     assert status.startswith("TBD")
     assert "Mandatory subscore missing: Runway" in reason
