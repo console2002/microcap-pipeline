@@ -1,12 +1,10 @@
 import logging
 from types import SimpleNamespace
 
-import logging
-from types import SimpleNamespace
-
 import pandas as pd
 
 from app import edgar_adapter
+from app.runway_financials import RUNWAY_REASON_NO_PERIODS, RUNWAY_REASON_NO_XBRL
 
 
 def _adapter():
@@ -29,9 +27,10 @@ def test_missing_xbrl_warning(monkeypatch, caplog):
     monkeypatch.setattr(adapter, "_resolve_filing", lambda _: filing)
 
     with caplog.at_level(logging.WARNING):
-        result = adapter.extract_financial_sections(filing, form_hint=filing.form)
+        result = adapter.runway_from_financials(filing, form_hint=filing.form)
 
-    assert result[0] is None
+    assert result.get("runway_quarters") is None
+    assert result["reason_code"] == RUNWAY_REASON_NO_XBRL
     warning_messages = [msg for msg in caplog.messages if "missing_xbrl" in msg]
     assert warning_messages, "expected missing_xbrl warning"
     assert "ticker=TST" in warning_messages[0]
@@ -50,31 +49,35 @@ def test_no_usable_periods_warning(monkeypatch, caplog):
         ticker="PRDS",
     )
 
-    empty_df = pd.DataFrame(columns=["label"])
+    cashflow_df = pd.DataFrame(
+        {
+            "label": ["Net cash used in operating activities"],
+            "Value": [-100.0],
+        }
+    )
+    balance_df = pd.DataFrame(
+        {
+            "label": ["Cash and cash equivalents"],
+            "Value": [400.0],
+        }
+    )
 
     class DummyStatement:
         def __init__(self, df):
             self._df = df
 
-        def render(self, standard=True):  # pragma: no cover - trivial
-            class Rendered:
-                def __init__(self, df):
-                    self._df = df
-
-                def to_dataframe(self):
-                    return self._df
-
-            return Rendered(self._df)
+        def to_dataframe(self, presentation=True, include_unit=True):  # pragma: no cover - trivial
+            return self._df
 
     class DummyFinancials:
         def income_statement(self):
-            return DummyStatement(empty_df)
+            return DummyStatement(pd.DataFrame())
 
         def balance_sheet(self):
-            return DummyStatement(empty_df)
+            return DummyStatement(balance_df)
 
         def cashflow_statement(self):
-            return DummyStatement(empty_df)
+            return DummyStatement(cashflow_df)
 
     monkeypatch.setattr(
         edgar_adapter.Financials, "extract", staticmethod(lambda _: DummyFinancials())
@@ -82,10 +85,10 @@ def test_no_usable_periods_warning(monkeypatch, caplog):
     monkeypatch.setattr(adapter, "_resolve_filing", lambda _: filing)
 
     with caplog.at_level(logging.WARNING):
-        result = adapter.extract_financial_sections(filing, form_hint=filing.form)
+        result = adapter.runway_from_financials(filing, form_hint=filing.form)
 
     assert result is not None
-    usable_msgs = [msg for msg in caplog.messages if "no_usable_periods" in msg]
-    assert usable_msgs, "expected no_usable_periods warning"
-    assert all("ticker=PRDS" in msg for msg in usable_msgs)
-    assert all(msg.strip() for msg in usable_msgs)
+    assert result.get("runway_quarters") is None
+    assert result["reason_code"] == RUNWAY_REASON_NO_PERIODS
+    runway_messages = [msg for msg in caplog.messages if "edgar_runway" in msg]
+    assert not runway_messages, "no runway warnings expected when period inference fails"
