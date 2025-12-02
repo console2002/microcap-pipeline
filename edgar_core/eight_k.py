@@ -65,6 +65,15 @@ def _gather_exhibit_texts(filing: Filing) -> list[str]:
     return snippets
 
 
+def _normalize_item_label(label: str) -> str:
+    """Normalize an item heading such as ``"Item 2.02 Results"`` to ``"2.02"``."""
+
+    lowered = label.lower().strip()
+    if lowered.startswith("item"):
+        lowered = lowered[len("item") :].strip()
+    return lowered.lstrip(" .:-")
+
+
 def classify_eight_k_event(
     eight_k: EightK, filing: Filing, press_text: str | None = None
 ) -> Dict[str, object]:
@@ -76,7 +85,9 @@ def classify_eight_k_event(
     ``tier1_type``, and ``tier1_trigger`` keys.
     """
 
-    items = [str(item).lower() for item in getattr(eight_k, "items", []) or []]
+    items = [
+        _normalize_item_label(str(item)) for item in getattr(eight_k, "items", []) or []
+    ]
     item_text = "\n\n".join(_gather_item_text(eight_k))
     exhibits_text = "\n\n".join(_gather_exhibit_texts(filing))
     combined_text = "\n\n".join(
