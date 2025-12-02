@@ -656,7 +656,9 @@ class EdgarAdapter:
             self._log_runway_warning("missing_xbrl", filing)
             return {"reason_code": RUNWAY_REASON_NO_XBRL, "reason_detail": "missing XBRL/financials"}
 
-        computation = compute_runway_from_financials(financials)
+        computation = compute_runway_from_financials(
+            financials, form_hint=form_hint or getattr(filing, "form", None)
+        )
 
         if computation.runway_quarters is None and computation.reason_code == RUNWAY_REASON_OK:
             computation.reason_code = RUNWAY_REASON_NO_CASHFLOW

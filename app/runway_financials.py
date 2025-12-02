@@ -117,9 +117,23 @@ def _find_value_by_label(df: pd.DataFrame, keywords: Iterable[str]) -> Optional[
     return None
 
 
-def _infer_period_from_columns(df: pd.DataFrame) -> Optional[int]:
-    if df is None or getattr(df, "empty", True):
+def _default_period_from_form(form_hint: Optional[str]) -> Optional[int]:
+    if not form_hint:
         return None
+
+    normalized = str(form_hint).strip().upper()
+    if normalized in {"10-Q", "10-Q/A", "6-K"}:
+        return 3
+    if normalized in {"10-K", "10-K/A", "20-F", "40-F"}:
+        return 12
+    return None
+
+
+def _infer_period_from_columns(
+    df: pd.DataFrame, default_months: Optional[int] = None
+) -> Optional[int]:
+    if df is None or getattr(df, "empty", True):
+        return default_months
 
     value_cols = _value_columns(df)
 
@@ -132,7 +146,7 @@ def _infer_period_from_columns(df: pd.DataFrame) -> Optional[int]:
             match = []
         if any(match):
             return months
-    return None
+    return default_months
 
 
 def _normalize_burn_per_quarter(ocf_value: Optional[float], period_months: Optional[int]) -> Optional[float]:
@@ -183,7 +197,9 @@ def _statement_to_dataframe(statement):
     return df
 
 
-def compute_runway_from_financials(financials) -> RunwayComputation:
+def compute_runway_from_financials(
+    financials, form_hint: Optional[str] = None
+) -> RunwayComputation:
     """Derive runway using edgartools Financials as the only source."""
 
     if financials is None:
@@ -239,7 +255,9 @@ def compute_runway_from_financials(financials) -> RunwayComputation:
         ocf_value = _find_value_by_label(cashflow_df, _OCF_LABELS)
 
     cash_value = _find_value_by_label(balance_df, _CASH_LABELS)
-    period_months = _infer_period_from_columns(cashflow_df)
+    form_name = form_hint or getattr(financials, "form", None)
+    default_period_months = _default_period_from_form(form_name)
+    period_months = _infer_period_from_columns(cashflow_df, default_months=default_period_months)
 
     if ocf_value is None:
         return RunwayComputation(

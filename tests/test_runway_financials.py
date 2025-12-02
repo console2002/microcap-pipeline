@@ -72,3 +72,19 @@ def test_compute_runway_from_financials_missing_ocf():
 
     assert result.runway_quarters is None
     assert result.reason_code == RUNWAY_REASON_NO_CASHFLOW
+
+
+def test_compute_runway_from_financials_uses_form_default_period():
+    balance_df = pd.DataFrame({"label": ["Cash and cash equivalents"], "2024-06-30": [120.0]})
+    cashflow_df = pd.DataFrame(
+        {
+            "label": ["Net cash used in operating activities"],
+            "2024-06-30": [-30.0],
+        }
+    )
+    financials = DummyFinancials(balance_df=balance_df, cashflow_df=cashflow_df, ocf=None)
+
+    result = compute_runway_from_financials(financials, form_hint="10-Q")
+
+    assert result.runway_quarters == 4.0
+    assert result.reason_code == RUNWAY_REASON_OK

@@ -4,7 +4,11 @@ from types import SimpleNamespace
 import pandas as pd
 
 from app import edgar_adapter
-from app.runway_financials import RUNWAY_REASON_NO_PERIODS, RUNWAY_REASON_NO_XBRL
+from app.runway_financials import (
+    RUNWAY_REASON_NO_PERIODS,
+    RUNWAY_REASON_NO_XBRL,
+    RUNWAY_REASON_OK,
+)
 
 
 def _adapter():
@@ -88,7 +92,7 @@ def test_no_usable_periods_warning(monkeypatch, caplog):
         result = adapter.runway_from_financials(filing, form_hint=filing.form)
 
     assert result is not None
-    assert result.get("runway_quarters") is None
-    assert result["reason_code"] == RUNWAY_REASON_NO_PERIODS
+    assert result.get("runway_quarters") == 4.0
+    assert result["reason_code"] == RUNWAY_REASON_OK
     runway_messages = [msg for msg in caplog.messages if "edgar_runway" in msg]
-    assert not runway_messages, "no runway warnings expected when period inference fails"
+    assert not runway_messages, "no runway warnings expected when defaults cover periods"
