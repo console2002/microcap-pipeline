@@ -4,9 +4,11 @@ import csv
 import logging
 import os
 import re
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable, List, Optional
 
 import pandas as pd
+
+from edgar import Filing
 
 from app.biotech_utils import (
     classify_peer_events,
@@ -19,9 +21,24 @@ from app.edgar_adapter import get_adapter
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
-DILUTION_FORMS = {"S-3", "S-8", "424B", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "424B8"}
+DILUTION_FORMS = {
+    "S-3",
+    "S-3ASR",
+    "S-8",
+    "424B",
+    "424B1",
+    "424B2",
+    "424B3",
+    "424B4",
+    "424B5",
+    "424B7",
+    "424B8",
+}
 RUNWAY_FORMS = ("10-Q", "10-K", "20-F", "6-K", "40-F")
 PEER_EVENTS_LOOKBACK_DAYS = 180
+DILUTION_CREATION = "OVERHANG_CREATION"
+DILUTION_TERMINATION = "OVERHANG_TERMINATION"
+DILUTION_UNKNOWN = "UNKNOWN"
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +81,112 @@ def _prepare_events(events: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _strip_html_tags(text: str) -> str:
+    if not text:
+        return ""
+    # Cheap HTML tag stripper to keep dependencies minimal; sufficient for
+    # keyword scanning of offering/termination language.
+    return re.sub(r"<[^>]+>", " ", text)
+
+
+def _extract_filing_text(filing: Filing, max_chars: int = 40_000) -> str:
+    """Return a bounded blob of filing text for keyword heuristics.
+
+    We favor ``Filing.text()`` and fall back to ``html()`` if necessary.
+    Select exhibits (EX-1.*, EX-10.*) are appended to capture sales
+    agreements or terminations that sometimes live in exhibits. The body is
+    truncated first to preserve budget for exhibits so they are always
+    scanned.
+    """
+
+    text_blob = ""
+    try:
+        text_blob = filing.text() or ""
+    except Exception:
+        logger.debug("filing.text() failed for dilution scan", exc_info=True)
+
+    if not text_blob:
+        try:
+            text_blob = _strip_html_tags(filing.html() or "")
+        except Exception:
+            logger.debug("filing.html() failed for dilution scan", exc_info=True)
+
+    exhibit_texts: list[str] = []
+    for exhibit in getattr(filing, "exhibits", []) or []:
+        doc_type = str(getattr(exhibit, "document_type", "") or "").upper()
+        if not doc_type.startswith(("EX-1", "EX-10")):
+            continue
+        try:
+            exhibit_texts.append(exhibit.text() or "")
+        except Exception:
+            continue
+
+    max_body_chars = int(max_chars * 0.7)
+    body_part = (text_blob or "")[:max_body_chars]
+    remaining = max(max_chars - len(body_part), 0)
+
+    parts: list[str] = [body_part] if body_part else []
+    for exhibit_text in exhibit_texts:
+        if remaining <= 0:
+            break
+        snippet = exhibit_text[:remaining]
+        if snippet:
+            parts.append(snippet)
+            remaining -= len(snippet)
+
+    combined = "\n\n".join(part for part in parts if part)
+    return combined[:max_chars]
+
+
+def classify_dilution_filing(filing: Filing) -> str:
+    """Classify a dilution-related filing as overhang creation vs termination.
+
+    Heuristics (documented for future tuning):
+    - Creation/increase: phrases like "at-the-market offering", "equity distribution
+      agreement", "we may sell from time to time", "up to [N] shares", "offering".
+    - Termination/exhaustion: "terminate", "has been terminated", "sales agreement
+      terminated", "no further sales", "suspend our offering", "program has expired".
+    """
+
+    text_blob = _extract_filing_text(filing)
+    if not text_blob:
+        return DILUTION_UNKNOWN
+
+    lower_text = text_blob.lower()
+
+    creation_keywords = [
+        "at-the-market offering",
+        "at the market offering",
+        "equity distribution agreement",
+        "equity distribution",
+        "we may sell from time to time",
+        "we may offer and sell",
+        "up to",
+        "registered direct offering",
+        "sell shares",
+    ]
+    # Only treat strong termination phrases as overhang removal; boilerplate "may be terminated"
+    # is deliberately excluded so creation language still wins.
+    termination_keywords = [
+        "has been terminated",
+        "is hereby terminated",
+        "we have terminated",
+        "terminated effective",
+        "terminated the sales agreement",
+        "sales agreement terminated",
+        "termination notice",
+        "no further sales",
+        "suspend our offering",
+        "program has expired",
+    ]
+
+    if any(keyword in lower_text for keyword in termination_keywords):
+        return DILUTION_TERMINATION
+    if any(keyword in lower_text for keyword in creation_keywords):
+        return DILUTION_CREATION
+    return DILUTION_UNKNOWN
+
+
 def _biotech_peer_read_from_events(
     ticker: str,
     sector: str,
@@ -104,29 +227,108 @@ def _biotech_peer_read_from_events(
     return base, evidence
 
 
-def _dilution_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str | None]:
-    forms = filings.get(form_col, pd.Series(dtype=str)).astype(str).tolist()
-    normalized = {_normalize_form(f) for f in forms if f}
-    evidence = []
-    last_date = None
+def _event_sort_key(event: dict) -> pd.Timestamp:
+    ts = event.get("filed_ts")
+    if isinstance(ts, pd.Timestamp) and not pd.isna(ts):
+        return ts
+    try:
+        parsed = pd.to_datetime(event.get("filed_at_raw"), errors="coerce")
+        if isinstance(parsed, pd.Timestamp) and not pd.isna(parsed):
+            return parsed
+    except Exception:
+        pass
+    return pd.Timestamp.min
+
+
+def _resolve_filing_from_record(record: pd.Series) -> Optional[Filing]:
+    adapter = get_adapter()
+    candidates = [
+        record.get("MasterTxtURL"),
+        record.get("FilingURL"),
+        record.get("URL"),
+        record.get("Accession"),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            filing = adapter._resolve_filing(candidate)
+        except Exception:
+            logger.debug("dilution: filing resolve failed for %s", candidate, exc_info=True)
+            continue
+        if filing is not None:
+            return filing
+    return None
+
+
+def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
+    events: list[dict] = []
+
     for _, record in filings.iterrows():
         form = _normalize_form(record.get(form_col))
         if not form:
             continue
-        if form in DILUTION_FORMS or any(form.startswith(prefix) for prefix in DILUTION_FORMS):
-            url = record.get("FilingURL") or record.get("URL") or ""
-            if url:
-                evidence.append(str(url))
-            date_val = record.get("FilingDate") or record.get("Date")
-            if pd.notna(date_val):
-                last_date = date_val
-    if any(form in DILUTION_FORMS or form.startswith(tuple(DILUTION_FORMS)) for form in normalized):
-        score = "High"
-    elif normalized:
-        score = "Low"
-    else:
-        score = "TBD"
-    return score, _aggregate_evidence(evidence), last_date
+        if not (form in DILUTION_FORMS or any(form.startswith(prefix) for prefix in DILUTION_FORMS)):
+            continue
+
+        url = record.get("FilingURL") or record.get("URL") or record.get("MasterTxtURL") or ""
+        filed_at_raw = record.get("FilingDate") or record.get("Date") or record.get("FiledAt")
+        filed_ts = pd.to_datetime(filed_at_raw, errors="coerce") if filed_at_raw is not None else pd.NaT
+
+        filing_obj = _resolve_filing_from_record(record)
+        classification = DILUTION_UNKNOWN
+        if filing_obj is not None:
+            classification = classify_dilution_filing(filing_obj)
+
+        events.append(
+            {
+                "form": form,
+                "url": str(url) if url else "",
+                "filed_at_raw": filed_at_raw,
+                "filed_ts": filed_ts,
+                "classification": classification,
+            }
+        )
+
+    if not events:
+        return {
+            "score": "TBD",
+            "evidence": "",
+            "last_event_date": None,
+            "key_filing_url": None,
+            "overhang_removed": None,
+        }
+
+    events_sorted = sorted(events, key=_event_sort_key, reverse=True)
+
+    def _overhang_from_event(event: dict) -> bool:
+        classification = event.get("classification")
+        if classification == DILUTION_TERMINATION:
+            return False
+        if classification == DILUTION_CREATION:
+            return True
+        # Default to caution: unknown dilution filings usually introduce overhang.
+        return True
+
+    driver_event = events_sorted[0]
+    overhang_present = _overhang_from_event(driver_event)
+
+    evidence_candidates = [driver_event.get("url", ""), *(ev.get("url", "") for ev in events_sorted)]
+    evidence = _aggregate_evidence(evidence_candidates)
+    last_date = driver_event.get("filed_at_raw")
+    if not last_date:
+        ts_val = driver_event.get("filed_ts")
+        if isinstance(ts_val, pd.Timestamp) and not pd.isna(ts_val):
+            last_date = ts_val.date().isoformat()
+    score = "High" if overhang_present else "Low"
+
+    return {
+        "score": score,
+        "evidence": evidence,
+        "last_event_date": last_date,
+        "key_filing_url": driver_event.get("url", "") or None,
+        "overhang_removed": not overhang_present,
+    }
 
 
 def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None, str | None]:
@@ -456,7 +658,11 @@ def run_weekly_deep_research(
             elif runway_quarters is not None:
                 runway_numeric_count += 1
 
-        dilution, dilution_evidence, last_dilution_date = _dilution_details(candidate_filings, form_col)
+        dilution_details = _dilution_details(candidate_filings, form_col)
+        dilution = dilution_details.get("score", "TBD")
+        dilution_evidence = dilution_details.get("evidence", "")
+        last_dilution_date = dilution_details.get("last_event_date")
+        dilution_key_url = dilution_details.get("key_filing_url")
         dilution_forms = list(
             _iter_filings_for_forms(candidate_filings, form_col, set(DILUTION_FORMS))
         )
@@ -591,6 +797,7 @@ def run_weekly_deep_research(
                 "Runway (qtrs)": runway_display,
                 "DilutionScore": dilution,
                 "Dilution": dilution_label,
+                "DilutionKeyFilingURL": dilution_key_url,
                 "CatalystScore": catalyst,
                 "Catalyst": catalyst_label,
                 "GovernanceScore": governance,
@@ -661,6 +868,7 @@ def run_weekly_deep_research(
         "Runway (qtrs)",
         "DilutionScore",
         "Dilution",
+        "DilutionKeyFilingURL",
         "CatalystScore",
         "Catalyst",
         "GovernanceScore",
