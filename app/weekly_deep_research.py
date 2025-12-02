@@ -139,15 +139,6 @@ def classify_dilution_filing(filing: Filing) -> str:
 
     lower_text = text_blob.lower()
 
-    termination_keywords = [
-        "terminate",
-        "termination",
-        "has been terminated",
-        "sales agreement terminated",
-        "no further sales",
-        "suspend our offering",
-        "program has expired",
-    ]
     creation_keywords = [
         "at-the-market offering",
         "at the market offering",
@@ -159,11 +150,23 @@ def classify_dilution_filing(filing: Filing) -> str:
         "registered direct offering",
         "sell shares",
     ]
+    termination_keywords = [
+        "has been terminated",
+        "is hereby terminated",
+        "we have terminated",
+        "terminated effective",
+        "terminated the sales agreement",
+        "sales agreement terminated",
+        "termination notice",
+        "no further sales",
+        "suspend our offering",
+        "program has expired",
+    ]
 
-    if any(keyword in lower_text for keyword in termination_keywords):
-        return DILUTION_TERMINATION
     if any(keyword in lower_text for keyword in creation_keywords):
         return DILUTION_CREATION
+    if any(keyword in lower_text for keyword in termination_keywords):
+        return DILUTION_TERMINATION
     return DILUTION_UNKNOWN
 
 

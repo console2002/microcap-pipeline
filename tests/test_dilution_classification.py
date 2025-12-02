@@ -41,6 +41,10 @@ class _StubFiling:
             DILUTION_TERMINATION,
         ),
         (
+            "We may offer up to 10,000,000 shares under this sales agreement, which may be terminated at any time.",
+            DILUTION_CREATION,
+        ),
+        (
             "General corporate update without offering language.",
             DILUTION_UNKNOWN,
         ),
