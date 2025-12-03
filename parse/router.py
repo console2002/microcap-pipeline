@@ -23,6 +23,12 @@ from .htmlutil import strip_html, unescape_html_entities
 from .logging import log_parse_event, log_runway_outcome
 from .postproc import finalize_runway_result
 
+logger = logging.getLogger(__name__)
+
+
+class MissingAdapterError(RuntimeError):
+    """Raised when EDGAR adapter is not configured for a fetch."""
+
 _FORM_TYPE_PATTERN = re.compile(
     r"""
     (
@@ -416,6 +422,9 @@ def _fetch_url(url: str) -> bytes:
             raise RuntimeError(f"Error reading local filing: {url} ({exc})") from exc
 
     adapter = get_adapter()
+    if adapter is None:
+        logger.error("parse.router: adapter is None in _fetch_url", extra={"url": url})
+        raise MissingAdapterError(f"parse.router: adapter is None in _fetch_url for url={url}")
     try:
         content = adapter.download_filing_text(url)
     except Exception as exc:
@@ -579,3 +588,4 @@ def get_runway_from_filing(filing_url: str) -> dict:
 
 
 __all__ = ["get_runway_from_filing", "url_matches_form", "_fetch_url", "_fetch_json", "_form_defaults", "_normalize_form_type", "_extract_form_hint_from_url", "_infer_form_type_from_url", "_infer_form_type_from_text", "_extract_note_suffix"]
+

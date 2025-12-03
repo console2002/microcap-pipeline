@@ -20,9 +20,11 @@ from edgar_core.eight_k import classify_eight_k_event
 
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
+from app.edgar_adapter import get_adapter
 from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
 from app.logging_utils import log_diag
 from app.utils import ensure_csv, log_line, utc_now_iso
+from parse.router import MissingAdapterError
 
 
 ProgressFn = Optional[Callable[[str], None]]
@@ -596,7 +598,7 @@ class _EightKProcessResult:
 def _get_eight_k_parser() -> EdgarEightKParser:
     global _EIGHT_K_PARSER
     if _EIGHT_K_PARSER is None:
-        _EIGHT_K_PARSER = EdgarEightKParser()
+        _EIGHT_K_PARSER = EdgarEightKParser(get_adapter())
     return _EIGHT_K_PARSER
 
 
@@ -610,11 +612,32 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     ticker = _normalize_ticker(getattr(row, "Ticker", ""))
     cik = _normalize_cik(getattr(row, "CIK", ""))
     identifier = ticker or cik or "unknown"
+    accession = _clean_text(getattr(row, "AccessionNo", ""))
 
     form_hint = _clean_text(getattr(row, "Form", "")) or "8-K"
     parse_started = time.time()
     parser = _get_eight_k_parser()
-    result, parse_error = parser.parse(url, form_hint=form_hint)
+    try:
+        result, parse_error = parser.parse(url, form_hint=form_hint)
+    except MissingAdapterError as exc:
+        log_messages.append(
+            "eight_k: "
+            f"ticker {ticker or 'unknown'} cik {cik or 'unknown'} "
+            f"accession {accession or 'unknown'} url {url} "
+            "reason missing_adapter"
+        )
+        debug_entry = [
+            utc_now_iso(),
+            url,
+            "missing_adapter",
+            str(exc),
+            0,
+            0,
+            "",
+        ]
+        return _EightKProcessResult(
+            url=url, event=None, csv_row=None, debug_entry=debug_entry, log_messages=log_messages
+        )
     if result is None:
         reason = f"parse_error:{parse_error}"
         log_messages.append(
