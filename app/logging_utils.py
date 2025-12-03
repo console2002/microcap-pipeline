@@ -10,6 +10,7 @@ import json
 import logging
 import os
 from datetime import datetime
+import traceback as tb_mod
 from typing import Iterable
 
 from app.config import load_config
@@ -94,20 +95,51 @@ def log_diag(
     details: str,
     fields: dict | None = None,
     cfg: dict | None = None,
+    error: BaseException | str | None = None,
+    error_type: str | None = None,
+    error_message: str | None = None,
+    traceback_text: str | None = None,
 ) -> None:
     settings = _diagnostics_settings(cfg)
     if not settings.get("enabled"):
         return
 
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    normalized_cik = cik or None
+
+    resolved_error_type = error_type
+    resolved_error_message = error_message
+    resolved_traceback = traceback_text
+
+    if error is not None:
+        if resolved_error_type is None:
+            if isinstance(error, BaseException):
+                resolved_error_type = error.__class__.__name__
+            else:
+                resolved_error_type = "Error"
+        if resolved_error_message is None:
+            resolved_error_message = str(error)
+        if resolved_traceback is None and isinstance(error, BaseException) and error.__traceback__:
+            resolved_traceback = "".join(
+                tb_mod.format_exception(type(error), error, error.__traceback__)
+            )
+
     record = {
-        "ts": datetime.utcnow().isoformat() + "Z",
+        "timestamp": timestamp,
+        "ts": timestamp,
         "stage": stage,
         "ticker": ticker,
-        "cik": cik or "",
+        "cik": normalized_cik,
         "decision": decision,
         "details": details,
         "fields": fields or {},
     }
+
+    if resolved_error_type or resolved_error_message or resolved_traceback:
+        record["error_type"] = resolved_error_type
+        record["error_message"] = resolved_error_message
+        if resolved_traceback is not None:
+            record["traceback"] = resolved_traceback
 
     try:
         path = settings.get("path") or "run_diagnostics.jsonl"
