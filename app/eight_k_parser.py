@@ -8,7 +8,8 @@ from typing import Iterable, Optional
 from edgar import Filing
 from edgar.company_reports import EightK
 
-from app.edgar_adapter import EdgarAdapter, _parse_accession_from_url
+from app.edgar_adapter import EdgarAdapter, _parse_accession_from_url, get_adapter
+from parse.router import MissingAdapterError
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class EdgarEightKParser:
     """Parser that uses edgartools to extract 8-K structure and metadata."""
 
     def __init__(self, adapter: Optional[EdgarAdapter] = None):
-        self.adapter = adapter or EdgarAdapter()
+        self.adapter = adapter or get_adapter() or EdgarAdapter()
 
     def _build_text_url(self, cik: str, accession: str) -> str:
         accession_digits = re.sub(r"\D", "", accession)
@@ -65,6 +66,11 @@ class EdgarEightKParser:
 
         text_url = self._build_text_url(cik, accession)
         raw_text = ""
+
+        if self.adapter is None:
+            raise MissingAdapterError(
+                f"edgar 8-K adapter is None for url={url} text_url={text_url}"
+            )
 
         try:
             raw_text = self.adapter.download_filing_text(text_url)

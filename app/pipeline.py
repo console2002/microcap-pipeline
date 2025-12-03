@@ -26,7 +26,7 @@ from app.fmp import (
     fetch_profiles,
     fetch_filings as fetch_filings_fmp,
 )
-from app.edgar_adapter import EdgarAdapter, set_adapter
+from app.edgar_adapter import EdgarAdapter, get_adapter, set_adapter
 from app.runway_utils import compute_runway_quarters, write_runway_diagnostics
 from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
@@ -1805,7 +1805,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
-def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
+def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAdapter | None = None):
     if stop_flag.get("stop"):
         raise CancelledRun("cancel before parse_8k")
 
@@ -1816,6 +1816,9 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn):
         raise RuntimeError(
             f"{csv_filename('filings')} missing; run filings stage first or stage requires it"
         )
+
+    adapter_in_use = adapter or get_adapter(cfg)
+    set_adapter(adapter_in_use)
 
     t0 = time.time()
     _emit(progress_fn, "eight_k: start")
