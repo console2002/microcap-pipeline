@@ -532,7 +532,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self._render_app_log("")
             return
 
-        self.app_log_lines = content.splitlines()[-1000:]
+        # Show the full log instead of trimming to a small tail so that
+        # disabling auto-scroll truly keeps the view pinned where the user
+        # left it. Trimming caused the visible window to jump because older
+        # lines were continually discarded on refresh.
+        self.app_log_lines = content.splitlines()
         self._apply_app_log_filter()
 
     def _read_file(self, path: str) -> str:
