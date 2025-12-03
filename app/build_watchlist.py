@@ -624,6 +624,15 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
     try:
         result, parse_error = parser.parse(url, form_hint=form_hint)
     except MissingAdapterError as exc:
+        log_diag(
+            stage="events",
+            ticker=ticker or "",
+            cik=cik or None,
+            decision="event_parse_error",
+            details="missing_adapter",
+            fields={"url": url, "accession": accession},
+            error=exc,
+        )
         log_messages.append(
             "eight_k: "
             f"ticker {ticker or 'unknown'} cik {cik or 'unknown'} "
@@ -644,6 +653,16 @@ def _process_eight_k_row(row) -> _EightKProcessResult:
         )
     if result is None:
         reason = f"parse_error:{parse_error}"
+        log_diag(
+            stage="events",
+            ticker=ticker or "",
+            cik=cik or None,
+            decision="event_parse_error",
+            details=reason,
+            fields={"url": url, "accession": accession, "form_hint": form_hint},
+            error_type="ParseError",
+            error_message=str(parse_error) if parse_error else reason,
+        )
         log_messages.append(
             f"eight_k: {identifier} parse failed url {url} reason {reason}"
         )
