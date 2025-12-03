@@ -423,7 +423,10 @@ def _fetch_url(url: str) -> bytes:
 
     adapter = get_adapter()
     if adapter is None:
-        logger.error("parse.router: adapter is None in _fetch_url", extra={"url": url})
+        logger.error(
+            "router._fetch_url: missing_adapter_in_router (url=%s)",
+            url,
+        )
         raise MissingAdapterError(f"parse.router: adapter is None in _fetch_url for url={url}")
     try:
         content = adapter.download_filing_text(url)

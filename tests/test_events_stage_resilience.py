@@ -166,3 +166,135 @@ def test_weekly_pipeline_hard_failure_short_circuits(tmp_path, monkeypatch):
     events_df = pd.read_csv(events_path)
     assert events_df.empty
     assert downstream_called["shortlist"] is False
+
+
+def test_fetch_url_logs_missing_adapter(monkeypatch, caplog):
+    from parse import router
+
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setattr("parse.router.get_adapter", lambda: None)
+
+    with pytest.raises(router.MissingAdapterError):
+        router._fetch_url("https://www.sec.gov/example")
+
+    assert any("missing_adapter_in_router" in rec.getMessage() for rec in caplog.records)
+
+
+def test_weekly_logs_per_filing_and_stage_completion(tmp_path, monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    cfg = _make_cfg(tmp_path)
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text("{}")
+
+    profiles = pd.DataFrame({"Ticker": ["FAIL", "GOOD"], "Company": ["Bad Co", "Good Co"], "CIK": ["0001", "0002"]})
+    profiles.to_csv(tmp_path / "01_profiles.csv", index=False)
+
+    filings = pd.DataFrame(
+        [
+            {"Ticker": "FAIL", "CIK": "0001", "Form": "8-K", "URL": "https://bad", "AccessionNo": "0001", "FilingDate": "2024-01-01"},
+            {"Ticker": "GOOD", "CIK": "0002", "Form": "8-K/A", "URL": "https://good", "AccessionNo": "0002", "FilingDate": "2024-01-02"},
+        ]
+    )
+    filings.to_csv(tmp_path / "02_filings.csv", index=False)
+
+    pd.DataFrame({"Ticker": ["GOOD"], "Close": [1.0], "Volume": [100], "Date": ["2024-01-02"]}).to_csv(
+        tmp_path / "03_prices.csv", index=False
+    )
+
+    monkeypatch.setattr("app.pipeline.load_config", lambda: cfg)
+    monkeypatch.setattr("app.pipeline.make_client", lambda _cfg: None)
+    monkeypatch.setattr("app.pipeline.create_lock", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("app.pipeline.clear_lock", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("app.pipeline.is_locked", lambda _cfg: False)
+    monkeypatch.setattr("app.pipeline.EdgarAdapter", lambda *_args, **_kwargs: _DummyAdapter())
+    monkeypatch.setattr("app.pipeline.set_adapter", lambda *_args, **_kwargs: None)
+
+    event = EightKEvent(
+        cik="0002",
+        ticker="GOOD",
+        filing_date="2024-01-02",
+        filing_url="https://good",
+        items_present="1.01",
+        is_catalyst=True,
+        catalyst_type="Other",
+        catalyst_label="",
+        tier1_type="",
+        tier1_trigger="",
+        is_dilution=False,
+        dilution_tags=[],
+        ignore_reason="",
+        company="Good Co",
+        form="8-K/A",
+    )
+
+    good_row = {
+        "CIK": event.cik,
+        "Company": event.company,
+        "Ticker": event.ticker,
+        "Form": event.form,
+        "FilingDate": event.filing_date,
+        "EventDate": event.filing_date,
+        "DateOfReport": "",
+        "AccessionNo": "0002",
+        "FilingURL": event.filing_url,
+        "FilingUrlTxt": event.filing_url,
+        "PeriodOfReport": "",
+        "AcceptanceDateTime": "",
+        "HomepageURL": "",
+        "ItemsPresent": event.items_present,
+        "ItemsNormalized": "1.01",
+        "HasPressRelease": False,
+        "HasExhibits": False,
+        "PrimaryEx99Docs": "",
+        "PrimaryEx10Docs": "",
+        "HasXBRL": False,
+        "EventType": "Other",
+        "EventTier": "Tier-2",
+        "PrimarySourceURL": event.filing_url,
+        "SecondarySourceURL": "",
+        "IsCatalyst": True,
+        "CatalystType": "Other",
+        "Tier1Type": "",
+        "Tier1Trigger": "",
+        "IsDilution": False,
+        "DilutionTags": "",
+        "IgnoreReason": "",
+    }
+
+    def fake_process(row):
+        if getattr(row, "Ticker", "") == "FAIL":
+            raise RuntimeError("boom")
+        return _EightKProcessResult(
+            url=event.filing_url,
+            event=event,
+            csv_row=good_row,
+            debug_entry=None,
+            log_messages=[],
+        )
+
+    monkeypatch.setattr("app.build_watchlist._process_eight_k_row", fake_process)
+
+    def fake_hydrate_and_shortlist_step(*_args, **_kwargs):
+        pd.DataFrame({"Ticker": []}).to_csv(tmp_path / "20_candidate_shortlist.csv", index=False)
+
+    monkeypatch.setattr(
+        "app.pipeline.hydrate_and_shortlist_step", fake_hydrate_and_shortlist_step
+    )
+
+    monkeypatch.setattr(
+        "app.weekly_deep_research.run_weekly_deep_research",
+        lambda *_args, **_kwargs: pd.DataFrame({"Ticker": []}),
+    )
+    monkeypatch.setattr(
+        "app.weekly_validated.build_validated_selections",
+        lambda *_args, **_kwargs: (pd.DataFrame({"Ticker": []}), pd.DataFrame({"Ticker": []})),
+    )
+
+    run_weekly_pipeline(start_stage="events")
+
+    assert any("ticker=FAIL" in rec.getMessage() for rec in caplog.records)
+    assert any(
+        "run_weekly: completed W2 events" in rec.getMessage() and "errors=1" in rec.getMessage()
+        for rec in caplog.records
+    )

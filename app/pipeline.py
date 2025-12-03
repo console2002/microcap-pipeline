@@ -1828,6 +1828,10 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAda
         )
 
     adapter_in_use = adapter or get_adapter(cfg)
+    logger.debug(
+        "parse_8k_step: installing EDGAR adapter for events (max_lookback_days=%s)",
+        filings_max_lookback(cfg),
+    )
     set_adapter(adapter_in_use)
 
     t0 = time.time()
@@ -1848,8 +1852,7 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAda
         )
     except (MissingAdapterError, RuntimeError) as exc:
         logger.error(
-            "run_weekly: events stage failed for %s (reason=%s: %s)",
-            filings_path,
+            "run_weekly: W2 events failed (reason=%s: %s)",
             type(exc).__name__,
             exc,
         )
@@ -2107,6 +2110,10 @@ def run_weekly_pipeline(
     create_lock(cfg, "weekly")
     client = make_client(cfg)
     adapter = EdgarAdapter(cfg)
+    logger.debug(
+        "run_weekly: installing EDGAR adapter for events (max_lookback_days=%s)",
+        filings_max_lookback(cfg),
+    )
     set_adapter(adapter)
 
     stages = [
@@ -2171,6 +2178,7 @@ def run_weekly_pipeline(
             _write_weekly_universe(data_dir, df_prof)
 
         if start_idx <= stages.index("events"):
+            logger.info("run_weekly: starting W2 events (8-K parsing)")
             events_result = parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
             events_result = EventStageResult(status="skipped")
@@ -2182,10 +2190,16 @@ def run_weekly_pipeline(
 
         if events_result.status == "partial_success_with_errors":
             logger.warning(
-                "run_weekly: events stage completed with errors parsed=%s failed=%s total=%s",
+                "run_weekly: completed W2 events partial_success (events=%s, errors=%s, total=%s)",
                 events_result.parsed_count,
                 events_result.failed_count,
                 events_result.total_filings,
+            )
+        elif events_result.status == "success":
+            logger.info(
+                "run_weekly: completed W2 events successfully (events=%s, errors=%s)",
+                events_result.parsed_count,
+                events_result.failed_count,
             )
 
         _promote_weekly_events(data_dir)
