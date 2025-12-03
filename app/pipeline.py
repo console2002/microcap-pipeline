@@ -27,6 +27,8 @@ from app.fmp import (
     fetch_filings as fetch_filings_fmp,
 )
 from app.edgar_adapter import EdgarAdapter, get_adapter, set_adapter
+from app.build_watchlist import _EIGHT_K_EVENTS_COLUMNS, _write_canonical_events
+from parse.router import MissingAdapterError
 from app.runway_utils import compute_runway_quarters, write_runway_diagnostics
 from app.candidate_shortlist import build_candidate_shortlist
 from app.hydrate import hydrate_candidates
@@ -105,6 +107,14 @@ class RunwayDropDetail:
     urls: list[str]
     country: str
     notes: list[str]
+
+
+@dataclass
+class EventStageResult:
+    status: str
+    parsed_count: int = 0
+    failed_count: int = 0
+    total_filings: int = 0
 
 
 def _normalize_detail_text(value: Any) -> str | None:
@@ -1805,7 +1815,7 @@ def parse_q10_step(cfg, runlog, errlog, stop_flag, progress_fn):
     _emit(progress_fn, f"parse_q10: wrote {row_count} rows")
 
 
-def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAdapter | None = None):
+def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAdapter | None = None) -> EventStageResult:
     if stop_flag.get("stop"):
         raise CancelledRun("cancel before parse_8k")
 
@@ -1832,11 +1842,28 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAda
 
         callback = adapter
 
-    events_df, _ = generate_eight_k_events(data_dir=data_dir, progress_fn=callback)
+    try:
+        events_df, _, stats = generate_eight_k_events(
+            data_dir=data_dir, progress_fn=callback
+        )
+    except (MissingAdapterError, RuntimeError) as exc:
+        logger.error(
+            "run_weekly: events stage failed for %s (reason=%s: %s)",
+            filings_path,
+            type(exc).__name__,
+            exc,
+        )
+        _ensure_event_placeholders(data_dir)
+        return EventStageResult(status="hard_failure")
+
     row_count = len(events_df.index)
 
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during parse_8k")
+
+    failure_count = int(stats.get("failed", 0)) if stats else 0
+    total_filings = int(stats.get("total_filings", row_count) if stats else row_count)
+    status = "success" if failure_count == 0 else "partial_success_with_errors"
 
     # LEGACY events file 09_8k_events.csv is retained for compatibility; canonical
     # W2/W3 paths consume 09_events.csv promoted later.
@@ -1844,6 +1871,13 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAda
         runlog, "parse_8k", row_count, t0, f"write {csv_filename('eight_k_events')}"
     )
     _emit(progress_fn, f"eight_k: complete – wrote {row_count} rows")
+
+    return EventStageResult(
+        status=status,
+        parsed_count=row_count,
+        failed_count=failure_count,
+        total_filings=total_filings,
+    )
 
 
 def dr_populate_step(cfg, runlog, errlog, stop_flag, progress_fn):
@@ -1933,6 +1967,16 @@ def _write_weekly_universe(data_dir: str, df_prof: pd.DataFrame | None) -> None:
     weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
     df_prof.to_csv(weekly_universe, index=False)
     _log_stage_metrics("01_universe_gated", df_prof)
+
+
+def _ensure_event_placeholders(data_dir: str) -> None:
+    events_df = pd.DataFrame(columns=_EIGHT_K_EVENTS_COLUMNS)
+    legacy_path = csv_path(data_dir, "eight_k_events")
+    if not os.path.exists(legacy_path):
+        events_df.to_csv(legacy_path, index=False)
+    canonical_path = os.path.join(data_dir, "09_events.csv")
+    if not os.path.exists(canonical_path):
+        _write_canonical_events(events_df, data_dir)
 
 
 def _promote_weekly_events(data_dir: str) -> None:
@@ -2110,7 +2154,8 @@ def run_weekly_pipeline(
             )
         else:
             df_fil = _load_cached_dataframe(cfg, "filings")
-            df_prof = df_prof or _load_cached_dataframe(cfg, "profiles")
+            if df_prof is None:
+                df_prof = _load_cached_dataframe(cfg, "profiles")
             df_fil, eligible_tickers, drop_details = _apply_runway_gate_to_filings(
                 df_fil, df_prof, progress_fn
             )
@@ -2126,19 +2171,50 @@ def run_weekly_pipeline(
             _write_weekly_universe(data_dir, df_prof)
 
         if start_idx <= stages.index("events"):
-            parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
+            events_result = parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn)
         else:
+            events_result = EventStageResult(status="skipped")
             events_path = os.path.join(data_dir, "09_events.csv")
             legacy_events = os.path.join(data_dir, "09_8k_events.csv")
             if not os.path.exists(events_path) and not os.path.exists(legacy_events):
                 raise RuntimeError("09_events.csv missing; run events stage first")
             _emit(progress_fn, "events: skipped (using cached output)")
 
+        if events_result.status == "partial_success_with_errors":
+            logger.warning(
+                "run_weekly: events stage completed with errors parsed=%s failed=%s total=%s",
+                events_result.parsed_count,
+                events_result.failed_count,
+                events_result.total_filings,
+            )
+
         _promote_weekly_events(data_dir)
         events_path = os.path.join(data_dir, "09_events.csv")
-        df_events = _safe_read_csv(events_path)
-        _log_stage_metrics("09_events", df_events)
-        _log_dropoff_metrics("02_filings", "09_events", df_fil, df_events)
+
+        if events_result.status == "hard_failure":
+            if not os.path.exists(events_path):
+                logger.error(
+                    "run_weekly: missing 09_events.csv after events stage failure — skipping drop-off metrics."
+                )
+                _ensure_event_placeholders(data_dir)
+            logger.error("run_weekly: W2 events stage failed — downstream stages will be skipped.")
+            return
+
+        if not os.path.exists(events_path):
+            logger.warning(
+                "run_weekly: events_stage_success_but_no_output for 09_events.csv"
+            )
+            _ensure_event_placeholders(data_dir)
+
+        if os.path.exists(events_path):
+            df_events = _safe_read_csv(events_path)
+            _log_stage_metrics("09_events", df_events)
+            _log_dropoff_metrics("02_filings", "09_events", df_fil, df_events)
+        else:
+            logger.error(
+                "run_weekly: missing 09_events.csv after events stage failure — skipping drop-off metrics."
+            )
+            df_events = pd.DataFrame()
 
         if start_idx <= stages.index("candidate_shortlist"):
             prices_path = csv_path(cfg["Paths"].get("data", "data"), "prices")
