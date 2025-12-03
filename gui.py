@@ -362,10 +362,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.log_tail.setPlainText("\n".join(self.live_buffer))
 
-        if self.live_tail_autoscroll:
-            self._set_scrollbar_value(sb, sb.maximum())
-        else:
-            self._set_scrollbar_value(sb, min(prev_value, sb.maximum()))
+        auto_scroll = self.live_tail_autoscroll_checkbox.isChecked()
+        target_value = sb.maximum() if auto_scroll else min(prev_value, sb.maximum())
+        self._set_scrollbar_value(sb, target_value)
 
     def _update_progress_bar_from_msg(self, msg: str):
         # Extract the pipeline message without the timestamp prefix so we can
@@ -606,10 +605,9 @@ class MainWindow(QtWidgets.QMainWindow):
         sb = self.app_log_view.verticalScrollBar()
         prev_value = sb.value()
         self.app_log_view.setPlainText(text)
-        if self.app_log_autoscroll:
-            self._set_scrollbar_value(sb, sb.maximum())
-        else:
-            self._set_scrollbar_value(sb, min(prev_value, sb.maximum()))
+        auto_scroll = self.app_log_autoscroll_checkbox.isChecked()
+        target_value = sb.maximum() if auto_scroll else min(prev_value, sb.maximum())
+        self._set_scrollbar_value(sb, target_value)
 
     def _apply_app_log_filter(self) -> None:
         term = self.app_log_search.text().strip()
@@ -636,16 +634,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def _toggle_live_tail_autoscroll(self, state: int) -> None:
         self.live_tail_autoscroll = state == QtCore.Qt.Checked
         if self.live_tail_autoscroll:
-            self.log_tail.verticalScrollBar().setValue(
-                self.log_tail.verticalScrollBar().maximum()
-            )
+            sb = self.log_tail.verticalScrollBar()
+            self._set_scrollbar_value(sb, sb.maximum())
 
     def _toggle_app_log_autoscroll(self, state: int) -> None:
         self.app_log_autoscroll = state == QtCore.Qt.Checked
         if self.app_log_autoscroll:
-            self.app_log_view.verticalScrollBar().setValue(
-                self.app_log_view.verticalScrollBar().maximum()
-            )
+            sb = self.app_log_view.verticalScrollBar()
+            self._set_scrollbar_value(sb, sb.maximum())
 
     def _on_timer_tick(self) -> None:
         self.refresh_logs()
