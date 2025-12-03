@@ -74,6 +74,90 @@ def _normalize_item_label(label: str) -> str:
     return lowered.lstrip(" .:-")
 
 
+def is_listing_change_event(items: set[str], text: str) -> bool:
+    """Return True when the filing indicates a listing change worthy of Tier-1.
+
+    The gate is intentionally strict to avoid labeling vanilla earnings or
+    annual-meeting 8-Ks as listing events simply because they mention Nasdaq or
+    NYSE in boilerplate.
+    """
+
+    if not text.strip():
+        return False
+
+    lowered = text.lower()
+
+    # Explicitly exclude pure annual-meeting filings.
+    if items == {"5.07"}:
+        return False
+
+    has_301 = any(item.startswith("3.01") for item in items)
+    has_503 = any(item.startswith("5.03") for item in items)
+    has_801 = any(item.startswith("8.01") for item in items)
+    has_701 = any(item.startswith("7.01") for item in items)
+
+    listing_terms = [
+        "listing",
+        "listed",
+        "listing requirements",
+        "continued listing",
+        "transfer of listing",
+        "listing transfer",
+        "initial listing",
+        "list on",
+        "list its",
+        "list our",
+        "uplist",
+        "uplisting",
+        "quotation",
+        "nasdaq capital market",
+        "nyse american",
+        "nyse arca",
+    ]
+    listing_action_terms = [
+        "transfer of listing",
+        "listing transfer",
+        "initial listing",
+        "listing of common stock",
+        "approve the listing",
+        "approval for listing",
+        "quotation on",
+        "list on",
+        "list its",
+        "list our",
+        "uplist",
+        "uplisting",
+        "listing requirements",
+        "continued listing",
+        "listing standards",
+        "listing rule",
+        "deficiency notice",
+        "compliance plan",
+    ]
+
+    if "delist" in lowered:
+        return False
+
+    if not _contains_any(lowered, listing_terms):
+        return False
+
+    # Item-specific gates
+    if has_301:
+        return True
+
+    if has_503 and _contains_any(lowered, listing_action_terms):
+        return True
+
+    if (has_801 or has_701) and _contains_any(lowered, listing_action_terms):
+        return True
+
+    earnings_like_items = items <= {"2.02", "7.01"}
+    if earnings_like_items and not _contains_any(lowered, listing_action_terms):
+        return False
+
+    return False
+
+
 def classify_eight_k_event(
     eight_k: EightK, filing: Filing, press_text: str | None = None
 ) -> Dict[str, object]:
@@ -88,6 +172,7 @@ def classify_eight_k_event(
     items = [
         _normalize_item_label(str(item)) for item in getattr(eight_k, "items", []) or []
     ]
+    item_set = set(items)
     item_text = "\n\n".join(_gather_item_text(eight_k))
     exhibits_text = "\n\n".join(_gather_exhibit_texts(filing))
     combined_text = "\n\n".join(
@@ -169,9 +254,7 @@ def classify_eight_k_event(
     ):
         event_type = "ContractAward"
         event_tier = "Tier-1"
-    elif _contains_any(combined_text, ["uplist", "listing", "nyse", "nasdaq", "spinoff", "spin-off"]) and not _contains_any(
-        combined_text, ["delist", "delisting"]
-    ):
+    elif is_listing_change_event(item_set, combined_text):
         event_type = "ListingChange"
         event_tier = "Tier-1"
     elif any(str(item).startswith("2.02") for item in items):
