@@ -7,6 +7,7 @@ import os
 import re
 import time
 from collections import defaultdict
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -15,6 +16,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from pathlib import Path
 
 import pandas as pd
+import requests
 
 from edgar_core.eight_k import classify_eight_k_event
 
@@ -25,6 +27,8 @@ from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
 from app.logging_utils import log_diag
 from app.utils import ensure_csv, log_line, utc_now_iso
 from parse.router import MissingAdapterError
+
+logger = logging.getLogger(__name__)
 
 
 ProgressFn = Optional[Callable[[str], None]]
@@ -933,7 +937,7 @@ def _generate_eight_k_events(
         events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
-        return events_df, EightKLookup([])
+        return events_df, EightKLookup([]), {"parsed": 0, "failed": 0, "total_filings": 0}
 
     _emit("INFO", f"eight_k: loading filings from {filings_path}", progress_fn)
 
@@ -943,7 +947,7 @@ def _generate_eight_k_events(
         events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
-        return events_df, EightKLookup([])
+        return events_df, EightKLookup([]), {"parsed": 0, "failed": 0, "total_filings": 0}
 
     df = filings_df.copy()
     df["Form_norm"] = df["Form"].astype(str).str.upper()
@@ -953,7 +957,7 @@ def _generate_eight_k_events(
         events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
         _emit("INFO", "eight_k: parsed 0", progress_fn)
         _emit("INFO", "eight_k: failed 0", progress_fn)
-        return events_df, EightKLookup([])
+        return events_df, EightKLookup([]), {"parsed": 0, "failed": 0, "total_filings": 0}
 
     df = df.drop_duplicates(subset=["URL"], keep="last")
 
@@ -983,6 +987,7 @@ def _generate_eight_k_events(
     csv_rows: list[dict[str, object]] = []
     events: list[EightKEvent] = []
     debug_entries: list[list[object]] = []
+    parse_failures = 0
 
     processed = 0
     last_reported_parsed = 0
@@ -995,10 +1000,32 @@ def _generate_eight_k_events(
 
     max_workers = min(8, max(1, os.cpu_count() or 1))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(_process_eight_k_row, row) for row in df.itertuples(index=False)]
+        futures = {executor.submit(_process_eight_k_row, row): row for row in df.itertuples(index=False)}
 
         for future in as_completed(futures):
-            result = future.result()
+            row = futures[future]
+            try:
+                result = future.result()
+            except (MissingAdapterError, RuntimeError, requests.exceptions.RequestException) as exc:
+                ticker = _normalize_ticker(getattr(row, "Ticker", "")) or "unknown"
+                cik = _normalize_cik(getattr(row, "CIK", "")) or "unknown"
+                form = _clean_text(getattr(row, "Form", "")) or "8-K"
+                accession = _clean_text(getattr(row, "AccessionNo", "")) or "unknown"
+                url = _clean_text(getattr(row, "URL", "")) or "unknown"
+                logger.warning(
+                    "eight_k: ticker=%s cik=%s form=%s accession=%s url=%s exc=%s: %s",
+                    ticker,
+                    cik,
+                    form,
+                    accession,
+                    url,
+                    type(exc).__name__,
+                    exc,
+                )
+                parse_failures += 1
+                continue
+            except Exception:
+                raise
             processed += 1
 
             _emit_progress(processed)
@@ -1046,11 +1073,17 @@ def _generate_eight_k_events(
     _eight_k_debug_path()
     _write_eight_k_debug(debug_entries)
 
+    failure_count = len(debug_entries) + parse_failures
+
     _emit("INFO", f"eight_k: parsed {len(events_df)}", progress_fn)
-    _emit("INFO", f"eight_k: failed {len(debug_entries)}", progress_fn)
+    _emit("INFO", f"eight_k: failed {failure_count}", progress_fn)
     _emit("INFO", f"eight_k: complete – wrote {len(events_df)} rows", progress_fn)
 
-    return events_df, EightKLookup(events)
+    return (
+        events_df,
+        EightKLookup(events),
+        {"parsed": len(events_df), "failed": failure_count, "total_filings": total_filings},
+    )
 
 
 def _load_eight_k_events_from_csv(
@@ -1117,7 +1150,7 @@ def _load_eight_k_events_from_csv(
 def generate_eight_k_events(
     data_dir: str | None = None,
     progress_fn: ProgressFn = None,
-) -> tuple[pd.DataFrame, EightKLookup]:
+) -> tuple[pd.DataFrame, EightKLookup, dict[str, int]]:
     if data_dir is None:
         cfg = load_config()
         data_dir = cfg.get("Paths", {}).get("data", "data")
@@ -1129,13 +1162,13 @@ def generate_eight_k_events(
 def load_or_generate_eight_k_events(
     data_dir: str,
     progress_fn: ProgressFn,
-) -> tuple[pd.DataFrame, EightKLookup]:
+) -> tuple[pd.DataFrame, EightKLookup, dict[str, int]]:
     os.makedirs(data_dir, exist_ok=True)
     loaded = _load_eight_k_events_from_csv(data_dir)
     if loaded is not None:
         df, lookup = loaded
         _emit("INFO", f"eight_k: loaded {len(df)} events from {csv_filename('eight_k_events')}", progress_fn)
-        return df, lookup
+        return df, lookup, {"parsed": len(df), "failed": 0, "total_filings": len(df)}
 
     return _generate_eight_k_events(data_dir, progress_fn)
 
@@ -1812,7 +1845,7 @@ def run(
     else:
         now_utc = now_utc.tz_convert("UTC")
 
-    _, eight_k_lookup = load_or_generate_eight_k_events(data_dir, progress_fn)
+    _, eight_k_lookup, _ = load_or_generate_eight_k_events(data_dir, progress_fn)
 
     survivors: list[dict] = []
     status = "ok"
