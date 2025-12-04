@@ -1084,7 +1084,7 @@ def _generate_eight_k_events(
             if now - last_heartbeat > 30:
                 _emit(
                     "INFO",
-                    f"eight_k: heartbeat processed {processed}/{total_filings} (parsed {len(events)} failed {len(debug_entries)})",
+                    f"eight_k: heartbeat processed {processed}/{total_filings} (parsed {parsed_results} failed {len(debug_entries)})",
                     progress_fn,
                 )
                 last_heartbeat = now

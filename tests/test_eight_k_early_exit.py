@@ -5,6 +5,7 @@ from app.build_watchlist import (
     EightKEvent,
     _EIGHT_K_EVENTS_COLUMNS,
     _EightKProcessResult,
+    _generate_eight_k_events,
     generate_eight_k_events,
 )
 from app.csv_names import csv_filename
@@ -194,3 +195,38 @@ def test_early_exit_selects_primary_deterministically(tmp_path, monkeypatch):
     bbb_rows = early_exit_output.loc[early_exit_output["Ticker"] == "BBB"]
     assert len(bbb_rows) == 1
     assert (bbb_rows["EventTier"] == "Tier-1").all()
+
+
+def test_eight_k_heartbeat_uses_parsed_results(tmp_path, monkeypatch):
+    df = pd.DataFrame([
+        {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a1", "AccessionNo": "0001"}
+    ])
+    df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
+    event, csv_row = _make_event("https://a1", "AAA", "Tier-1", "0001")
+
+    def _stub(row):
+        return _EightKProcessResult(url=row.URL, event=event, csv_row=csv_row, debug_entry=None, log_messages=[])
+
+    monkeypatch.setattr("app.build_watchlist._process_eight_k_row", _stub)
+
+    base_time = 1_000_000.0
+    calls = {"n": 0}
+
+    def fake_time():
+        calls["n"] += 1
+        return base_time + calls["n"] * 31
+
+    monkeypatch.setattr("app.build_watchlist.time.time", fake_time)
+
+    messages: list[str] = []
+
+    events_df, _, counts = _generate_eight_k_events(
+        data_dir=str(tmp_path),
+        progress_fn=lambda msg: messages.append(msg),
+        early_exit_on_tier1=False,
+    )
+
+    assert counts["parsed"] == 1
+    assert not events_df.empty
+    assert any("eight_k: heartbeat processed" in message for message in messages)
