@@ -18,6 +18,7 @@ from typing import Iterable
 import pandas as pd
 
 from app.csv_names import csv_path
+from app.events_utils import first_non_na, select_primary_catalyst
 
 MAX_CANDIDATES = 40
 
@@ -38,32 +39,18 @@ def _tier_rank(value: str) -> int:
 
 
 def _select_primary_event(events: pd.DataFrame) -> dict:
-    if events.empty:
+    primary = select_primary_catalyst(events)
+    if primary is None:
         return {}
-    events = events.copy()
-    events["event_tier"] = events.get("event_tier", events.get("Tier", "Other"))
-    events["event_date"] = events.get("event_date")
-    events["event_type"] = events.get("event_type", events.get("EventType", ""))
-
-    events["_event_dt"] = pd.to_datetime(events["event_date"], errors="coerce")
-
-    tier1 = events[events["event_tier"].str.contains("1", case=False, na=False)]
-    tier2 = events[events["event_tier"].str.contains("2", case=False, na=False)]
-
-    def _pick_latest(df: pd.DataFrame) -> pd.Series | None:
-        if df.empty:
-            return None
-        return df.sort_values(["_event_dt", "event_date"], ascending=[False, False]).iloc[0]
-
-    primary = _pick_latest(tier1)
-    if primary is None:
-        primary = _pick_latest(tier2)
-    if primary is None:
-        primary = _pick_latest(events) or events.iloc[0]
     return {
-        "CatalystType": primary.get("event_type", ""),
-        "EventDate": primary.get("event_date", ""),
-        "EventTier": primary.get("event_tier", ""),
+        "CatalystType": primary.get("event_type", primary.get("EventType", "")),
+        "EventDate": first_non_na(
+            primary.get("event_date"),
+            primary.get("EventDate"),
+            primary.get("FilingDate"),
+        )
+        or "",
+        "EventTier": primary.get("event_tier", primary.get("Tier", "")),
         "PrimarySource": primary.get("primary_source_url", primary.get("PrimarySource", "")),
         "PrimaryCatalystURL": primary.get(
             "primary_source_url", primary.get("PrimarySource", "")

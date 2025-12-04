@@ -19,6 +19,7 @@ from app.biotech_utils import (
 from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.logging_utils import log_diag
+from app.events_utils import first_non_na, select_primary_catalyst
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
@@ -333,25 +334,40 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
 
 
 def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None, str | None]:
-    if events is None or events.empty:
+    primary = select_primary_catalyst(events)
+    if primary is None:
         return "None", None, None, None
-    events = events.copy()
-    events["Tier"] = events.get("Tier", events.get("event_tier", pd.Series(dtype=str))).astype(str)
-    tier1 = events[events["Tier"].str.contains("1", case=False, na=False)]
-    target = tier1 if not tier1.empty else events
-    sort_cols = [col for col in ["EventDate", "event_date", "FilingDate"] if col in target.columns]
-    if sort_cols:
-        target = target.sort_values(by=sort_cols, ascending=True, na_position="last")
-    row = target.iloc[0]
-    score = "Tier-1" if not tier1.empty else "Tier-2"
-    event_date = row.get("EventDate") or row.get("event_date") or row.get("FilingDate")
-    event_type = (
-        row.get("event_type")
-        or row.get("EventType")
-        or row.get("ItemsNormalized")
-        or row.get("ItemsPresent")
+
+    tier_value = str(
+        primary.get("event_tier")
+        or primary.get("Tier")
+        or primary.get("EventTier")
+        or ""
+    ).lower()
+    if "1" in tier_value:
+        score = "Tier-1"
+    elif "2" in tier_value:
+        score = "Tier-2"
+    else:
+        score = "Tier-None"
+
+    event_date = first_non_na(
+        primary.get("event_date"),
+        primary.get("EventDate"),
+        primary.get("FilingDate"),
     )
-    url = row.get("PrimarySource") or row.get("primary_source_url") or row.get("FilingURL") or row.get("URL")
+    event_type = (
+        primary.get("event_type")
+        or primary.get("EventType")
+        or primary.get("ItemsNormalized")
+        or primary.get("ItemsPresent")
+    )
+    url = (
+        primary.get("PrimarySource")
+        or primary.get("primary_source_url")
+        or primary.get("FilingURL")
+        or primary.get("URL")
+    )
     return score, event_date, event_type, url
 
 
@@ -960,3 +976,4 @@ __all__ = [
     "_materiality_passed",
     "_conviction_from_subscores",
 ]
+from app.events_utils import select_primary_catalyst

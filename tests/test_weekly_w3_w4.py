@@ -92,8 +92,20 @@ def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
     _write_csv(
         data_dir / "09_events.csv",
         [
-            {"Ticker": "ABC", "CIK": "0000000001", "Tier": "Tier-1", "FilingURL": "https://www.sec.gov/abc"},
-            {"Ticker": "XYZ", "CIK": "0000000002", "Tier": "Tier-2", "FilingURL": "https://www.sec.gov/xyz"},
+            {
+                "Ticker": "ABC",
+                "CIK": "0000000001",
+                "Tier": "Tier-1",
+                "EventDate": "2024-05-01",
+                "FilingURL": "https://www.sec.gov/abc",
+            },
+            {
+                "Ticker": "XYZ",
+                "CIK": "0000000002",
+                "Tier": "Tier-2",
+                "EventDate": "2024-05-02",
+                "FilingURL": "https://www.sec.gov/xyz",
+            },
         ],
     )
 
@@ -170,6 +182,9 @@ def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
 
     validated_row = validated.set_index("Ticker").loc["ABC"]
     deep_row = dr_df.set_index("Ticker").loc["ABC"]
+    shortlist_row = pd.read_csv(data_dir / "20_candidate_shortlist.csv").set_index("Ticker").loc["ABC"]
     assert validated_row["DilutionScore"] == deep_row["Dilution"]
     assert validated_row["CatalystScore"] == deep_row["Catalyst"]
     assert validated_row["RunwayEvidencePrimary"] == deep_row["RunwayEvidencePrimary"]
+    assert shortlist_row["PrimaryCatalystDate"] == deep_row["PrimaryCatalystDate"]
+    assert shortlist_row["PrimaryCatalystURL"] == deep_row["PrimaryCatalystURL"]
