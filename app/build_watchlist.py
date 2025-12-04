@@ -949,6 +949,7 @@ def _build_eight_k_event(
 def _generate_eight_k_events(
     data_dir: str,
     progress_fn: ProgressFn,
+    early_exit_on_tier1: bool = False,
 ) -> tuple[pd.DataFrame, EightKLookup]:
     filings_path = _resolve_path(csv_filename("filings"), data_dir)
     if not os.path.exists(filings_path):
@@ -1005,6 +1006,7 @@ def _generate_eight_k_events(
 
     csv_rows: list[dict[str, object]] = []
     events: list[EightKEvent] = []
+    tier1_seen_tickers: set[str] = set()
     debug_entries: list[list[object]] = []
     parse_failures = 0
 
@@ -1066,8 +1068,19 @@ def _generate_eight_k_events(
                     )
 
             if result.event is not None and result.csv_row is not None:
+                ticker_key = result.event.ticker or ""
+                if early_exit_on_tier1 and ticker_key and ticker_key in tier1_seen_tickers:
+                    # When EarlyExitOnTier1 is enabled, 09_events may not contain a full
+                    # history for tickers once a material Tier-1 catalyst is recorded.
+                    continue
+
                 events.append(result.event)
                 csv_rows.append(result.csv_row)
+                if early_exit_on_tier1 and ticker_key:
+                    is_material_tier1 = result.event.is_catalyst and result.event.event_tier == "Tier-1"
+                    if is_material_tier1:
+                        tier1_seen_tickers.add(ticker_key)
+
                 if len(events) != last_reported_parsed:
                     last_reported_parsed = len(events)
                     _emit(
@@ -1169,19 +1182,29 @@ def _load_eight_k_events_from_csv(
 def generate_eight_k_events(
     data_dir: str | None = None,
     progress_fn: ProgressFn = None,
+    cfg: dict | None = None,
 ) -> tuple[pd.DataFrame, EightKLookup, dict[str, int]]:
-    if data_dir is None:
+    if cfg is None:
         cfg = load_config()
+
+    if data_dir is None:
         data_dir = cfg.get("Paths", {}).get("data", "data")
 
+    events_cfg = cfg.get("Events") or {}
+    early_exit_on_tier1 = bool(events_cfg.get("EarlyExitOnTier1"))
+
     os.makedirs(data_dir, exist_ok=True)
-    return _generate_eight_k_events(data_dir, progress_fn)
+    return _generate_eight_k_events(data_dir, progress_fn, early_exit_on_tier1)
 
 
 def load_or_generate_eight_k_events(
     data_dir: str,
     progress_fn: ProgressFn,
+    cfg: dict | None = None,
 ) -> tuple[pd.DataFrame, EightKLookup, dict[str, int]]:
+    if cfg is None:
+        cfg = load_config()
+
     os.makedirs(data_dir, exist_ok=True)
     loaded = _load_eight_k_events_from_csv(data_dir)
     if loaded is not None:
@@ -1189,7 +1212,10 @@ def load_or_generate_eight_k_events(
         _emit("INFO", f"eight_k: loaded {len(df)} events from {csv_filename('eight_k_events')}", progress_fn)
         return df, lookup, {"parsed": len(df), "failed": 0, "total_filings": len(df)}
 
-    return _generate_eight_k_events(data_dir, progress_fn)
+    events_cfg = cfg.get("Events") or {}
+    early_exit_on_tier1 = bool(events_cfg.get("EarlyExitOnTier1"))
+
+    return _generate_eight_k_events(data_dir, progress_fn, early_exit_on_tier1)
 
 
 def _collect_candidate_urls(row) -> list[str]:

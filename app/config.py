@@ -24,6 +24,12 @@ def load_config(path: str = "config.json") -> Dict[str, Any]:
     os.makedirs(cfg["Paths"]["data"], exist_ok=True)
     os.makedirs(cfg["Paths"]["logs"], exist_ok=True)
 
+    events_cfg = cfg.get("Events") or {}
+    if not isinstance(events_cfg, dict):
+        events_cfg = {}
+    events_cfg.setdefault("EarlyExitOnTier1", False)
+    cfg["Events"] = events_cfg
+
     diag_cfg = cfg.get("Diagnostics") or {}
     if not isinstance(diag_cfg, dict):
         diag_cfg = {}

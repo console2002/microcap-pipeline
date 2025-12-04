@@ -34,6 +34,9 @@
     "Enabled": true,
     "Path": "data/run_diagnostics.jsonl"
   },
+  "Events": {
+    "EarlyExitOnTier1": false
+  },
   "Universe": {
     "Source": "SEC",
     "RefreshCadence": "weekly",
