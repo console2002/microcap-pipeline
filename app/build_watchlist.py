@@ -1021,7 +1021,7 @@ def _generate_eight_k_events(
 
     events_by_ticker: dict[str, list[_EightKProcessResult]] = defaultdict(list)
     selected_results: list[_EightKProcessResult] = []
-    parsed_results = 0
+    parsed = 0
     debug_entries: list[list[object]] = []
     parse_failures = 0
 
@@ -1083,7 +1083,7 @@ def _generate_eight_k_events(
                     )
 
             if result.event is not None and result.csv_row is not None:
-                parsed_results += 1
+                parsed += 1
 
                 if early_exit_on_tier1:
                     bucket_key = _event_bucket_key(result.event)
@@ -1095,8 +1095,8 @@ def _generate_eight_k_events(
                     ticker_key = _normalize_ticker(result.event.ticker)
                     events_by_ticker[ticker_key].append(result)
 
-                if parsed_results != last_reported_parsed:
-                    last_reported_parsed = parsed_results
+                if parsed != last_reported_parsed:
+                    last_reported_parsed = parsed
                     _emit(
                         "INFO",
                         f"eight_k: parsed {last_reported_parsed}",
@@ -1107,7 +1107,7 @@ def _generate_eight_k_events(
             if now - last_heartbeat > 30:
                 _emit(
                     "INFO",
-                    f"eight_k: heartbeat processed {processed}/{total_filings} (parsed {parsed_results} failed {len(debug_entries)})",
+                    f"eight_k: heartbeat processed {processed}/{total_filings} (parsed {parsed} failed {len(debug_entries)})",
                     progress_fn,
                 )
                 last_heartbeat = now

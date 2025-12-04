@@ -246,6 +246,7 @@ def test_eight_k_heartbeat_uses_parsed_results(tmp_path, monkeypatch):
     assert counts["parsed"] == 1
     assert not events_df.empty
     assert any("eight_k: heartbeat processed" in message for message in messages)
+    assert any("parsed" in message and "failed" in message for message in messages)
 
 
 def test_early_exit_does_not_collapse_blank_tickers(tmp_path, monkeypatch):
