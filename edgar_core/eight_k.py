@@ -74,6 +74,89 @@ def _normalize_item_label(label: str) -> str:
     return lowered.lstrip(" .:-")
 
 
+def is_listing_change_event(items: set[str], text: str) -> bool:
+    """Return True when the filing indicates a listing change worthy of Tier-1.
+
+    The gate is intentionally strict to avoid labeling vanilla earnings or
+    annual-meeting 8-Ks as listing events simply because they mention Nasdaq or
+    NYSE in boilerplate.
+    """
+
+    if not text.strip():
+        return False
+
+    lowered = text.lower()
+
+    has_core_item = any(item.startswith("3.01") or item.startswith("5.03") for item in items)
+    has_soft_item = any(item.startswith("7.01") or item.startswith("8.01") for item in items)
+    is_pure_507 = bool(items) and all(item.startswith("5.07") for item in items)
+
+    listing_terms = [
+        "listing",
+        "listed",
+        "listing requirements",
+        "continued listing",
+        "transfer of listing",
+        "listing transfer",
+        "initial listing",
+        "list on",
+        "list its",
+        "list our",
+        "uplist",
+        "uplisting",
+        "quotation",
+        "nasdaq capital market",
+        "nyse american",
+        "nyse arca",
+    ]
+    listing_action_terms = [
+        "transfer of listing",
+        "listing transfer",
+        "initial listing",
+        "listing of common stock",
+        "approve the listing",
+        "approval for listing",
+        "quotation on",
+        "list on",
+        "list its",
+        "list our",
+        "uplist",
+        "uplisting",
+        "listing requirements",
+        "continued listing",
+        "listing standards",
+        "listing rule",
+        "deficiency notice",
+        "compliance plan",
+    ]
+    spinoff_terms = [
+        "spinoff",
+        "spin-off",
+        "spin off",
+    ]
+
+    has_listing_term = _contains_any(lowered, listing_terms)
+    has_action_term = _contains_any(lowered, listing_action_terms)
+    has_spinoff = _contains_any(lowered, spinoff_terms)
+
+    if "delist" in lowered:
+        return False
+
+    if is_pure_507:
+        return False
+
+    if has_spinoff:
+        return True
+
+    if has_core_item:
+        return has_listing_term or has_action_term
+
+    if has_soft_item:
+        return has_listing_term and has_action_term
+
+    return False
+
+
 def classify_eight_k_event(
     eight_k: EightK, filing: Filing, press_text: str | None = None
 ) -> Dict[str, object]:
@@ -88,6 +171,7 @@ def classify_eight_k_event(
     items = [
         _normalize_item_label(str(item)) for item in getattr(eight_k, "items", []) or []
     ]
+    item_set = set(items)
     item_text = "\n\n".join(_gather_item_text(eight_k))
     exhibits_text = "\n\n".join(_gather_exhibit_texts(filing))
     combined_text = "\n\n".join(
@@ -169,9 +253,7 @@ def classify_eight_k_event(
     ):
         event_type = "ContractAward"
         event_tier = "Tier-1"
-    elif _contains_any(combined_text, ["uplist", "listing", "nyse", "nasdaq", "spinoff", "spin-off"]) and not _contains_any(
-        combined_text, ["delist", "delisting"]
-    ):
+    elif is_listing_change_event(item_set, combined_text):
         event_type = "ListingChange"
         event_tier = "Tier-1"
     elif any(str(item).startswith("2.02") for item in items):
