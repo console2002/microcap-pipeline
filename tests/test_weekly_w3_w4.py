@@ -97,6 +97,7 @@ def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
                 "CIK": "0000000001",
                 "Tier": "Tier-1",
                 "EventDate": "2024-05-01",
+                "EventType": "FDAMilestone",
                 "FilingURL": "https://www.sec.gov/abc",
             },
             {

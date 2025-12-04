@@ -22,14 +22,14 @@ def test_materiality_and_conviction_rules():
     assert not _materiality_passed(missing_mat)
     assert _conviction_from_subscores(5, "Tier-1", missing_mat) == "Low"
 
-    tier1 = _materiality(4, "Tier-1", True)
+    tier1 = _materiality(4, "Tier-1", True, event_type="FDAMilestone", event_tier=1)
     assert tier1.startswith("PASS")
     assert _materiality_passed(tier1)
     assert _conviction_from_subscores(4, "Tier-1", tier1) == "High"
 
-    tier2 = _materiality(4, "Tier-2", True)
-    assert tier2.startswith("PASS")
-    assert _conviction_from_subscores(4, "Tier-2", tier2) == "Medium"
+    tier2 = _materiality(4, "Tier-2", True, event_type="Earnings", event_tier=2)
+    assert tier2.startswith("FAIL")
+    assert _conviction_from_subscores(4, "Tier-2", tier2) == "Low"
 
 
 def test_runway_reuse_and_materiality_output(tmp_path, caplog, monkeypatch):

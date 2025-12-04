@@ -4,7 +4,7 @@ import csv
 import logging
 import os
 import re
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Iterable, List, Mapping, Optional
 
 import pandas as pd
 
@@ -333,10 +333,12 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
     }
 
 
-def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None, str | None]:
+def _catalyst_details(
+    events: pd.DataFrame,
+) -> tuple[str, str | None, str | None, str | None, int | None, Mapping[str, object]]:
     primary = select_primary_catalyst(events)
     if primary is None:
-        return "None", None, None, None
+        return "None", None, None, None, None, {}
 
     tier_value = str(
         primary.get("event_tier")
@@ -368,7 +370,14 @@ def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None
         or primary.get("FilingURL")
         or primary.get("URL")
     )
-    return score, event_date, event_type, url
+    event_tier = _coerce_tier(primary.get("event_tier"), score)
+    event_flags = primary.get("event_flags") or primary.get("flags") or {}
+    try:
+        event_flags = dict(event_flags) if isinstance(event_flags, Mapping) else {}
+    except Exception:
+        event_flags = {}
+
+    return score, event_date, event_type, url, event_tier, event_flags
 
 
 def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str]:
@@ -415,26 +424,94 @@ def _insider_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str | N
     return score, last_date, _aggregate_evidence(evidence)
 
 
-def _materiality(subscore_count: int, catalyst: str, mandatory_ok: bool) -> str:
+def _normalize_event_type(event_type: str | None) -> str:
+    text = str(event_type or "").strip().lower()
+    return re.sub(r"[^a-z0-9]+", "", text)
+
+
+def _coerce_tier(event_tier: object, catalyst_text: str | None = None) -> int | None:
+    for value in (event_tier, catalyst_text):
+        text = str(value or "").strip().lower()
+        if not text:
+            continue
+        if "1" in text:
+            return 1
+        if "2" in text:
+            return 2
+    return None
+
+
+def is_material_catalyst(
+    event_type: str | None, event_tier: int | str | None, flags: Mapping[str, object] | None = None
+) -> bool:
+    """Return True when the event is a materially valid Tier-1 catalyst.
+
+    Material catalysts follow the Tier-1 triggers in ``weekly.txt``. Only
+    clearly material Tier-1 events should pass this gate, and soft/misclassified
+    Tier-1 entries are rejected.
+    """
+
+    normalized_type = _normalize_event_type(event_type)
+    tier_value = _coerce_tier(event_tier)
+    if tier_value != 1 or not normalized_type:
+        return False
+
+    flags = flags or {}
+    listing_ok = bool(
+        flags.get("material_listing_change")
+        or flags.get("is_material_listing_change")
+        or flags.get("listing_change_material")
+    )
+
+    material_types = {
+        "insidercluster",
+        "overhangremoval",
+        "atmtermination",
+        "fundedcontract",
+        "fundedaward",
+        "award",
+        "fdamilestone",
+        "regulatoryapproval",
+        "guidanceup",
+        "peerreadacross",
+        "ma",
+        "mandatransaction",
+    }
+
+    if normalized_type in material_types:
+        return True
+
+    if normalized_type in {"listingchange", "uplisting", "uplist"}:
+        return listing_ok
+
+    return False
+
+
+def _materiality(
+    subscore_count: int,
+    catalyst: str,
+    mandatory_ok: bool,
+    event_type: str | None = None,
+    event_tier: int | str | None = None,
+    event_flags: Mapping[str, object] | None = None,
+) -> str:
     """Return a PASS/FAIL Materiality string.
 
     Materiality must always start with PASS or FAIL for downstream validation.
     """
 
     catalyst_text = str(catalyst or "").strip()
-    catalyst_lower = catalyst_text.lower()
 
     if not mandatory_ok:
         return "FAIL - mandatory subscore missing"
 
-    strong_catalyst = catalyst_lower.startswith("tier-1")
-    has_catalyst = catalyst_lower not in {"", "none", "tbd", "nan"}
+    material_tier1 = is_material_catalyst(event_type, event_tier, event_flags)
+    has_catalyst = catalyst_text.lower() not in {"", "none", "tbd", "nan"}
 
-    if strong_catalyst and subscore_count >= 4:
+    if material_tier1 and subscore_count >= 4:
         return "PASS - Tier1 catalyst"
     if has_catalyst and subscore_count >= 4:
-        tier2_flag = catalyst_lower.startswith("tier-2")
-        return "PASS - Tier2" if tier2_flag else "PASS - catalyst"
+        return "FAIL - non-material catalyst"
 
     return "FAIL - weak profile"
 
@@ -715,7 +792,14 @@ def run_weekly_deep_research(
         ticker_series = events.get("Ticker", pd.Series(dtype=str))
         cik_series = events.get("CIK", pd.Series(dtype=str))
         candidate_events = events[(ticker_series.astype(str) == str(ticker)) | (cik_series.astype(str) == str(cik))]
-        catalyst, catalyst_date, catalyst_type, catalyst_url = _catalyst_details(candidate_events)
+        (
+            catalyst,
+            catalyst_date,
+            catalyst_type,
+            catalyst_url,
+            catalyst_tier_value,
+            catalyst_flags,
+        ) = _catalyst_details(candidate_events)
         log_diag(
             stage="events",
             ticker=str(ticker),
@@ -801,7 +885,14 @@ def run_weekly_deep_research(
 
         mandatory_ok = all(subscore_flags.get(key, False) for key in ["dilution", "runway", "catalyst"])
         subscore_count = sum(1 for v in subscore_flags.values() if v)
-        materiality_raw = _materiality(subscore_count, catalyst_label, mandatory_ok)
+        materiality_raw = _materiality(
+            subscore_count,
+            catalyst_label,
+            mandatory_ok,
+            event_type=catalyst_type,
+            event_tier=catalyst_tier_value,
+            event_flags=catalyst_flags,
+        )
         materiality_label = materiality_raw
 
         conviction = _conviction_from_subscores(subscore_count, catalyst_label, materiality_label)
