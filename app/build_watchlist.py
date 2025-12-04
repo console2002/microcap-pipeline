@@ -22,6 +22,7 @@ from edgar_core.eight_k import classify_eight_k_event
 
 from app.config import load_config
 from app.csv_names import csv_filename, csv_path
+from app.events_utils import select_primary_catalyst
 from app.edgar_adapter import get_adapter
 from app.eight_k_parser import EdgarEightKParseResult, EdgarEightKParser
 from app.logging_utils import log_diag
@@ -1004,9 +1005,8 @@ def _generate_eight_k_events(
             progress_fn,
         )
 
-    csv_rows: list[dict[str, object]] = []
-    events: list[EightKEvent] = []
-    tier1_seen_tickers: set[str] = set()
+    events_by_ticker: dict[str, list[_EightKProcessResult]] = defaultdict(list)
+    parsed_results = 0
     debug_entries: list[list[object]] = []
     parse_failures = 0
 
@@ -1068,21 +1068,12 @@ def _generate_eight_k_events(
                     )
 
             if result.event is not None and result.csv_row is not None:
-                ticker_key = result.event.ticker or ""
-                if early_exit_on_tier1 and ticker_key and ticker_key in tier1_seen_tickers:
-                    # When EarlyExitOnTier1 is enabled, 09_events may not contain a full
-                    # history for tickers once a material Tier-1 catalyst is recorded.
-                    continue
+                ticker_key = _normalize_ticker(result.event.ticker)
+                events_by_ticker[ticker_key].append(result)
+                parsed_results += 1
 
-                events.append(result.event)
-                csv_rows.append(result.csv_row)
-                if early_exit_on_tier1 and ticker_key:
-                    is_material_tier1 = result.event.is_catalyst and result.event.event_tier == "Tier-1"
-                    if is_material_tier1:
-                        tier1_seen_tickers.add(ticker_key)
-
-                if len(events) != last_reported_parsed:
-                    last_reported_parsed = len(events)
+                if parsed_results != last_reported_parsed:
+                    last_reported_parsed = parsed_results
                     _emit(
                         "INFO",
                         f"eight_k: parsed {last_reported_parsed}",
@@ -1098,6 +1089,52 @@ def _generate_eight_k_events(
                 )
                 last_heartbeat = now
 
+    def _match_primary_result(primary: pd.Series, results: list[_EightKProcessResult]) -> _EightKProcessResult | None:
+        primary_url = _normalize_url(primary.get("FilingURL", "") or primary.get("PrimarySourceURL", ""))
+        primary_accession = _clean_text(primary.get("AccessionNo", ""))
+
+        for candidate in results:
+            event = candidate.event
+            if event is None:
+                continue
+            if primary_url and _normalize_url(event.filing_url) == primary_url:
+                return candidate
+            if primary_accession and _clean_text(event.accession_no) == primary_accession:
+                return candidate
+        return None
+
+    selected_results: list[_EightKProcessResult] = []
+    for ticker_key in sorted(events_by_ticker.keys()):
+        ticker_results = events_by_ticker[ticker_key]
+        if not early_exit_on_tier1:
+            selected_results.extend(ticker_results)
+            continue
+
+        ticker_df = pd.DataFrame([res.csv_row for res in ticker_results if res.csv_row is not None])
+        primary = select_primary_catalyst(ticker_df)
+        if primary is None:
+            selected_results.extend(ticker_results)
+            continue
+
+        match = _match_primary_result(primary, ticker_results)
+        if match is not None:
+            selected_results.append(match)
+            continue
+
+        # Fallback: retain all results when no match is found to avoid dropping data.
+        selected_results.extend(ticker_results)
+
+    events: list[EightKEvent] = []
+    csv_rows: list[dict[str, object]] = []
+    for result in selected_results:
+        if result.event is None or result.csv_row is None:
+            continue
+        events.append(result.event)
+        csv_rows.append(result.csv_row)
+
+    # When EarlyExitOnTier1 is enabled, 09_8k_events.csv will typically contain only the
+    # primary catalyst per ticker according to select_primary_catalyst (highest tier,
+    # then most recent date). Non-primary events for that ticker may be omitted.
     events_df = pd.DataFrame(csv_rows, columns=_EIGHT_K_EVENTS_COLUMNS)
     events_df.to_csv(csv_path(data_dir, "eight_k_events"), index=False)
     _write_canonical_events(events_df, data_dir)
@@ -1202,15 +1239,21 @@ def load_or_generate_eight_k_events(
     progress_fn: ProgressFn,
     cfg: dict | None = None,
 ) -> tuple[pd.DataFrame, EightKLookup, dict[str, int]]:
-    if cfg is None:
-        cfg = load_config()
-
     os.makedirs(data_dir, exist_ok=True)
-    loaded = _load_eight_k_events_from_csv(data_dir)
+    events_path = csv_path(data_dir, "eight_k_events")
+    loaded = _load_eight_k_events_from_csv(data_dir) if os.path.exists(events_path) else None
     if loaded is not None:
         df, lookup = loaded
-        _emit("INFO", f"eight_k: loaded {len(df)} events from {csv_filename('eight_k_events')}", progress_fn)
+        message = f"eight_k: loaded {len(df)} events from {csv_filename('eight_k_events')}"
+        if progress_fn is not None:
+            try:
+                progress_fn(f"INFO {message}")
+            except Exception:
+                pass
         return df, lookup, {"parsed": len(df), "failed": 0, "total_filings": len(df)}
+
+    if cfg is None:
+        cfg = load_config()
 
     events_cfg = cfg.get("Events") or {}
     early_exit_on_tier1 = bool(events_cfg.get("EarlyExitOnTier1"))

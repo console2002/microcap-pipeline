@@ -74,11 +74,13 @@ def _csv_row_from_event(event: EightKEvent, accession: str) -> dict:
     return {key: row.get(key, "") for key in _EIGHT_K_EVENTS_COLUMNS}
 
 
-def _make_event(url: str, ticker: str, tier: str, accession: str) -> tuple[EightKEvent, dict]:
+def _make_event(
+    url: str, ticker: str, tier: str, accession: str, filing_date: str = "2024-01-01"
+) -> tuple[EightKEvent, dict]:
     event = EightKEvent(
         cik="0001" if ticker == "AAA" else "0002",
         ticker=ticker,
-        filing_date="2024-01-01",
+        filing_date=filing_date,
         filing_url=url,
         items_present="1.01",
         is_catalyst=True,
@@ -150,5 +152,45 @@ def test_early_exit_limits_per_ticker_only(tmp_path, filings_df, monkeypatch):
     assert (aaa_rows["EventTier"] == "Tier-1").any()
 
     bbb_rows = output[output["Ticker"] == "BBB"]
+    assert len(bbb_rows) == 1
+    assert (bbb_rows["EventTier"] == "Tier-1").all()
+
+
+def test_early_exit_selects_primary_deterministically(tmp_path, monkeypatch):
+    df = pd.DataFrame(
+        [
+            {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a1", "AccessionNo": "0001"},
+            {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a2", "AccessionNo": "0002"},
+            {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a3", "AccessionNo": "0003"},
+            {"Ticker": "BBB", "CIK": "0002", "Form": "8-K", "URL": "https://b1", "AccessionNo": "0004"},
+        ]
+    )
+    df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
+    events_by_url = {
+        "https://a1": _make_event("https://a1", "AAA", "Tier-1", "0001", filing_date="2025-06-25"),
+        "https://a2": _make_event("https://a2", "AAA", "Tier-2", "0002", filing_date="2025-12-02"),
+        "https://a3": _make_event("https://a3", "AAA", "Tier-1", "0003", filing_date="2025-12-03"),
+        "https://b1": _make_event("https://b1", "BBB", "Tier-1", "0004", filing_date="2024-02-01"),
+    }
+    monkeypatch.setattr("app.build_watchlist._process_eight_k_row", _make_process_stub(events_by_url))
+
+    cfg = _make_cfg(tmp_path, early_exit_on_tier1=False)
+    events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=cfg)
+
+    events_path = tmp_path / csv_filename("eight_k_events")
+    assert events_path.exists()
+    output = pd.read_csv(events_path)
+    assert len(output) == len(events_by_url)
+
+    early_exit_cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
+    events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=early_exit_cfg)
+
+    early_exit_output = pd.read_csv(events_path)
+    primary_dates = early_exit_output.loc[early_exit_output["Ticker"] == "AAA", "EventDate"].unique()
+    assert len(primary_dates) == 1
+    assert pd.Timestamp(primary_dates[0]) == pd.Timestamp("2025-12-03")
+
+    bbb_rows = early_exit_output.loc[early_exit_output["Ticker"] == "BBB"]
     assert len(bbb_rows) == 1
     assert (bbb_rows["EventTier"] == "Tier-1").all()
