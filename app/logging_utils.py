@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import traceback as tb_mod
 from typing import Iterable
 
@@ -104,7 +104,7 @@ def log_diag(
     if not settings.get("enabled"):
         return
 
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
     normalized_cik = cik or None
 
     resolved_error_type = error_type

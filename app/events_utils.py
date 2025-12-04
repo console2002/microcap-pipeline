@@ -67,7 +67,9 @@ def select_primary_catalyst(events: Sequence) -> Optional[pd.Series]:
     date_series = pd.Series(pd.NaT, index=df.index, dtype=object)
     for col in ["event_date", "EventDate", "FilingDate"]:
         if col in df.columns:
-            date_series = date_series.fillna(df[col])
+            missing = date_series.isna()
+            if missing.any():
+                date_series = date_series.where(~missing, df[col]).infer_objects(copy=False)
 
     df["_event_date_value"] = date_series
     df["_event_dt"] = pd.to_datetime(date_series, errors="coerce")
