@@ -98,3 +98,21 @@ def test_contract_award_classification_unchanged():
 
     assert result["event_type"] == "ContractAward"
     assert result["event_tier"] == "Tier-1"
+
+
+def test_spinoff_with_soft_item_classifies_as_listing_change():
+    eight_k = StubEightK(
+        items=["8.01"],
+        item_texts={
+            "8.01": (
+                "The Company announced a planned spin-off of its XYZ business into a separately traded public company "
+                "on the Nasdaq Capital Market."
+            )
+        },
+    )
+    filing = StubFiling()
+
+    result = classify_eight_k_event(eight_k, filing)
+
+    assert result["event_type"] == "ListingChange"
+    assert result["event_tier"] == "Tier-1"

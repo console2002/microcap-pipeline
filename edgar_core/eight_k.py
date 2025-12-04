@@ -129,9 +129,15 @@ def is_listing_change_event(items: set[str], text: str) -> bool:
         "deficiency notice",
         "compliance plan",
     ]
+    spinoff_terms = [
+        "spinoff",
+        "spin-off",
+        "spin off",
+    ]
 
     has_listing_term = _contains_any(lowered, listing_terms)
     has_action_term = _contains_any(lowered, listing_action_terms)
+    has_spinoff = _contains_any(lowered, spinoff_terms)
 
     if "delist" in lowered:
         return False
@@ -140,9 +146,11 @@ def is_listing_change_event(items: set[str], text: str) -> bool:
         return False
 
     if has_core_item:
-        return has_listing_term or has_action_term
+        return has_listing_term or has_action_term or has_spinoff
 
     if has_soft_item:
+        if has_spinoff:
+            return True
         return has_listing_term and has_action_term
 
     return False
