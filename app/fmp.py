@@ -1,4 +1,4 @@
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from typing import Callable, Optional
 import logging
 import re
@@ -247,7 +247,7 @@ def fetch_profiles(
                 "Industry": rec.get("industry") or "",
                 "MarketCap": mcap,
                 "Price": price,
-                "UpdatedAt": datetime.utcnow().isoformat()
+                "UpdatedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
             })
 
     if shell_dropped:

@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.csv_names import csv_path
 
@@ -67,7 +67,9 @@ def append_antijoin_purge(
 
     # Rolling purge if requested
     if keep_days is not None and date_col in df_all.columns:
-        cutoff_date = (datetime.utcnow() - timedelta(days=keep_days)).date().isoformat()
+        cutoff_date = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=keep_days)
+        ).date().isoformat()
         if not df_all[date_col].isna().all():
             df_all = df_all[df_all[date_col].fillna(cutoff_date) >= cutoff_date]
 

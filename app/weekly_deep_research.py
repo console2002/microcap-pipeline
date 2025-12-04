@@ -608,7 +608,7 @@ def run_weekly_deep_research(
         filings_with_form = candidate_filings.copy()
         filings_with_form[form_col] = filings_with_form.get(form_col, pd.Series(dtype=str)).astype(str)
         mask = filings_with_form[form_col].str.upper().str.startswith(RUNWAY_FORMS)
-        subset = filings_with_form[mask]
+        subset = filings_with_form[mask].copy()
         if subset.empty:
             return None, "", "", False
 
