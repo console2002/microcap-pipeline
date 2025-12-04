@@ -76,10 +76,10 @@ def _csv_row_from_event(event: EightKEvent, accession: str) -> dict:
 
 
 def _make_event(
-    url: str, ticker: str, tier: str, accession: str, filing_date: str = "2024-01-01"
+    url: str, ticker: str, tier: str, accession: str, filing_date: str = "2024-01-01", cik: str | None = None
 ) -> tuple[EightKEvent, dict]:
     event = EightKEvent(
-        cik="0001" if ticker == "AAA" else "0002",
+        cik=cik if cik is not None else ("0001" if ticker == "AAA" else "0002"),
         ticker=ticker,
         filing_date=filing_date,
         filing_url=url,
@@ -246,3 +246,43 @@ def test_eight_k_heartbeat_uses_parsed_results(tmp_path, monkeypatch):
     assert counts["parsed"] == 1
     assert not events_df.empty
     assert any("eight_k: heartbeat processed" in message for message in messages)
+
+
+def test_early_exit_does_not_collapse_blank_tickers(tmp_path, monkeypatch):
+    rows = [
+        {"Ticker": "", "CIK": "", "Form": "8-K", "URL": "https://blank1", "AccessionNo": "0010"},
+        {"Ticker": "", "CIK": "", "Form": "8-K", "URL": "https://blank2", "AccessionNo": "0011"},
+        {"Ticker": "", "CIK": "", "Form": "8-K", "URL": "https://blank3", "AccessionNo": "0012"},
+        {"Ticker": "", "CIK": "0099", "Form": "8-K", "URL": "https://cik1", "AccessionNo": "0013"},
+        {"Ticker": "", "CIK": "0099", "Form": "8-K", "URL": "https://cik2", "AccessionNo": "0014"},
+    ]
+    filings_df = pd.DataFrame(rows)
+    filings_df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
+    events_by_url = {
+        "https://blank1": _make_event("https://blank1", "", "Tier-1", "0010", filing_date="2024-03-01", cik=""),
+        "https://blank2": _make_event("https://blank2", "", "Tier-2", "0011", filing_date="2024-04-01", cik=""),
+        "https://blank3": _make_event("https://blank3", "", "Tier-1", "0012", filing_date="2024-05-01", cik=""),
+        "https://cik1": _make_event("https://cik1", "", "Tier-2", "0013", filing_date="2024-01-01", cik="0099"),
+        "https://cik2": _make_event("https://cik2", "", "Tier-1", "0014", filing_date="2024-02-01", cik="0099"),
+    }
+
+    monkeypatch.setattr("app.build_watchlist._process_eight_k_row", _make_process_stub(events_by_url))
+
+    early_exit_cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
+    generate_eight_k_events(data_dir=str(tmp_path), cfg=early_exit_cfg)
+
+    events_path = tmp_path / csv_filename("eight_k_events")
+    assert events_path.exists()
+
+    output = pd.read_csv(events_path, dtype=str).fillna("")
+
+    blank_ticker_rows = output[output["Ticker"] == ""]
+
+    no_bucket_rows = blank_ticker_rows[blank_ticker_rows["CIK"] == ""]
+    assert len(no_bucket_rows) == 3
+    assert set(no_bucket_rows["FilingURL"]) == {"https://blank1", "https://blank2", "https://blank3"}
+
+    cik_bucket_rows = blank_ticker_rows[blank_ticker_rows["CIK"] == "0099"]
+    assert len(cik_bucket_rows) == 1
+    assert set(cik_bucket_rows["FilingURL"]) == {"https://cik2"}

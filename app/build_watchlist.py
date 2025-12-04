@@ -330,6 +330,20 @@ def _clean_text(value: object) -> str:
     return text
 
 
+def _event_bucket_key(event: EightKEvent) -> str | None:
+    """
+    Returns a stable per-issuer key for early-exit bucketing. Prefer normalized
+    ticker; fall back to CIK; return None if neither is usable.
+    """
+    ticker = _normalize_ticker(getattr(event, "ticker", None))
+    if ticker:
+        return ticker
+    cik = getattr(event, "cik", None)
+    if cik:
+        return str(cik)
+    return None
+
+
 def _coerce_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
@@ -1006,6 +1020,7 @@ def _generate_eight_k_events(
         )
 
     events_by_ticker: dict[str, list[_EightKProcessResult]] = defaultdict(list)
+    selected_results: list[_EightKProcessResult] = []
     parsed_results = 0
     debug_entries: list[list[object]] = []
     parse_failures = 0
@@ -1068,9 +1083,17 @@ def _generate_eight_k_events(
                     )
 
             if result.event is not None and result.csv_row is not None:
-                ticker_key = _normalize_ticker(result.event.ticker)
-                events_by_ticker[ticker_key].append(result)
                 parsed_results += 1
+
+                if early_exit_on_tier1:
+                    bucket_key = _event_bucket_key(result.event)
+                    if bucket_key is None:
+                        selected_results.append(result)
+                    else:
+                        events_by_ticker[bucket_key].append(result)
+                else:
+                    ticker_key = _normalize_ticker(result.event.ticker)
+                    events_by_ticker[ticker_key].append(result)
 
                 if parsed_results != last_reported_parsed:
                     last_reported_parsed = parsed_results
@@ -1115,7 +1138,6 @@ def _generate_eight_k_events(
                 return True
         return False
 
-    selected_results: list[_EightKProcessResult] = []
     for ticker_key in sorted(events_by_ticker.keys()):
         ticker_results = events_by_ticker[ticker_key]
         if not early_exit_on_tier1:
