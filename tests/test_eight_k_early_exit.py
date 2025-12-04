@@ -119,7 +119,7 @@ def test_events_default_processes_all(tmp_path, filings_df, monkeypatch):
     cfg = _make_cfg(tmp_path)
     events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=cfg)
 
-    events_path = tmp_path / "09_events.csv"
+    events_path = tmp_path / csv_filename("eight_k_events")
     assert events_path.exists()
     output = pd.read_csv(events_path)
     assert len(output) == len(events_by_url)
@@ -138,7 +138,7 @@ def test_early_exit_limits_per_ticker_only(tmp_path, filings_df, monkeypatch):
     cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
     events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=cfg)
 
-    events_path = tmp_path / "09_events.csv"
+    events_path = tmp_path / csv_filename("eight_k_events")
     assert events_path.exists()
     output = pd.read_csv(events_path)
 
