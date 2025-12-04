@@ -333,15 +333,38 @@ def _clean_text(value: object) -> str:
 def _event_bucket_key(event: EightKEvent) -> str | None:
     """
     Returns a stable per-issuer key for early-exit bucketing. Prefer normalized
-    ticker; fall back to CIK; return None if neither is usable.
+    ticker; fall back to CIK; return None if neither is usable. NaN/NaT tickers
+    are treated as missing to allow CIK fallback.
     """
-    ticker = _normalize_ticker(getattr(event, "ticker", None))
-    if ticker:
-        return ticker
+    raw_ticker = getattr(event, "ticker", None)
+
+    if raw_ticker is not None and not pd.isna(raw_ticker):
+        ticker = _normalize_ticker(raw_ticker)
+        if ticker and ticker.strip().lower() != "nan":
+            return ticker
+
     cik = getattr(event, "cik", None)
     if cik:
         return str(cik)
+
     return None
+
+
+def _check_bucket_collisions(events_by_ticker: dict[str, list[_EightKProcessResult]], progress_fn: ProgressFn) -> None:
+    """
+    Log a warning if a bucket contains multiple CIKs or tickers, which should not
+    happen when _event_bucket_key is stable.
+    """
+    for key, results in events_by_ticker.items():
+        ciks = {getattr(res.event, "cik", None) for res in results if res.event is not None}
+        tickers = {getattr(res.event, "ticker", None) for res in results if res.event is not None}
+        if len(ciks) > 1:
+            _emit(
+                "WARN",
+                "eight_k: bucket collision key="
+                f"{key} ciks={sorted(str(c) for c in ciks if c)} tickers={sorted(str(t) for t in tickers if t)}",
+                progress_fn,
+            )
 
 
 def _coerce_bool(value: object) -> bool:
@@ -1137,6 +1160,9 @@ def _generate_eight_k_events(
             if isinstance(tier_value, str) and tier_value.strip().lower() == "tier-1":
                 return True
         return False
+
+    if early_exit_on_tier1:
+        _check_bucket_collisions(events_by_ticker, progress_fn)
 
     for ticker_key in sorted(events_by_ticker.keys()):
         ticker_results = events_by_ticker[ticker_key]

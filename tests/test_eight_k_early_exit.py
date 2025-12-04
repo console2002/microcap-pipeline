@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -5,6 +6,7 @@ from app.build_watchlist import (
     EightKEvent,
     _EIGHT_K_EVENTS_COLUMNS,
     _EightKProcessResult,
+    _event_bucket_key,
     _generate_eight_k_events,
     generate_eight_k_events,
 )
@@ -108,6 +110,32 @@ def _make_process_stub(events_by_url):
         return _EightKProcessResult(url=url, event=event, csv_row=csv_row, debug_entry=None, log_messages=[])
 
     return _stub
+
+
+class _DummyEvent:
+    def __init__(self, ticker, cik):
+        self.ticker = ticker
+        self.cik = cik
+
+
+def test_event_bucket_key_prefers_ticker():
+    event = _DummyEvent("KLTR", "0001432133")
+    assert _event_bucket_key(event) == "KLTR"
+
+
+def test_event_bucket_key_falls_back_to_cik_for_nan():
+    event = _DummyEvent(np.nan, "0001432133")
+    assert _event_bucket_key(event) == "0001432133"
+
+
+def test_event_bucket_key_falls_back_to_cik_for_none():
+    event = _DummyEvent(None, "0001432133")
+    assert _event_bucket_key(event) == "0001432133"
+
+
+def test_event_bucket_key_returns_none_without_identifiers():
+    event = _DummyEvent(None, None)
+    assert _event_bucket_key(event) is None
 
 
 def test_events_default_processes_all(tmp_path, filings_df, monkeypatch):
@@ -287,3 +315,46 @@ def test_early_exit_does_not_collapse_blank_tickers(tmp_path, monkeypatch):
     cik_bucket_rows = blank_ticker_rows[blank_ticker_rows["CIK"] == "0099"]
     assert len(cik_bucket_rows) == 1
     assert set(cik_bucket_rows["FilingURL"]) == {"https://cik2"}
+
+
+def test_early_exit_buckets_nan_tickers_by_cik(tmp_path, monkeypatch):
+    rows = [
+        {"Ticker": "", "CIK": "0111", "Form": "8-K", "URL": "https://nan1", "AccessionNo": "0101"},
+        {"Ticker": "", "CIK": "0111", "Form": "8-K", "URL": "https://nan2", "AccessionNo": "0102"},
+        {"Ticker": "", "CIK": "0222", "Form": "8-K", "URL": "https://nan3", "AccessionNo": "0201"},
+    ]
+    filings_df = pd.DataFrame(rows)
+    filings_df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
+    events_by_url = {
+        "https://nan1": _make_event(
+            "https://nan1", np.nan, "Tier-1", "0101", filing_date="2024-06-01", cik="0111"
+        ),
+        "https://nan2": _make_event(
+            "https://nan2", np.nan, "Tier-2", "0102", filing_date="2024-05-01", cik="0111"
+        ),
+        "https://nan3": _make_event(
+            "https://nan3", np.nan, "Tier-1", "0201", filing_date="2024-07-01", cik="0222"
+        ),
+    }
+
+    monkeypatch.setattr("app.build_watchlist._process_eight_k_row", _make_process_stub(events_by_url))
+
+    early_exit_cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
+    generate_eight_k_events(data_dir=str(tmp_path), cfg=early_exit_cfg)
+
+    events_path = tmp_path / csv_filename("eight_k_events")
+    assert events_path.exists()
+
+    output = pd.read_csv(events_path, dtype=str).fillna("")
+
+    first_cik_rows = output[output["CIK"] == "0111"]
+    second_cik_rows = output[output["CIK"] == "0222"]
+
+    assert len(first_cik_rows) == 1
+    assert set(first_cik_rows["FilingURL"]) == {"https://nan1"}
+
+    assert len(second_cik_rows) == 1
+    assert set(second_cik_rows["FilingURL"]) == {"https://nan3"}
+
+    assert len(output) == 2
