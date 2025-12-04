@@ -16,6 +16,18 @@ def _tier_rank(tier_value: str) -> int:
     return 0
 
 
+def first_non_na(*values):
+    """Return the first value that is not None and not NaN."""
+
+    for value in values:
+        if value is None:
+            continue
+        if pd.isna(value):
+            continue
+        return value
+    return None
+
+
 def select_primary_catalyst(events: Sequence) -> Optional[pd.Series]:
     """Select the primary catalyst according to shared W2/W3 policy.
 

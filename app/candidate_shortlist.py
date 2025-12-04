@@ -18,7 +18,7 @@ from typing import Iterable
 import pandas as pd
 
 from app.csv_names import csv_path
-from app.events_utils import select_primary_catalyst
+from app.events_utils import first_non_na, select_primary_catalyst
 
 MAX_CANDIDATES = 40
 
@@ -44,9 +44,11 @@ def _select_primary_event(events: pd.DataFrame) -> dict:
         return {}
     return {
         "CatalystType": primary.get("event_type", primary.get("EventType", "")),
-        "EventDate": primary.get("event_date")
-        or primary.get("EventDate")
-        or primary.get("FilingDate")
+        "EventDate": first_non_na(
+            primary.get("event_date"),
+            primary.get("EventDate"),
+            primary.get("FilingDate"),
+        )
         or "",
         "EventTier": primary.get("event_tier", primary.get("Tier", "")),
         "PrimarySource": primary.get("primary_source_url", primary.get("PrimarySource", "")),

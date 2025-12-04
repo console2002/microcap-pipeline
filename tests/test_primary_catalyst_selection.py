@@ -1,7 +1,8 @@
+import numpy as np
 import pandas as pd
 
 from app.candidate_shortlist import _select_primary_event
-from app.events_utils import select_primary_catalyst
+from app.events_utils import first_non_na, select_primary_catalyst
 from app.weekly_deep_research import _catalyst_details
 
 
@@ -88,3 +89,52 @@ def test_latest_none_when_no_tiers():
 
     primary = select_primary_catalyst(events)
     assert primary["event_date"] == "2024-02-01"
+
+
+def test_first_non_na_coalesces_dates():
+    primary = {
+        "event_type": "ListingChange",
+        "event_date": np.nan,
+        "EventDate": pd.Timestamp("2025-12-03"),
+        "FilingDate": pd.Timestamp("2025-12-01"),
+    }
+
+    shortlist_info = _select_primary_event(pd.DataFrame([primary]))
+    assert shortlist_info["EventDate"] == pd.Timestamp("2025-12-03")
+    assert not pd.isna(shortlist_info["EventDate"])
+
+
+def test_first_non_na_prefers_event_date():
+    primary = {
+        "event_type": "ListingChange",
+        "event_date": pd.Timestamp("2025-12-03"),
+        "EventDate": pd.Timestamp("2025-10-03"),
+        "FilingDate": pd.Timestamp("2025-09-01"),
+    }
+
+    shortlist_info = _select_primary_event(pd.DataFrame([primary]))
+    assert shortlist_info["EventDate"] == pd.Timestamp("2025-12-03")
+
+
+def test_w2_w3_alignment_with_nan_event_date():
+    events = pd.DataFrame(
+        [
+            {
+                "Ticker": "XYZ",
+                "event_type": "ListingChange",
+                "event_date": np.nan,
+                "EventDate": pd.Timestamp("2025-12-03"),
+                "FilingDate": pd.Timestamp("2025-12-01"),
+                "event_tier": "Tier-1",
+                "primary_source_url": "https://example.com/1203",
+            }
+        ]
+    )
+
+    shortlist_info = _select_primary_event(events)
+    _, catalyst_date, _, _ = _catalyst_details(events)
+
+    assert shortlist_info["EventDate"] == pd.Timestamp("2025-12-03")
+    assert catalyst_date == pd.Timestamp("2025-12-03")
+    assert not pd.isna(shortlist_info["EventDate"])
+    assert not pd.isna(catalyst_date)

@@ -19,6 +19,7 @@ from app.biotech_utils import (
 from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.logging_utils import log_diag
+from app.events_utils import first_non_na, select_primary_catalyst
 from app.runway_utils import compute_runway_from_html, compute_runway_quarters
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
@@ -350,10 +351,10 @@ def _catalyst_details(events: pd.DataFrame) -> tuple[str, str | None, str | None
     else:
         score = "Tier-None"
 
-    event_date = (
-        primary.get("event_date")
-        or primary.get("EventDate")
-        or primary.get("FilingDate")
+    event_date = first_non_na(
+        primary.get("event_date"),
+        primary.get("EventDate"),
+        primary.get("FilingDate"),
     )
     event_type = (
         primary.get("event_type")
