@@ -21,7 +21,7 @@ def test_listing_change_excludes_annual_meeting_boilerplate():
     eight_k = StubEightK(
         items=["5.07"],
         item_texts={
-            "5.07": "The Company held its annual meeting. Our common stock is listed on the Nasdaq Global Select Market."
+            "5.07": "The Company held its annual meeting. Our common stock is listed on the Nasdaq Global Select Market.",
         },
     )
     filing = StubFiling()
@@ -36,7 +36,25 @@ def test_listing_change_tier1_requires_listing_items_and_context():
     eight_k = StubEightK(
         items=["3.01"],
         item_texts={
-            "3.01": "The Company announced the transfer of listing of its common stock to the Nasdaq Capital Market."
+            "3.01": "The Company announced the transfer of listing of its common stock to the Nasdaq Capital Market.",
+        },
+    )
+    filing = StubFiling()
+
+    result = classify_eight_k_event(eight_k, filing)
+
+    assert result["event_type"] == "ListingChange"
+    assert result["event_tier"] == "Tier-1"
+
+
+def test_listing_change_allows_deficiency_notice_without_listing_word():
+    eight_k = StubEightK(
+        items=["3.01"],
+        item_texts={
+            "3.01": (
+                "Nasdaq has notified the Company that its bid price does not meet the minimum bid price "
+                "requirement under Nasdaq rules. The Company intends to submit a compliance plan to Nasdaq."
+            )
         },
     )
     filing = StubFiling()
@@ -58,7 +76,7 @@ def test_earnings_items_with_exchange_boilerplate_are_not_listing_change(items):
     eight_k = StubEightK(
         items=items,
         item_texts={
-            items[0]: "Press release announcing financial results. Our common stock is listed on Nasdaq under the symbol XYZ."
+            items[0]: "Press release announcing financial results. Our common stock is listed on Nasdaq under the symbol XYZ.",
         },
     )
     filing = StubFiling()

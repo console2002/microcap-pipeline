@@ -87,14 +87,9 @@ def is_listing_change_event(items: set[str], text: str) -> bool:
 
     lowered = text.lower()
 
-    # Explicitly exclude pure annual-meeting filings.
-    if items == {"5.07"}:
-        return False
-
-    has_301 = any(item.startswith("3.01") for item in items)
-    has_503 = any(item.startswith("5.03") for item in items)
-    has_801 = any(item.startswith("8.01") for item in items)
-    has_701 = any(item.startswith("7.01") for item in items)
+    has_core_item = any(item.startswith("3.01") or item.startswith("5.03") for item in items)
+    has_soft_item = any(item.startswith("7.01") or item.startswith("8.01") for item in items)
+    is_pure_507 = bool(items) and all(item.startswith("5.07") for item in items)
 
     listing_terms = [
         "listing",
@@ -135,25 +130,20 @@ def is_listing_change_event(items: set[str], text: str) -> bool:
         "compliance plan",
     ]
 
+    has_listing_term = _contains_any(lowered, listing_terms)
+    has_action_term = _contains_any(lowered, listing_action_terms)
+
     if "delist" in lowered:
         return False
 
-    if not _contains_any(lowered, listing_terms):
+    if is_pure_507:
         return False
 
-    # Item-specific gates
-    if has_301:
-        return True
+    if has_core_item:
+        return has_listing_term or has_action_term
 
-    if has_503 and _contains_any(lowered, listing_action_terms):
-        return True
-
-    if (has_801 or has_701) and _contains_any(lowered, listing_action_terms):
-        return True
-
-    earnings_like_items = items <= {"2.02", "7.01"}
-    if earnings_like_items and not _contains_any(lowered, listing_action_terms):
-        return False
+    if has_soft_item:
+        return has_listing_term and has_action_term
 
     return False
 
