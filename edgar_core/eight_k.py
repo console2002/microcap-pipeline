@@ -145,12 +145,13 @@ def is_listing_change_event(items: set[str], text: str) -> bool:
     if is_pure_507:
         return False
 
+    if has_spinoff:
+        return True
+
     if has_core_item:
-        return has_listing_term or has_action_term or has_spinoff
+        return has_listing_term or has_action_term
 
     if has_soft_item:
-        if has_spinoff:
-            return True
         return has_listing_term and has_action_term
 
     return False

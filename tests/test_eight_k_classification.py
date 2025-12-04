@@ -116,3 +116,38 @@ def test_spinoff_with_soft_item_classifies_as_listing_change():
 
     assert result["event_type"] == "ListingChange"
     assert result["event_tier"] == "Tier-1"
+
+
+def test_spinoff_with_item_1_01_classifies_as_listing_change():
+    eight_k = StubEightK(
+        items=["1.01"],
+        item_texts={
+            "1.01": (
+                "The Company entered into agreements to effect the spin-off of its XYZ business "
+                "into an independent public company."
+            )
+        },
+    )
+    filing = StubFiling()
+
+    result = classify_eight_k_event(eight_k, filing)
+
+    assert result["event_type"] == "ListingChange"
+    assert result["event_tier"] == "Tier-1"
+
+
+def test_spinoff_with_item_2_01_classifies_as_listing_change():
+    eight_k = StubEightK(
+        items=["2.01"],
+        item_texts={
+            "2.01": (
+                "The Company completed the spin-off of its ABC division into a separate publicly traded entity."
+            )
+        },
+    )
+    filing = StubFiling()
+
+    result = classify_eight_k_event(eight_k, filing)
+
+    assert result["event_type"] == "ListingChange"
+    assert result["event_tier"] == "Tier-1"
