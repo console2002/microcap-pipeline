@@ -129,32 +129,48 @@ def test_events_default_processes_all(tmp_path, filings_df, monkeypatch):
     assert set(output["FilingURL"]) == set(events_by_url.keys())
 
 
-def test_early_exit_limits_per_ticker_only(tmp_path, filings_df, monkeypatch):
+def test_early_exit_collapses_only_when_tier1_present(tmp_path, monkeypatch):
+    rows = [
+        {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a1", "AccessionNo": "0001"},
+        {"Ticker": "AAA", "CIK": "0001", "Form": "8-K", "URL": "https://a2", "AccessionNo": "0002"},
+        {"Ticker": "BBB", "CIK": "0002", "Form": "8-K", "URL": "https://b1", "AccessionNo": "0003"},
+        {"Ticker": "BBB", "CIK": "0002", "Form": "8-K", "URL": "https://b2", "AccessionNo": "0004"},
+    ]
+    filings_df = pd.DataFrame(rows)
+    filings_df.to_csv(tmp_path / csv_filename("filings"), index=False)
+
     events_by_url = {
-        "https://a1": _make_event("https://a1", "AAA", "Tier-1", "0001"),
-        "https://a2": _make_event("https://a2", "AAA", "Tier-2", "0002"),
-        "https://a3": _make_event("https://a3", "AAA", "Tier-1", "0003"),
-        "https://b1": _make_event("https://b1", "BBB", "Tier-1", "0004"),
+        "https://a1": _make_event("https://a1", "AAA", "Tier-2", "0001", filing_date="2025-01-01"),
+        "https://a2": _make_event("https://a2", "AAA", "Tier-1", "0002", filing_date="2025-02-01"),
+        "https://b1": _make_event("https://b1", "BBB", "Tier-2", "0003", filing_date="2024-03-01"),
+        "https://b2": _make_event("https://b2", "BBB", "Tier-2", "0004", filing_date="2024-04-01"),
     }
     monkeypatch.setattr("app.build_watchlist._process_eight_k_row", _make_process_stub(events_by_url))
 
-    cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
+    cfg = _make_cfg(tmp_path, early_exit_on_tier1=False)
     events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=cfg)
 
     events_path = tmp_path / csv_filename("eight_k_events")
     assert events_path.exists()
+    baseline_output = pd.read_csv(events_path)
+
+    early_exit_cfg = _make_cfg(tmp_path, early_exit_on_tier1=True)
+    events_df, _, _ = generate_eight_k_events(data_dir=str(tmp_path), cfg=early_exit_cfg)
+
     output = pd.read_csv(events_path)
 
-    baseline_count = len(events_by_url)
-    assert len(output) <= baseline_count
-
     aaa_rows = output[output["Ticker"] == "AAA"]
-    assert not aaa_rows.empty
-    assert (aaa_rows["EventTier"] == "Tier-1").any()
+    assert len(aaa_rows) == 1
+    assert (aaa_rows["EventTier"] == "Tier-1").all()
+    assert pd.Timestamp(aaa_rows.iloc[0]["EventDate"]) == pd.Timestamp("2025-02-01")
+
+    aaa_baseline = baseline_output[baseline_output["Ticker"] == "AAA"]
+    assert len(aaa_baseline) == 2
 
     bbb_rows = output[output["Ticker"] == "BBB"]
-    assert len(bbb_rows) == 1
-    assert (bbb_rows["EventTier"] == "Tier-1").all()
+    bbb_baseline = baseline_output[baseline_output["Ticker"] == "BBB"]
+    assert len(bbb_rows) == len(bbb_baseline)
+    assert set(bbb_rows["FilingURL"]) == set(bbb_baseline["FilingURL"])
 
 
 def test_early_exit_selects_primary_deterministically(tmp_path, monkeypatch):

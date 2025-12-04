@@ -11,7 +11,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, Sequence
 from urllib.parse import parse_qs, unquote, urlsplit
 from pathlib import Path
 
@@ -1103,10 +1103,27 @@ def _generate_eight_k_events(
                 return candidate
         return None
 
+    def _has_tier1_event(results: Sequence[_EightKProcessResult]) -> bool:
+        for candidate in results:
+            event = candidate.event
+            if event is None:
+                continue
+            tier_value = getattr(event, "event_tier", None)
+            if tier_value == 1:
+                return True
+            if isinstance(tier_value, str) and tier_value.strip().lower() == "tier-1":
+                return True
+        return False
+
     selected_results: list[_EightKProcessResult] = []
     for ticker_key in sorted(events_by_ticker.keys()):
         ticker_results = events_by_ticker[ticker_key]
         if not early_exit_on_tier1:
+            selected_results.extend(ticker_results)
+            continue
+
+        has_tier1 = _has_tier1_event(ticker_results)
+        if not has_tier1:
             selected_results.extend(ticker_results)
             continue
 
