@@ -120,33 +120,56 @@ def _primary_catalyst_by_ticker(df: pd.DataFrame) -> dict[str, dict[str, str]]:
 
 
 def _log_primary_catalyst_mismatches(shortlist: pd.DataFrame, deep_research: pd.DataFrame) -> None:
+    if shortlist is None or deep_research is None:
+        return
+
+    if shortlist.empty or deep_research.empty:
+        return
+
+    if "Ticker" not in shortlist.columns or "Ticker" not in deep_research.columns:
+        return
+
+    common_fields = [
+        field
+        for field in sorted(PRIMARY_CATALYST_FIELDS)
+        if field in shortlist.columns and field in deep_research.columns
+    ]
+    if not common_fields:
+        return
+
     shortlist_map = _primary_catalyst_by_ticker(shortlist)
     deep_map = _primary_catalyst_by_ticker(deep_research)
-
     if not shortlist_map or not deep_map:
         return
 
-    shared_tickers = sorted(set(shortlist_map.keys()) & set(deep_map.keys()))
-    for ticker in shared_tickers:
-        short_fields = shortlist_map[ticker]
-        deep_fields = deep_map[ticker]
-        if all(short_fields.get(field, "") == deep_fields.get(field, "") for field in PRIMARY_CATALYST_FIELDS):
+    shortlist_view = shortlist.drop_duplicates(subset=["Ticker"])[["Ticker", *common_fields]]
+    deep_view = deep_research.drop_duplicates(subset=["Ticker"])[["Ticker", *common_fields]]
+
+    merged = shortlist_view.merge(
+        deep_view,
+        on="Ticker",
+        how="inner",
+        suffixes=("_shortlist", "_deep"),
+    )
+
+    for _, row in merged.iterrows():
+        diffs = {}
+        for field in common_fields:
+            left = row.get(f"{field}_shortlist")
+            right = row.get(f"{field}_deep")
+            if pd.isna(left) and pd.isna(right):
+                continue
+            if left != right:
+                diffs[field] = (left, right)
+
+        if not diffs:
             continue
 
-        logger.warning(
-            "PRIMARY_CATALYST_MISMATCH ticker=%s shortlist_date=%s deep_date=%s shortlist_type=%s deep_type=%s "
-            "shortlist_tier=%s deep_tier=%s shortlist_url=%s deep_url=%s",
-            ticker,
-            short_fields.get("PrimaryCatalystDate", ""),
-            deep_fields.get("PrimaryCatalystDate", ""),
-            short_fields.get("PrimaryCatalystType", ""),
-            deep_fields.get("PrimaryCatalystType", ""),
-            short_fields.get("PrimaryCatalystTier", ""),
-            deep_fields.get("PrimaryCatalystTier", ""),
-            short_fields.get("PrimaryCatalystURL", ""),
-            deep_fields.get("PrimaryCatalystURL", ""),
-        )
+        ticker = row.get("Ticker")
+        logger.warning("PRIMARY_CATALYST_MISMATCH", extra={"ticker": ticker, "diffs": diffs})
 
+        short_fields = shortlist_map.get(ticker, {})
+        deep_fields = deep_map.get(ticker, {})
         log_diag(
             stage="events",
             ticker=ticker,
