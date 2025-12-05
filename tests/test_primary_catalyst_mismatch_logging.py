@@ -2,7 +2,56 @@ import logging
 
 import pandas as pd
 
-from app.weekly_deep_research import _log_primary_catalyst_mismatches
+from app.weekly_deep_research import (
+    _assemble_primary_catalyst_fields,
+    _catalyst_details,
+    _log_primary_catalyst_mismatches,
+)
+
+
+def test_primary_catalyst_tier_propagates_from_primary_event():
+    shortlist = pd.DataFrame(
+        [
+            {
+                "Ticker": "KLTR",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystTier": "Tier-1",
+                "PrimaryCatalystDate": pd.Timestamp("2025-12-03"),
+                "PrimaryCatalystURL": "https://sec.gov/kltr-20251203.htm",
+            }
+        ]
+    )
+
+    events = pd.DataFrame(
+        [
+            {
+                "Ticker": "KLTR",
+                "event_type": "ListingChange",
+                "event_tier": "Tier-1",
+                "event_date": pd.Timestamp("2025-12-03"),
+                "primary_source_url": "https://sec.gov/kltr-20251203.htm",
+            }
+        ]
+    )
+
+    (
+        _,
+        catalyst_date,
+        catalyst_type,
+        catalyst_url,
+        _,
+        _,
+        primary_event,
+    ) = _catalyst_details(events)
+
+    fields = _assemble_primary_catalyst_fields(
+        primary_event, shortlist.iloc[0].to_dict(), catalyst_type, catalyst_date, catalyst_url
+    )
+
+    assert fields["PrimaryCatalystType"] == "ListingChange"
+    assert fields["PrimaryCatalystDate"] == pd.Timestamp("2025-12-03")
+    assert fields["PrimaryCatalystURL"] == "https://sec.gov/kltr-20251203.htm"
+    assert fields["PrimaryCatalystTier"] == "Tier-1"
 
 
 def test_primary_catalyst_mismatch_logged(caplog):

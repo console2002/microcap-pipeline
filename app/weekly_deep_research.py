@@ -435,10 +435,18 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
 
 def _catalyst_details(
     events: pd.DataFrame,
-) -> tuple[str, str | None, str | None, str | None, int | None, Mapping[str, object]]:
+) -> tuple[
+    str,
+    str | None,
+    str | None,
+    str | None,
+    int | None,
+    Mapping[str, object],
+    Mapping[str, object] | None,
+]:
     primary = select_primary_catalyst(events)
     if primary is None:
-        return "None", None, None, None, None, {}
+        return "None", None, None, None, None, {}, None
 
     tier_value = str(
         primary.get("event_tier")
@@ -477,7 +485,39 @@ def _catalyst_details(
     except Exception:
         event_flags = {}
 
-    return score, event_date, event_type, url, event_tier, event_flags
+    return score, event_date, event_type, url, event_tier, event_flags, primary
+
+
+def _primary_catalyst_tier(
+    primary_event: Mapping[str, object] | None, shortlist_row: Mapping[str, object] | None
+) -> object:
+    for source in (primary_event, shortlist_row):
+        if source is None:
+            continue
+        for key in ("event_tier", "EventTier", "Tier", "PrimaryCatalystTier"):
+            value = source.get(key)
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                continue
+            text = str(value).strip()
+            if not text:
+                continue
+            return value
+    return None
+
+
+def _assemble_primary_catalyst_fields(
+    primary_event: Mapping[str, object] | None,
+    shortlist_row: Mapping[str, object] | None,
+    catalyst_type: object,
+    catalyst_date: object,
+    catalyst_url: object,
+) -> dict[str, object]:
+    return {
+        "PrimaryCatalystType": catalyst_type,
+        "PrimaryCatalystDate": catalyst_date,
+        "PrimaryCatalystURL": catalyst_url,
+        "PrimaryCatalystTier": _primary_catalyst_tier(primary_event, shortlist_row),
+    }
 
 
 def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str]:
@@ -899,6 +939,7 @@ def run_weekly_deep_research(
             catalyst_url,
             catalyst_tier_value,
             catalyst_flags,
+            primary_event,
         ) = _catalyst_details(candidate_events)
         log_diag(
             stage="events",
@@ -1027,6 +1068,11 @@ def run_weekly_deep_research(
 
         runway_display = f"{runway_quarters:.2f}" if runway_quarters is not None else ""
 
+        shortlist_row = getattr(row, "_asdict", lambda: {})()
+        primary_fields = _assemble_primary_catalyst_fields(
+            primary_event, shortlist_row, catalyst_type, catalyst_date, catalyst_url
+        )
+
         output_rows.append(
             {
                 "Ticker": ticker,
@@ -1060,9 +1106,10 @@ def run_weekly_deep_research(
                 "EvidencePrimary": evidence_primary,
                 # Reserved for future secondary evidence inputs; normalized to empty string.
                 "EvidenceSecondary": evidence_secondary,
-                "PrimaryCatalystDate": catalyst_date,
-                "PrimaryCatalystType": catalyst_type,
-                "PrimaryCatalystURL": catalyst_url,
+                "PrimaryCatalystDate": primary_fields.get("PrimaryCatalystDate"),
+                "PrimaryCatalystType": primary_fields.get("PrimaryCatalystType"),
+                "PrimaryCatalystURL": primary_fields.get("PrimaryCatalystURL"),
+                "PrimaryCatalystTier": primary_fields.get("PrimaryCatalystTier"),
                 "LastDilutionEventDate": last_dilution_date,
                 "LastInsiderBuyDate": last_insider_date,
                 "GoingConcernFlag": going_concern,
@@ -1170,5 +1217,6 @@ __all__ = [
     "_materiality_passed",
     "_conviction_from_subscores",
     "_log_primary_catalyst_mismatches",
+    "_assemble_primary_catalyst_fields",
 ]
 from app.events_utils import select_primary_catalyst
