@@ -1848,7 +1848,7 @@ def parse_8k_step(cfg, runlog, errlog, stop_flag, progress_fn, adapter: EdgarAda
 
     try:
         events_df, _, stats = generate_eight_k_events(
-            data_dir=data_dir, progress_fn=callback
+            data_dir=data_dir, progress_fn=callback, cfg=cfg
         )
     except (MissingAdapterError, RuntimeError) as exc:
         logger.error(
