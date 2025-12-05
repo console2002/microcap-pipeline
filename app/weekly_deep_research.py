@@ -4,6 +4,7 @@ import csv
 import logging
 import os
 import re
+from datetime import date, datetime
 from typing import Callable, Iterable, List, Mapping, Optional
 
 import pandas as pd
@@ -45,6 +46,14 @@ DILUTION_UNKNOWN = "UNKNOWN"
 logger = logging.getLogger(__name__)
 
 
+PRIMARY_CATALYST_FIELDS = {
+    "PrimaryCatalystType",
+    "PrimaryCatalystTier",
+    "PrimaryCatalystDate",
+    "PrimaryCatalystURL",
+}
+
+
 def _normalize_form(text: str | None) -> str:
     if text is None:
         return ""
@@ -81,6 +90,160 @@ def _prepare_events(events: pd.DataFrame) -> pd.DataFrame:
             )
     df["event_date_canonical"] = df["event_date_canonical"].dt.tz_localize(None)
     return df
+
+
+def _normalize_primary_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text.lower() == "nan":
+        return ""
+    return text
+
+
+def _normalize_catalyst_value(field: str, value: object) -> object:
+    """
+    Normalize primary catalyst fields so shortlist vs deep-research values
+    can be compared without spurious mismatches.
+
+    - Dates: normalize to ISO date string YYYY-MM-DD.
+    - Tier: normalize numeric/enum/string to a canonical string form ("Tier-1", "Tier-2", etc.).
+    - Other fields: normalize to stripped string.
+    """
+
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    if isinstance(value, (pd.Timestamp, datetime, date)):
+        return pd.to_datetime(value).date().isoformat()
+
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+
+        if "Tier" in field:
+            lower = s.lower()
+            m = re.search(r"(\d+)$", lower)
+            if m:
+                return f"Tier-{int(m.group(1))}"
+            return s
+
+        if "Date" in field:
+            try:
+                return pd.to_datetime(s).date().isoformat()
+            except Exception:
+                return s
+
+        return s
+
+    if "Tier" in field:
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return str(value)
+        return f"Tier-{n}"
+
+    if "Date" in field:
+        try:
+            return pd.to_datetime(value).date().isoformat()
+        except Exception:
+            return str(value)
+
+    return str(value).strip()
+
+
+def _primary_catalyst_by_ticker(df: pd.DataFrame) -> dict[str, dict[str, str]]:
+    if df is None or df.empty:
+        return {}
+
+    result: dict[str, dict[str, str]] = {}
+    for _, row in df.iterrows():
+        ticker = _normalize_primary_value(row.get("Ticker"))
+        if not ticker or ticker in result:
+            continue
+
+        record = {field: _normalize_primary_value(row.get(field)) for field in PRIMARY_CATALYST_FIELDS}
+        record["CIK"] = _normalize_primary_value(row.get("CIK"))
+        result[ticker] = record
+
+    return result
+
+
+def _log_primary_catalyst_mismatches(shortlist: pd.DataFrame, deep_research: pd.DataFrame) -> None:
+    if shortlist is None or deep_research is None:
+        return
+
+    if shortlist.empty or deep_research.empty:
+        return
+
+    if "Ticker" not in shortlist.columns or "Ticker" not in deep_research.columns:
+        return
+
+    common_fields = [
+        field
+        for field in sorted(PRIMARY_CATALYST_FIELDS)
+        if field in shortlist.columns and field in deep_research.columns
+    ]
+    if not common_fields:
+        return
+
+    shortlist_map = _primary_catalyst_by_ticker(shortlist)
+    deep_map = _primary_catalyst_by_ticker(deep_research)
+    if not shortlist_map or not deep_map:
+        return
+
+    shortlist_view = shortlist.drop_duplicates(subset=["Ticker"])[["Ticker", *common_fields]]
+    deep_view = deep_research.drop_duplicates(subset=["Ticker"])[["Ticker", *common_fields]]
+
+    merged = shortlist_view.merge(
+        deep_view,
+        on="Ticker",
+        how="inner",
+        suffixes=("_shortlist", "_deep"),
+    )
+
+    for _, row in merged.iterrows():
+        diffs = {}
+        for field in common_fields:
+            left_raw = row.get(f"{field}_shortlist")
+            right_raw = row.get(f"{field}_deep")
+
+            if (left_raw is None or (isinstance(left_raw, float) and pd.isna(left_raw))) and (
+                right_raw is None or (isinstance(right_raw, float) and pd.isna(right_raw))
+            ):
+                continue
+
+            left = _normalize_catalyst_value(field, left_raw)
+            right = _normalize_catalyst_value(field, right_raw)
+
+            if left is None and right is None:
+                continue
+            if left != right:
+                diffs[field] = (left, right)
+
+        if not diffs:
+            continue
+
+        ticker = row.get("Ticker")
+        logger.warning("PRIMARY_CATALYST_MISMATCH", extra={"ticker": ticker, "diffs": diffs})
+
+        short_fields = shortlist_map.get(ticker, {})
+        deep_fields = deep_map.get(ticker, {})
+        log_diag(
+            stage="events",
+            ticker=ticker,
+            cik=deep_fields.get("CIK") or short_fields.get("CIK") or None,
+            decision="primary_catalyst_mismatch",
+            details="Primary catalyst mismatch between shortlist and deep research",
+            fields={
+                "shortlist": {field: short_fields.get(field, "") for field in sorted(PRIMARY_CATALYST_FIELDS)},
+                "deep_research": {field: deep_fields.get(field, "") for field in sorted(PRIMARY_CATALYST_FIELDS)},
+            },
+        )
 
 
 def _strip_html_tags(text: str) -> str:
@@ -335,10 +498,18 @@ def _dilution_details(filings: pd.DataFrame, form_col: str) -> dict:
 
 def _catalyst_details(
     events: pd.DataFrame,
-) -> tuple[str, str | None, str | None, str | None, int | None, Mapping[str, object]]:
+) -> tuple[
+    str,
+    str | None,
+    str | None,
+    str | None,
+    int | None,
+    Mapping[str, object],
+    Mapping[str, object] | None,
+]:
     primary = select_primary_catalyst(events)
     if primary is None:
-        return "None", None, None, None, None, {}
+        return "None", None, None, None, None, {}, None
 
     tier_value = str(
         primary.get("event_tier")
@@ -377,7 +548,39 @@ def _catalyst_details(
     except Exception:
         event_flags = {}
 
-    return score, event_date, event_type, url, event_tier, event_flags
+    return score, event_date, event_type, url, event_tier, event_flags, primary
+
+
+def _primary_catalyst_tier(
+    primary_event: Mapping[str, object] | None, shortlist_row: Mapping[str, object] | None
+) -> object:
+    for source in (primary_event, shortlist_row):
+        if source is None:
+            continue
+        for key in ("event_tier", "EventTier", "Tier", "PrimaryCatalystTier"):
+            value = source.get(key)
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                continue
+            text = str(value).strip()
+            if not text:
+                continue
+            return value
+    return None
+
+
+def _assemble_primary_catalyst_fields(
+    primary_event: Mapping[str, object] | None,
+    shortlist_row: Mapping[str, object] | None,
+    catalyst_type: object,
+    catalyst_date: object,
+    catalyst_url: object,
+) -> dict[str, object]:
+    return {
+        "PrimaryCatalystType": catalyst_type,
+        "PrimaryCatalystDate": catalyst_date,
+        "PrimaryCatalystURL": catalyst_url,
+        "PrimaryCatalystTier": _primary_catalyst_tier(primary_event, shortlist_row),
+    }
 
 
 def _governance_details(filings: pd.DataFrame, form_col: str) -> tuple[str, str, str]:
@@ -799,6 +1002,7 @@ def run_weekly_deep_research(
             catalyst_url,
             catalyst_tier_value,
             catalyst_flags,
+            primary_event,
         ) = _catalyst_details(candidate_events)
         log_diag(
             stage="events",
@@ -927,6 +1131,11 @@ def run_weekly_deep_research(
 
         runway_display = f"{runway_quarters:.2f}" if runway_quarters is not None else ""
 
+        shortlist_row = getattr(row, "_asdict", lambda: {})()
+        primary_fields = _assemble_primary_catalyst_fields(
+            primary_event, shortlist_row, catalyst_type, catalyst_date, catalyst_url
+        )
+
         output_rows.append(
             {
                 "Ticker": ticker,
@@ -960,9 +1169,10 @@ def run_weekly_deep_research(
                 "EvidencePrimary": evidence_primary,
                 # Reserved for future secondary evidence inputs; normalized to empty string.
                 "EvidenceSecondary": evidence_secondary,
-                "PrimaryCatalystDate": catalyst_date,
-                "PrimaryCatalystType": catalyst_type,
-                "PrimaryCatalystURL": catalyst_url,
+                "PrimaryCatalystDate": primary_fields.get("PrimaryCatalystDate"),
+                "PrimaryCatalystType": primary_fields.get("PrimaryCatalystType"),
+                "PrimaryCatalystURL": primary_fields.get("PrimaryCatalystURL"),
+                "PrimaryCatalystTier": primary_fields.get("PrimaryCatalystTier"),
                 "LastDilutionEventDate": last_dilution_date,
                 "LastInsiderBuyDate": last_insider_date,
                 "GoingConcernFlag": going_concern,
@@ -999,6 +1209,9 @@ def run_weekly_deep_research(
             "weekly_w3: runway evidence without numeric for %s",
             ", ".join(runway_evidence_only[:5]),
         )
+
+    deep_research_df = pd.DataFrame(output_rows)
+    _log_primary_catalyst_mismatches(shortlist, deep_research_df)
 
     output_path = os.path.join(data_dir, "30_deep_research.csv")
     default_fields = [
@@ -1048,15 +1261,15 @@ def run_weekly_deep_research(
         "ConvictionScore",
         "Status",
     ]
-    fieldnames = list(output_rows[0].keys()) if output_rows else default_fields
+    fieldnames = list(deep_research_df.columns) if not deep_research_df.empty else default_fields
     ensure_csv(output_path, fieldnames)
     with open(output_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        for row in output_rows:
+        for row in deep_research_df.to_dict(orient="records"):
             writer.writerow(row)
 
-    return pd.DataFrame(output_rows)
+    return deep_research_df
 
 
 __all__ = [
@@ -1066,5 +1279,7 @@ __all__ = [
     "_materiality",
     "_materiality_passed",
     "_conviction_from_subscores",
+    "_log_primary_catalyst_mismatches",
+    "_assemble_primary_catalyst_fields",
 ]
 from app.events_utils import select_primary_catalyst

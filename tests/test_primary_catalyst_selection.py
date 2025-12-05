@@ -42,7 +42,7 @@ def test_shared_primary_catalyst_policy_matches_w2_w3():
 
     primary = select_primary_catalyst(events)
     shortlist_info = _select_primary_event(events)
-    catalyst_score, catalyst_date, catalyst_type, catalyst_url, _, _ = _catalyst_details(events)
+    catalyst_score, catalyst_date, catalyst_type, catalyst_url, _, _, _ = _catalyst_details(events)
 
     assert primary["event_date"] == "2025-12-03"
     assert shortlist_info["EventDate"] == "2025-12-03"
@@ -132,7 +132,7 @@ def test_w2_w3_alignment_with_nan_event_date():
     )
 
     shortlist_info = _select_primary_event(events)
-    _, catalyst_date, _, _, _, _ = _catalyst_details(events)
+    _, catalyst_date, _, _, _, _, _ = _catalyst_details(events)
 
     assert shortlist_info["EventDate"] == pd.Timestamp("2025-12-03")
     assert catalyst_date == pd.Timestamp("2025-12-03")
