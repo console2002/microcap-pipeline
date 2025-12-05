@@ -6,6 +6,7 @@ from app.weekly_deep_research import (
     _assemble_primary_catalyst_fields,
     _catalyst_details,
     _log_primary_catalyst_mismatches,
+    _normalize_catalyst_value,
 )
 
 
@@ -174,6 +175,100 @@ def test_primary_catalyst_mismatch_logs_when_tier_differs(caplog):
                 "PrimaryCatalystTier": "Tier-2",
                 "PrimaryCatalystDate": pd.Timestamp("2025-12-03"),
                 "PrimaryCatalystURL": "https://sec.gov/a-20251203.htm",
+            }
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.weekly_deep_research"):
+        _log_primary_catalyst_mismatches(shortlist, deep)
+
+    msgs = [r.message for r in caplog.records]
+    assert any("PRIMARY_CATALYST_MISMATCH" in m for m in msgs)
+
+
+def test_primary_catalyst_mismatch_normalizes_dates(caplog):
+    shortlist = pd.DataFrame(
+        [
+            {
+                "Ticker": "KLTR",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystDate": "2025-12-03",
+                "PrimaryCatalystURL": "https://sec.gov/kltr-20251203.htm",
+            }
+        ]
+    )
+
+    deep = pd.DataFrame(
+        [
+            {
+                "Ticker": "KLTR",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystDate": pd.Timestamp("2025-12-03"),
+                "PrimaryCatalystURL": "https://sec.gov/kltr-20251203.htm",
+            }
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.weekly_deep_research"):
+        _log_primary_catalyst_mismatches(shortlist, deep)
+
+    msgs = [r.message for r in caplog.records]
+    assert not any("PRIMARY_CATALYST_MISMATCH" in m for m in msgs)
+
+
+def test_primary_catalyst_mismatch_normalizes_tier(caplog):
+    shortlist = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAA",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystTier": "Tier-1",
+                "PrimaryCatalystDate": "2025-12-03",
+                "PrimaryCatalystURL": "https://sec.gov/a-20251203.htm",
+            }
+        ]
+    )
+
+    deep = pd.DataFrame(
+        [
+            {
+                "Ticker": "AAA",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystTier": 1,
+                "PrimaryCatalystDate": pd.Timestamp("2025-12-03"),
+                "PrimaryCatalystURL": "https://sec.gov/a-20251203.htm",
+            }
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.weekly_deep_research"):
+        _log_primary_catalyst_mismatches(shortlist, deep)
+
+    msgs = [r.message for r in caplog.records]
+    assert not any("PRIMARY_CATALYST_MISMATCH" in m for m in msgs)
+
+
+def test_primary_catalyst_mismatch_logs_real_difference(caplog):
+    shortlist = pd.DataFrame(
+        [
+            {
+                "Ticker": "BBB",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystTier": "Tier-1",
+                "PrimaryCatalystDate": "2025-12-03",
+                "PrimaryCatalystURL": "https://sec.gov/b-20251203.htm",
+            }
+        ]
+    )
+
+    deep = pd.DataFrame(
+        [
+            {
+                "Ticker": "BBB",
+                "PrimaryCatalystType": "ListingChange",
+                "PrimaryCatalystTier": "Tier-1",
+                "PrimaryCatalystDate": pd.Timestamp("2025-11-30"),
+                "PrimaryCatalystURL": "https://sec.gov/b-20251203.htm",
             }
         ]
     )

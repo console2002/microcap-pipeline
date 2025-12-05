@@ -4,6 +4,7 @@ import csv
 import logging
 import os
 import re
+from datetime import date, datetime
 from typing import Callable, Iterable, List, Mapping, Optional
 
 import pandas as pd
@@ -102,6 +103,59 @@ def _normalize_primary_value(value) -> str:
     return text
 
 
+def _normalize_catalyst_value(field: str, value: object) -> object:
+    """
+    Normalize primary catalyst fields so shortlist vs deep-research values
+    can be compared without spurious mismatches.
+
+    - Dates: normalize to ISO date string YYYY-MM-DD.
+    - Tier: normalize numeric/enum/string to a canonical string form ("Tier-1", "Tier-2", etc.).
+    - Other fields: normalize to stripped string.
+    """
+
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    if isinstance(value, (pd.Timestamp, datetime, date)):
+        return pd.to_datetime(value).date().isoformat()
+
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+
+        if "Tier" in field:
+            lower = s.lower()
+            m = re.search(r"(\d+)$", lower)
+            if m:
+                return f"Tier-{int(m.group(1))}"
+            return s
+
+        if "Date" in field:
+            try:
+                return pd.to_datetime(s).date().isoformat()
+            except Exception:
+                return s
+
+        return s
+
+    if "Tier" in field:
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return str(value)
+        return f"Tier-{n}"
+
+    if "Date" in field:
+        try:
+            return pd.to_datetime(value).date().isoformat()
+        except Exception:
+            return str(value)
+
+    return str(value).strip()
+
+
 def _primary_catalyst_by_ticker(df: pd.DataFrame) -> dict[str, dict[str, str]]:
     if df is None or df.empty:
         return {}
@@ -155,9 +209,18 @@ def _log_primary_catalyst_mismatches(shortlist: pd.DataFrame, deep_research: pd.
     for _, row in merged.iterrows():
         diffs = {}
         for field in common_fields:
-            left = row.get(f"{field}_shortlist")
-            right = row.get(f"{field}_deep")
-            if pd.isna(left) and pd.isna(right):
+            left_raw = row.get(f"{field}_shortlist")
+            right_raw = row.get(f"{field}_deep")
+
+            if (left_raw is None or (isinstance(left_raw, float) and pd.isna(left_raw))) and (
+                right_raw is None or (isinstance(right_raw, float) and pd.isna(right_raw))
+            ):
+                continue
+
+            left = _normalize_catalyst_value(field, left_raw)
+            right = _normalize_catalyst_value(field, right_raw)
+
+            if left is None and right is None:
                 continue
             if left != right:
                 diffs[field] = (left, right)
