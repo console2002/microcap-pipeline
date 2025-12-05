@@ -45,6 +45,14 @@ DILUTION_UNKNOWN = "UNKNOWN"
 logger = logging.getLogger(__name__)
 
 
+PRIMARY_CATALYST_FIELDS = {
+    "PrimaryCatalystType",
+    "PrimaryCatalystTier",
+    "PrimaryCatalystDate",
+    "PrimaryCatalystURL",
+}
+
+
 def _normalize_form(text: str | None) -> str:
     if text is None:
         return ""
@@ -81,6 +89,75 @@ def _prepare_events(events: pd.DataFrame) -> pd.DataFrame:
             )
     df["event_date_canonical"] = df["event_date_canonical"].dt.tz_localize(None)
     return df
+
+
+def _normalize_primary_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text.lower() == "nan":
+        return ""
+    return text
+
+
+def _primary_catalyst_by_ticker(df: pd.DataFrame) -> dict[str, dict[str, str]]:
+    if df is None or df.empty:
+        return {}
+
+    result: dict[str, dict[str, str]] = {}
+    for _, row in df.iterrows():
+        ticker = _normalize_primary_value(row.get("Ticker"))
+        if not ticker or ticker in result:
+            continue
+
+        record = {field: _normalize_primary_value(row.get(field)) for field in PRIMARY_CATALYST_FIELDS}
+        record["CIK"] = _normalize_primary_value(row.get("CIK"))
+        result[ticker] = record
+
+    return result
+
+
+def _log_primary_catalyst_mismatches(shortlist: pd.DataFrame, deep_research: pd.DataFrame) -> None:
+    shortlist_map = _primary_catalyst_by_ticker(shortlist)
+    deep_map = _primary_catalyst_by_ticker(deep_research)
+
+    if not shortlist_map or not deep_map:
+        return
+
+    shared_tickers = sorted(set(shortlist_map.keys()) & set(deep_map.keys()))
+    for ticker in shared_tickers:
+        short_fields = shortlist_map[ticker]
+        deep_fields = deep_map[ticker]
+        if all(short_fields.get(field, "") == deep_fields.get(field, "") for field in PRIMARY_CATALYST_FIELDS):
+            continue
+
+        logger.warning(
+            "PRIMARY_CATALYST_MISMATCH ticker=%s shortlist_date=%s deep_date=%s shortlist_type=%s deep_type=%s "
+            "shortlist_tier=%s deep_tier=%s shortlist_url=%s deep_url=%s",
+            ticker,
+            short_fields.get("PrimaryCatalystDate", ""),
+            deep_fields.get("PrimaryCatalystDate", ""),
+            short_fields.get("PrimaryCatalystType", ""),
+            deep_fields.get("PrimaryCatalystType", ""),
+            short_fields.get("PrimaryCatalystTier", ""),
+            deep_fields.get("PrimaryCatalystTier", ""),
+            short_fields.get("PrimaryCatalystURL", ""),
+            deep_fields.get("PrimaryCatalystURL", ""),
+        )
+
+        log_diag(
+            stage="events",
+            ticker=ticker,
+            cik=deep_fields.get("CIK") or short_fields.get("CIK") or None,
+            decision="primary_catalyst_mismatch",
+            details="Primary catalyst mismatch between shortlist and deep research",
+            fields={
+                "shortlist": {field: short_fields.get(field, "") for field in sorted(PRIMARY_CATALYST_FIELDS)},
+                "deep_research": {field: deep_fields.get(field, "") for field in sorted(PRIMARY_CATALYST_FIELDS)},
+            },
+        )
 
 
 def _strip_html_tags(text: str) -> str:
@@ -1000,6 +1077,9 @@ def run_weekly_deep_research(
             ", ".join(runway_evidence_only[:5]),
         )
 
+    deep_research_df = pd.DataFrame(output_rows)
+    _log_primary_catalyst_mismatches(shortlist, deep_research_df)
+
     output_path = os.path.join(data_dir, "30_deep_research.csv")
     default_fields = [
         "Ticker",
@@ -1048,15 +1128,15 @@ def run_weekly_deep_research(
         "ConvictionScore",
         "Status",
     ]
-    fieldnames = list(output_rows[0].keys()) if output_rows else default_fields
+    fieldnames = list(deep_research_df.columns) if not deep_research_df.empty else default_fields
     ensure_csv(output_path, fieldnames)
     with open(output_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        for row in output_rows:
+        for row in deep_research_df.to_dict(orient="records"):
             writer.writerow(row)
 
-    return pd.DataFrame(output_rows)
+    return deep_research_df
 
 
 __all__ = [
@@ -1066,5 +1146,6 @@ __all__ = [
     "_materiality",
     "_materiality_passed",
     "_conviction_from_subscores",
+    "_log_primary_catalyst_mismatches",
 ]
 from app.events_utils import select_primary_catalyst
