@@ -30,7 +30,7 @@ def test_filings_step_uses_fmp_when_configured(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "app.pipeline.compute_runway_quarters",
-        lambda url, adapter=None, **_: (None, None, "", ""),
+        lambda url, adapter=None, **_: (None, None, "", "", {}),
     )
 
     fmp_calls: list[list[str]] = []

@@ -1123,6 +1123,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             "RunwaySourceURL",
             "RunwayReasonCode",
             "RunwayReasonDetail",
+            "RunwayErrorType",
+            "RunwayErrorMessage",
+            "RunwayErrorStage",
         ]:
             if col not in work.columns:
                 work[col] = "" if col.startswith("RunwayReason") else pd.NA
@@ -1150,14 +1153,23 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                 continue
 
             if url not in cache:
-                quarters, _, reason_code, reason_detail = compute_runway_quarters(
-                    str(url), adapter=adapter, return_reason=True
+                (
+                    quarters,
+                    _,
+                    reason_code,
+                    reason_detail,
+                    reason_meta,
+                ) = compute_runway_quarters(
+                    str(url),
+                    adapter=adapter,
+                    return_reason=True,
+                    include_reason_meta=True,
                 )
-                cache[url] = (quarters, reason_code, reason_detail)
+                cache[url] = (quarters, reason_code, reason_detail, reason_meta)
             cached = cache.get(url)
             if cached is None:
                 continue
-            quarters, reason_code, reason_detail = cached
+            quarters, reason_code, reason_detail, reason_meta = cached
 
             if quarters is not None:
                 try:
@@ -1170,6 +1182,9 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
                     work.at[idx, "RunwaySourceURL"] = url
             work.at[idx, "RunwayReasonCode"] = reason_code or ""
             work.at[idx, "RunwayReasonDetail"] = reason_detail or ""
+            work.at[idx, "RunwayErrorType"] = (reason_meta or {}).get("error_type", "")
+            work.at[idx, "RunwayErrorMessage"] = (reason_meta or {}).get("error_message", "")
+            work.at[idx, "RunwayErrorStage"] = (reason_meta or {}).get("error_stage", "")
 
         has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
         has_runway = has_runway.infer_objects(copy=False)

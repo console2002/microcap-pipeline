@@ -640,25 +640,52 @@ class EdgarAdapter:
     def runway_from_financials(self, filing_or_url, form_hint: Optional[str]):
         """Compute runway using edgartools Financials as the canonical source."""
 
-        filing = self._resolve_filing(filing_or_url)
-        if filing is None:
-            return {"reason_code": RUNWAY_REASON_PARSER_ERROR, "reason_detail": "unable to resolve filing"}
+        def _parser_error(stage: str, exc: Exception):
+            msg = f"{exc.__class__.__name__}: {exc}"
+            return {
+                "reason_code": RUNWAY_REASON_PARSER_ERROR,
+                "reason_detail": msg,
+                "error_type": exc.__class__.__name__,
+                "error_message": str(exc),
+                "error_stage": stage,
+            }
 
-        financials = None
+        try:
+            filing = self._resolve_filing(filing_or_url)
+        except Exception as exc:  # pragma: no cover - defensive
+            return _parser_error("resolve_filing", exc)
+
+        if filing is None:
+            return {
+                "reason_code": RUNWAY_REASON_PARSER_ERROR,
+                "reason_detail": "unable to resolve filing",
+                "error_stage": "resolve_filing",
+            }
+
         try:
             financials = getattr(filing, "financials", None)
         except Exception:
             financials = None
         if financials is None:
-            financials = Financials.extract(filing)
+            try:
+                financials = Financials.extract(filing)
+            except Exception as exc:  # pragma: no cover - defensive
+                return _parser_error("fetch_financials", exc)
 
         if financials is None:
             self._log_runway_warning("missing_xbrl", filing)
-            return {"reason_code": RUNWAY_REASON_NO_XBRL, "reason_detail": "missing XBRL/financials"}
+            return {
+                "reason_code": RUNWAY_REASON_NO_XBRL,
+                "reason_detail": "missing XBRL/financials",
+                "error_stage": "fetch_financials",
+            }
 
-        computation = compute_runway_from_financials(
-            financials, form_hint=form_hint or getattr(filing, "form", None)
-        )
+        try:
+            computation = compute_runway_from_financials(
+                financials, form_hint=form_hint or getattr(filing, "form", None)
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            return _parser_error("compute_runway", exc)
 
         if computation.runway_quarters is None and computation.reason_code == RUNWAY_REASON_OK:
             computation.reason_code = RUNWAY_REASON_NO_CASHFLOW
@@ -711,6 +738,9 @@ class EdgarAdapter:
                 "filing_url": source_url,
                 "form_type": getattr(filing, "form", form_hint),
                 "source_tags": ["XBRL"],
+                "error_type": getattr(computation, "error_type", None),
+                "error_message": getattr(computation, "error_message", None),
+                "error_stage": getattr(computation, "error_stage", None),
             }
         )
 

@@ -20,7 +20,7 @@ def test_filings_csv_includes_accession_and_master(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "app.pipeline.compute_runway_quarters",
-        lambda url, adapter=None, **_: (None, None, "", ""),
+        lambda url, adapter=None, **_: (None, None, "", "", {}),
     )
 
     class DummyAdapter:
@@ -90,6 +90,9 @@ def test_filings_csv_includes_accession_and_master(monkeypatch, tmp_path):
         "Desc",
         "Accession",
         "MasterTxtURL",
+        "RunwayErrorType",
+        "RunwayErrorMessage",
+        "RunwayErrorStage",
     ]
 
     assert list(df_out.columns) == expected_header
