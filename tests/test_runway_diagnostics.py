@@ -86,6 +86,21 @@ def test_write_runway_diagnostics(tmp_path):
             "RunwayReasonCode": "NO_XBRL",
             "RunwayReasonDetail": "missing",
         },
+        {
+            "Ticker": "CCC",
+            "CIK": "3",
+            "Form": "10-Q",
+            "FiledAt": "2024-03-01",
+            "Accession": "0003",
+            "RunwayQuarters": None,
+            "HasRunway": False,
+            "RunwaySourceURL": "https://example.com/error",
+            "RunwayReasonCode": "PARSER_ERROR",
+            "RunwayReasonDetail": "TypeError: bad value",
+            "RunwayErrorType": "TypeError",
+            "RunwayErrorMessage": "bad value",
+            "RunwayErrorStage": "compute_runway",
+        },
     ]
 
     output_path = tmp_path / "diag.csv"
@@ -95,6 +110,9 @@ def test_write_runway_diagnostics(tmp_path):
 
     assert set(["Ticker", "CIK", "Form", "FiledAt", "Accession"]).issubset(df.columns)
     assert "RunwayReasonCode" in df.columns
-    assert len(df) == 1
+    assert len(df) == 2
     assert df.iloc[0]["Ticker"] == "BBB"
     assert df.iloc[0]["RunwayReasonCode"] == "NO_XBRL"
+    assert {"RunwayErrorType", "RunwayErrorMessage", "RunwayErrorStage", "Status"}.issubset(
+        set(df.columns)
+    )

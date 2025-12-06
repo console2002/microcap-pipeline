@@ -252,10 +252,14 @@ def compute_runway_from_financials(
     except Exception:
         ocf_value = None
 
+    if ocf_value is not None:
+        ocf_value = _coerce_numeric(ocf_value)
+
     if ocf_value is None:
         ocf_value = _find_value_by_label(cashflow_df, _OCF_LABELS)
 
     cash_value = _find_value_by_label(balance_df, _CASH_LABELS)
+    cash_value = _coerce_numeric(cash_value)
     form_name = form_hint or getattr(financials, "form", None)
     default_period_months = _default_period_from_form(form_name)
     period_months = _infer_period_from_columns(cashflow_df, default_months=default_period_months)

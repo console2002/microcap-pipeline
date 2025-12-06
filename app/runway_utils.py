@@ -47,9 +47,16 @@ def compute_runway_from_html(html_text: str) -> float | None:
 
 
 def compute_runway_quarters(
-    url: str, adapter=None, return_reason: bool = False
-) -> Tuple[float | None, bool] | Tuple[float | None, bool, str, str]:
-    """Return (runway_quarters, used_primary_parser[, reason_code, reason_detail]).
+    url: str,
+    adapter=None,
+    return_reason: bool = False,
+    include_reason_meta: bool = False,
+) -> (
+    Tuple[float | None, bool]
+    | Tuple[float | None, bool, str, str]
+    | Tuple[float | None, bool, str, str, dict]
+):
+    """Return (runway_quarters, used_primary_parser[, reason_code, reason_detail, meta]).
 
     The primary path uses ``EdgarAdapter.runway_from_financials`` so gating
     logic aligns with the EDGAR-first pipeline.
@@ -64,26 +71,41 @@ def compute_runway_quarters(
     adapter = adapter or get_adapter()
     reason_code = "PARSER_ERROR"
     reason_detail = ""
+    reason_meta: dict[str, str] = {"error_type": "", "error_message": "", "error_stage": ""}
 
     try:
         primary_result = adapter.runway_from_financials(url, None)
-    except Exception:
+    except Exception as exc:
         primary_result = None
+        reason_meta = {
+            "error_type": exc.__class__.__name__,
+            "error_message": str(exc),
+            "error_stage": "adapter.runway_from_financials",
+        }
         logger.debug("runway_utils: runway_from_financials failed", exc_info=True)
 
     if primary_result:
         quarters = primary_result.get("runway_quarters")
         reason_code = primary_result.get("reason_code", "") or ""
         reason_detail = primary_result.get("reason_detail", "") or ""
+        reason_meta = {
+            "error_type": primary_result.get("error_type", "") or "",
+            "error_message": primary_result.get("error_message", "") or "",
+            "error_stage": primary_result.get("error_stage", "") or "",
+        }
 
         if reason_code == "OK" and quarters is not None and quarters > 0:
             result_tuple = (round(float(quarters), 2), True)
             if return_reason:
+                if include_reason_meta:
+                    return (*result_tuple, reason_code, reason_detail, reason_meta)
                 return (*result_tuple, reason_code, reason_detail)
             return result_tuple
 
     result_tuple = (None, False)
     if return_reason:
+        if include_reason_meta:
+            return (*result_tuple, reason_code or "", reason_detail or "", reason_meta)
         return (*result_tuple, reason_code or "", reason_detail or "")
     return result_tuple
 
@@ -100,18 +122,30 @@ def write_runway_diagnostics(records, path: str) -> None:
         "Ticker",
         "CIK",
         "Form",
+        "FilingForm",
         "FiledAt",
         "Accession",
+        "FilingAccession",
         "RunwayQuarters",
         "HasRunway",
         "RunwaySourceURL",
+        "FilingURL",
         "RunwayReasonCode",
         "RunwayReasonDetail",
+        "RunwayErrorType",
+        "RunwayErrorMessage",
+        "RunwayErrorStage",
+        "Status",
     ]
 
     for col in columns:
         if col not in df.columns:
             df[col] = pd.NA
+
+    df["Status"] = df.get("Status", df["RunwayReasonCode"])
+    df["FilingForm"] = df.get("FilingForm", df.get("Form"))
+    df["FilingAccession"] = df.get("FilingAccession", df.get("Accession"))
+    df["FilingURL"] = df.get("FilingURL", df.get("RunwaySourceURL"))
 
     mask = df["RunwayReasonCode"].fillna("").astype(str).str.upper().ne("OK")
     missing_quarters = df["RunwayQuarters"].isna()
