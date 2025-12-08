@@ -31,7 +31,7 @@
     "logs": "./logs"
   },
   "Diagnostics": {
-    "Enabled": true,
+    "Enabled": false,
     "Path": "data/run_diagnostics.jsonl"
   },
   "Events": {
