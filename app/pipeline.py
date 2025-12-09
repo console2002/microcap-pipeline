@@ -2288,6 +2288,9 @@ def run_weekly_pipeline(
                 f"filings: skipped (loaded cached {csv_filename('filings')})",
             )
 
+        if start_idx > stages.index("universe") and df_prof is not None:
+            _write_weekly_universe(data_dir, df_prof)
+
         if df_fil is not None and df_prof is not None:
             df_prof = _restrict_profiles_to_core_filings(
                 df_prof, df_fil, progress_fn, eligible_tickers, drop_details
