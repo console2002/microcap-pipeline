@@ -164,3 +164,99 @@ def test_gate_summary_logging(tmp_path, monkeypatch, caplog):
     assert "raw=" in message and "final_gated_count" in message
     for label in ["price", "adv", "cap", "exchange", "shell"]:
         assert label in message
+
+
+def test_gated_universe_written_before_filings_restriction(tmp_path, monkeypatch):
+    cfg = _base_cfg(tmp_path)
+    runlog = tmp_path / "runlog.csv"
+    errlog = tmp_path / "errorlog.csv"
+    ensure_csv(runlog, ["timestamp", "module", "rows_added", "duration_ms", "note"])
+    ensure_csv(errlog, ["timestamp", "module", "message"])
+
+    monkeypatch.setattr(pipeline, "load_config", lambda: cfg)
+    monkeypatch.setattr(pipeline, "make_client", lambda _cfg: DummyClient())
+    monkeypatch.setattr(pipeline, "EdgarAdapter", lambda _cfg: None)
+    monkeypatch.setattr(pipeline, "set_adapter", lambda adapter: None)
+
+    def _filings_universe_step(cfg, adapter, runlog, errlog, stop_flag, progress_fn):
+        return pd.DataFrame({"Ticker": ["HASFIL", "NOFIL"]})
+
+    def _filings_fetch_profiles(
+        client, cfg, tickers, progress_fn=None, stop_flag=None, include_raw=False
+    ):
+        rows = [
+            {
+                "Ticker": "HASFIL",
+                "Exchange": "NASDAQ",
+                "Industry": "Health",
+                "Price": 2.0,
+                "MarketCap": 150_000_000,
+                "CIK": "10",
+                "SecurityType": "Common Stock",
+                "ADV20": 50_000,
+            },
+            {
+                "Ticker": "NOFIL",
+                "Exchange": "NASDAQ",
+                "Industry": "Health",
+                "Price": 2.0,
+                "MarketCap": 140_000_000,
+                "CIK": "11",
+                "SecurityType": "Common Stock",
+                "ADV20": 50_000,
+            },
+        ]
+        gate_stats = {"exchange_security": 0, "shell": 0, "price": 0, "cap": 0, "adv": 0}
+        if include_raw:
+            return rows, rows, gate_stats
+        return rows
+
+    restricted_calls: dict[str, set[str]] = {}
+
+    def _filings_restrict(df_prof, df_fil, progress_fn, eligible_tickers, drop_details):
+        restricted_calls["tickers_before"] = set(df_prof["Ticker"])
+        return df_prof[df_prof["Ticker"].isin(df_fil["Ticker"])]
+
+    def _filings_step(cfg, adapter, runlog, errlog, df_prof, stop_flag, progress_fn):
+        df_fil = pd.DataFrame({"Ticker": ["HASFIL"]})
+        return df_fil, {"HASFIL"}, {}
+
+    def _filings_aftermarket_quotes(client, cfg, tickers, progress_fn=None, stop_flag=None):
+        quotes = []
+        for ticker in tickers:
+            quotes.append(
+                {
+                    "Ticker": ticker,
+                    "BidPrice": 10.0,
+                    "AskPrice": 10.5,
+                    "BidSize": 100,
+                    "AskSize": 100,
+                    "AfterHoursVolume": 1_000,
+                    "QuoteTimestamp": datetime.utcnow().isoformat() + "Z",
+                }
+            )
+        return quotes
+
+    monkeypatch.setattr(pipeline, "universe_step", _filings_universe_step)
+    monkeypatch.setattr(pipeline, "fetch_profiles", _filings_fetch_profiles)
+    monkeypatch.setattr(pipeline, "fetch_aftermarket_quotes", _filings_aftermarket_quotes)
+    monkeypatch.setattr(pipeline, "append_antijoin_purge", _noop_append_antijoin_purge)
+    monkeypatch.setattr(pipeline, "filings_step", _filings_step)
+    monkeypatch.setattr(pipeline, "_restrict_profiles_to_core_filings", _filings_restrict)
+    monkeypatch.setattr(
+        pipeline, "parse_8k_step", lambda *args, **kwargs: pipeline.EventStageResult(status="hard_failure")
+    )
+
+    pipeline.run_weekly_pipeline(
+        stop_flag={"stop": False},
+        progress_fn=None,
+        start_stage="universe",
+    )
+
+    gated_path = tmp_path / "data" / "01_universe_gated.csv"
+    assert gated_path.exists(), "Expected gated universe CSV to be written"
+
+    df_gated = pd.read_csv(gated_path)
+    assert set(df_gated["Ticker"]) == {"HASFIL", "NOFIL"}
+
+    assert restricted_calls.get("tickers_before") == {"HASFIL", "NOFIL"}

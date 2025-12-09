@@ -1144,6 +1144,8 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
         final_count,
     )
 
+    _write_weekly_universe(data_dir, df_prof)
+
     for _, pass_row in df_prof.iterrows():
         _log_universe_decision(pass_row, "gate_pass", "universe_pass")
 
@@ -2290,7 +2292,6 @@ def run_weekly_pipeline(
             df_prof = _restrict_profiles_to_core_filings(
                 df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
-            _write_weekly_universe(data_dir, df_prof)
 
         if start_idx <= stages.index("events"):
             logger.info("run_weekly: starting W2 events (8-K parsing)")
