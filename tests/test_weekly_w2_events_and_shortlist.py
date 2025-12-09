@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 from app.build_watchlist import _classify_eight_k, _write_canonical_events
@@ -166,3 +168,30 @@ def test_build_candidate_shortlist_w2_columns(tmp_path):
     assert bbb_row["NotesStatus"] == "TBD — exclude"
 
     assert len(shortlist) <= 40
+
+
+def test_shortlist_requires_events_and_logs(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+
+    pd.DataFrame(
+        [
+            {"Ticker": "AAA", "Company": "Alpha", "CIK": "1", "Exchange": "NASDAQ"},
+            {"Ticker": "BBB", "Company": "Beta", "CIK": "2", "Exchange": "NYSE"},
+        ]
+    ).to_csv(tmp_path / "01_universe_gated.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {"Ticker": "AAA", "Company": "Alpha", "CIK": "1", "event_date": "2024-01-01", "event_type": "Contract", "event_tier": "Tier-1", "primary_source_url": "https://www.sec.gov/a"}
+        ]
+    ).to_csv(tmp_path / "09_events.csv", index=False)
+
+    shortlist = build_candidate_shortlist(str(tmp_path))
+
+    assert list(shortlist["Ticker"]) == ["AAA"]
+
+    log_text = " ".join(record.getMessage() for record in caplog.records)
+    assert "WEEKLY_W2_SHORTLIST_EVENTS" in log_text
+    assert "universe=2" in log_text
+    assert "with_event=1" in log_text
+    assert "dropped_no_event=1" in log_text

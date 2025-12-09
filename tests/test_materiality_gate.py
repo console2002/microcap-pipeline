@@ -2,13 +2,21 @@ import logging
 
 import pandas as pd
 
-from app.weekly_deep_research import is_material_catalyst, run_weekly_deep_research
+from app.weekly_deep_research import _materiality_passed, is_material_catalyst, run_weekly_deep_research
 
 
 def test_is_material_catalyst_rules():
     assert is_material_catalyst("FDAMilestone", 1, {})
     assert not is_material_catalyst("AnnualMeetingResults", 1, {})
     assert not is_material_catalyst("FDAMilestone", 2, {})
+
+
+def test_materiality_pass_labels():
+    assert _materiality_passed("PASS - Tier1 catalyst")
+    assert _materiality_passed("pass-high")
+    assert _materiality_passed("pass_med")
+    assert not _materiality_passed("maybe")
+    assert not _materiality_passed("fail-low")
 
 
 def test_materiality_gate_integration(tmp_path, caplog, monkeypatch):

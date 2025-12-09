@@ -133,3 +133,66 @@ def test_validation_reasons_and_pass_fail():
     status, reason = evaluate_validation(pd.Series(weak_materiality))
     assert status.startswith("TBD")
     assert "Materiality fail" in reason
+
+
+def test_missing_mandatory_subscore_sets_tbd(tmp_path, caplog, monkeypatch):
+    caplog.set_level(logging.INFO)
+
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+        if return_reason:
+            return 4.0, True, "OK", ""
+        return 4.0, True
+
+    def _fake_dilution_details(filings, form_col):
+        tickers = set(filings.get("Ticker", []))
+        ticker = next(iter(tickers)) if tickers else ""
+        has_evidence = ticker == "BBB"
+        evidence = "https://sec.gov/dilution" if has_evidence else ""
+        return {
+            "score": "Low",
+            "evidence": evidence,
+            "key_url": evidence,
+            "last_event_date": "",
+            "classification": "OVERHANG_CREATION",
+        }
+
+    monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
+    monkeypatch.setattr("app.weekly_deep_research._dilution_details", _fake_dilution_details)
+
+    _write_csv(
+        tmp_path / "20_candidate_shortlist.csv",
+        [
+            {"Ticker": "AAA", "Company": "Alpha", "CIK": "1", "Sector": "Healthcare", "Industry": "Biotechnology", "Price": 5.0, "MarketCap": 150_000_000, "ADV20": 80_000},
+            {"Ticker": "BBB", "Company": "Beta", "CIK": "2", "Sector": "Technology", "Industry": "Software", "Price": 6.0, "MarketCap": 120_000_000, "ADV20": 90_000},
+        ],
+    )
+
+    _write_csv(
+        tmp_path / "02_filings.csv",
+        [
+            {"Ticker": "AAA", "CIK": "1", "Form": "10-Q", "RunwayQuarters": 4.0, "URL": "https://sec.gov/runway_aaa", "FilingDate": "2024-05-01"},
+            {"Ticker": "AAA", "CIK": "1", "Form": "DEF 14A", "FilingDate": "2024-04-01", "URL": "https://sec.gov/def14a_aaa"},
+            {"Ticker": "AAA", "CIK": "1", "Form": "4", "FilingDate": "2024-04-15", "URL": "https://sec.gov/form4_aaa"},
+            {"Ticker": "BBB", "CIK": "2", "Form": "10-Q", "RunwayQuarters": 4.0, "URL": "https://sec.gov/runway_bbb", "FilingDate": "2024-05-02"},
+            {"Ticker": "BBB", "CIK": "2", "Form": "DEF 14A", "FilingDate": "2024-04-02", "URL": "https://sec.gov/def14a_bbb"},
+            {"Ticker": "BBB", "CIK": "2", "Form": "4", "FilingDate": "2024-04-16", "URL": "https://sec.gov/form4_bbb"},
+        ],
+    )
+
+    _write_csv(
+        tmp_path / "09_events.csv",
+        [
+            {"Ticker": "AAA", "CIK": "1", "Tier": "Tier-1", "EventDate": "2024-05-10", "EventType": "FDAMilestone", "URL": "https://sec.gov/event_aaa"},
+            {"Ticker": "BBB", "CIK": "2", "Tier": "Tier-1", "EventDate": "2024-05-11", "EventType": "FDAMilestone", "URL": "https://sec.gov/event_bbb"},
+        ],
+    )
+
+    dr_df = run_weekly_deep_research(str(tmp_path))
+
+    statuses = dict(zip(dr_df["Ticker"], dr_df["Status"]))
+    missing = dict(zip(dr_df["Ticker"], dr_df.get("MissingMandatorySubscores", "")))
+
+    assert statuses["AAA"].startswith("TBD")
+    assert "Dilution" in missing["AAA"]
+    assert statuses["BBB"] == "Validated"
+    assert missing["BBB"] in {"", None}
