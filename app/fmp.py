@@ -144,8 +144,9 @@ def fetch_profiles(
     cfg: dict,
     tickers: list[str],
     progress_fn: Optional[Callable[[str], None]] = None,
-    stop_flag: Optional[dict] = None
-) -> list[dict]:
+    stop_flag: Optional[dict] = None,
+    include_raw: bool = False,
+):
     """
     Pull company profile data from FMP in batches of BatchSizes.Profiles.
 
@@ -158,7 +159,15 @@ def fetch_profiles(
       which keeps calls sane and lets cancel stop immediately.
     """
 
-    out = []
+    out: list[dict] = []
+    raw: list[dict] = []
+    gate_stats = {
+        "exchange_security": 0,
+        "shell": 0,
+        "price": 0,
+        "cap": 0,
+        "adv": 0,
+    }
 
     key       = cfg["FMPKey"]
     bs        = cfg["BatchSizes"]["Profiles"]
@@ -208,35 +217,7 @@ def fetch_profiles(
             price    = rec.get("price")
             mcap     = rec.get("mktCap") or rec.get("marketCap")
 
-            if should_drop_record(company, ticker, substring_patterns, word_patterns):
-                continue
-
-            # hard gate filters
-            if otc_pattern.search(exchange):
-                continue
-
-            if allowed_exchange_norms:
-                if exch_norm not in allowed_exchange_norms:
-                    continue
-            else:
-                if exch_norm not in default_exchange_norms:
-                    continue
-            if price is not None and price < cfg["HardGates"]["MinPrice"]:
-                continue
-            if mcap is not None and mcap < cfg["HardGates"]["CapMin"]:
-                continue
-            if mcap is not None and mcap > cfg["HardGates"]["CapMax"]:
-                continue
-
-            industry_raw = rec.get("Industry") or rec.get("industry")
-            industry_norm = (
-                str(industry_raw).strip().lower() if industry_raw is not None else None
-            )
-            if industry_norm == "shell companies":
-                shell_dropped += 1
-                continue
-
-            out.append({
+            raw_record = {
                 "Ticker": ticker,
                 "CIK": cik_txt,
                 "Company": company,
@@ -247,14 +228,59 @@ def fetch_profiles(
                 "Industry": rec.get("industry") or "",
                 "MarketCap": mcap,
                 "Price": price,
-                "UpdatedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-            })
+                "UpdatedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "SecurityType": rec.get("type") or rec.get("securityType") or "",
+                "ADV20": rec.get("volAvg") or rec.get("avgVolume"),
+            }
+
+            if include_raw:
+                raw.append(raw_record)
+
+            if should_drop_record(company, ticker, substring_patterns, word_patterns):
+                continue
+
+            # hard gate filters
+            if otc_pattern.search(exchange):
+                gate_stats["exchange_security"] += 1
+                continue
+
+            if allowed_exchange_norms:
+                if exch_norm not in allowed_exchange_norms:
+                    gate_stats["exchange_security"] += 1
+                    continue
+            else:
+                if exch_norm not in default_exchange_norms:
+                    gate_stats["exchange_security"] += 1
+                    continue
+            if price is not None and price < cfg["HardGates"]["MinPrice"]:
+                gate_stats["price"] += 1
+                continue
+            if mcap is not None and mcap < cfg["HardGates"]["CapMin"]:
+                gate_stats["cap"] += 1
+                continue
+            if mcap is not None and mcap > cfg["HardGates"]["CapMax"]:
+                gate_stats["cap"] += 1
+                continue
+
+            industry_raw = rec.get("Industry") or rec.get("industry")
+            industry_norm = (
+                str(industry_raw).strip().lower() if industry_raw is not None else None
+            )
+            if industry_norm == "shell companies":
+                shell_dropped += 1
+                gate_stats["shell"] += 1
+                continue
+
+            out.append(raw_record)
 
     if shell_dropped:
         logger.info(
             "fetch_profiles: dropped %d shell companies (Industry == 'Shell Companies')",
             shell_dropped,
         )
+
+    if include_raw:
+        return out, raw, gate_stats
 
     return out
 
