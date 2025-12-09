@@ -937,7 +937,20 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
             )
             df_prof[col] = df_prof[col].replace("", pd.NA)
 
-        df_prof = df_prof.dropna()
+        required_universe_cols = [
+            "Ticker",
+            "Exchange",
+            "Price",
+            "MarketCap",
+            "CIK",
+        ]
+
+        dropna_subset = [
+            col for col in required_universe_cols if col in df_prof.columns
+        ]
+
+        if dropna_subset:
+            df_prof = df_prof.dropna(subset=dropna_subset)
 
         tickers = (
             df_prof.get("Ticker", pd.Series(dtype="object"))

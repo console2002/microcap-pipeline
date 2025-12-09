@@ -55,6 +55,8 @@ def _fake_fetch_profiles(client, cfg, tickers, progress_fn=None, stop_flag=None,
         {"Ticker": "DISC", "Exchange": "NYSE", "Industry": "Health", "Price": 3.0, "MarketCap": 320_000_000, "CIK": "5", "SecurityType": "Common Stock"},
         {"Ticker": "BIG", "Exchange": "NYSE", "Industry": "Health", "Price": 3.0, "MarketCap": 360_000_000, "CIK": "6", "SecurityType": "Common Stock"},
         {"Ticker": "ADVX", "Exchange": "NASDAQ", "Industry": "Health", "Price": 3.0, "MarketCap": 150_000_000, "CIK": "7", "SecurityType": "Common Stock"},
+        {"Ticker": "NOSEC", "Exchange": "NASDAQ", "Industry": "Health", "Price": 2.5, "MarketCap": 120_000_000, "CIK": "8", "SecurityType": ""},
+        {"Ticker": "NOADV", "Exchange": "NYSE", "Industry": "Health", "Price": 2.5, "MarketCap": 125_000_000, "CIK": "9", "SecurityType": "Common Stock", "ADV20": None},
     ]
 
     gate_stats = {"exchange_security": 1, "shell": 1, "price": 1, "cap": 1, "adv": 1}
@@ -119,12 +121,14 @@ def test_raw_and_gated_universe_outputs(tmp_path, monkeypatch):
     df_raw = pd.read_csv(raw_path)
     df_gated = pd.read_csv(gated_path)
 
-    assert set(df_raw["Ticker"]) == {"OTCX", "SHELL", "LOWP", "PREF", "DISC", "BIG", "ADVX"}
+    assert set(df_raw["Ticker"]) == {"OTCX", "SHELL", "LOWP", "PREF", "DISC", "BIG", "ADVX", "NOSEC", "NOADV"}
 
-    assert set(df_gated["Ticker"]) == {"PREF", "DISC"}
+    assert set(df_gated["Ticker"]) == {"PREF", "DISC", "NOSEC", "NOADV"}
     assert "CapBand" in df_gated.columns
     assert (df_gated.loc[df_gated["Ticker"] == "PREF", "CapBand"] == "preferred").all()
     assert (df_gated.loc[df_gated["Ticker"] == "DISC", "CapBand"] == "discovery").all()
+    assert (df_gated.loc[df_gated["Ticker"] == "NOSEC", "CapBand"] == "preferred").all()
+    assert (df_gated.loc[df_gated["Ticker"] == "NOADV", "CapBand"] == "preferred").all()
     assert (df_gated["MarketCap"] < 350_000_000).all()
 
 
