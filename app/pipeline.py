@@ -860,13 +860,31 @@ def universe_step(cfg, adapter: EdgarAdapter, runlog, errlog, stop_flag, progres
 def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     t0 = time.time()
     _emit(progress_fn, "profiles: start")
-    prof_rows = fetch_profiles(
+    prof_result = fetch_profiles(
         client,
         cfg,
         df_uni["Ticker"].tolist(),
         progress_fn=progress_fn,
         stop_flag=stop_flag,
+        include_raw=True,
     )
+
+    if isinstance(prof_result, tuple) and len(prof_result) == 3:
+        prof_rows, raw_rows, gate_stats = prof_result
+    else:
+        prof_rows = prof_result
+        raw_rows = prof_rows
+        gate_stats = {
+            "exchange_security": 0,
+            "shell": 0,
+            "price": 0,
+            "cap": 0,
+            "adv": 0,
+        }
+
+    data_dir = cfg.get("Paths", {}).get("data", "data")
+    df_raw_prof = pd.DataFrame(raw_rows)
+    _write_weekly_universe_raw(data_dir, df_raw_prof)
     if stop_flag.get("stop"):
         raise CancelledRun("cancel during profiles")
 
@@ -908,6 +926,7 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
                 progress_fn,
                 f"profiles: guard dropped {dropped_shell} shell-company profiles that bypassed fetch_profiles filter",
             )
+            gate_stats["shell"] = gate_stats.get("shell", 0) + dropped_shell
 
         df_prof = df_prof.copy()
 
@@ -918,7 +937,20 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
             )
             df_prof[col] = df_prof[col].replace("", pd.NA)
 
-        df_prof = df_prof.dropna()
+        required_universe_cols = [
+            "Ticker",
+            "Exchange",
+            "Price",
+            "MarketCap",
+            "CIK",
+        ]
+
+        dropna_subset = [
+            col for col in required_universe_cols if col in df_prof.columns
+        ]
+
+        if dropna_subset:
+            df_prof = df_prof.dropna(subset=dropna_subset)
 
         tickers = (
             df_prof.get("Ticker", pd.Series(dtype="object"))
@@ -1086,6 +1118,33 @@ def profiles_step(cfg, client, runlog, errlog, df_uni, stop_flag, progress_fn):
     )
     _log_step(runlog, "profiles", rows_added, t0, "append+purge")
     _emit(progress_fn, f"profiles: done {rows_added} new rows {client.stats_string()}")
+
+    raw_count = len(df_raw_prof)
+    final_count = len(df_prof)
+    gate_summary = {
+        "dropped_exchange_security": gate_stats.get("exchange_security", 0),
+        "dropped_shell": gate_stats.get("shell", 0),
+        "dropped_price_lt_1": gate_stats.get("price", 0),
+        "dropped_adv": gate_stats.get("adv", 0),
+        "dropped_cap": gate_stats.get("cap", 0),
+    }
+    known_drop_total = sum(gate_summary.values())
+    other_drops = max(raw_count - final_count - known_drop_total, 0)
+    gate_summary["other_drops"] = other_drops
+
+    logger.info(
+        "WEEKLY_W1_UNIVERSE_GATES raw=%s dropped_exchange_security=%s dropped_shell=%s dropped_price_lt_1=%s dropped_adv=%s dropped_cap=%s other_drops=%s final_gated_count=%s",
+        raw_count,
+        gate_summary["dropped_exchange_security"],
+        gate_summary["dropped_shell"],
+        gate_summary["dropped_price_lt_1"],
+        gate_summary["dropped_adv"],
+        gate_summary["dropped_cap"],
+        gate_summary["other_drops"],
+        final_count,
+    )
+
+    _write_weekly_universe(data_dir, df_prof)
 
     for _, pass_row in df_prof.iterrows():
         _log_universe_decision(pass_row, "gate_pass", "universe_pass")
@@ -1979,12 +2038,55 @@ def build_watchlist_step(cfg, runlog, errlog, stop_flag, progress_fn):
     return rows_written
 
 
+def _add_cap_band(df_prof: pd.DataFrame | None) -> pd.DataFrame | None:
+    if df_prof is None or df_prof.empty:
+        return df_prof
+
+    result = df_prof.copy()
+    caps = pd.to_numeric(result.get("MarketCap"), errors="coerce")
+
+    cap_band = pd.Series(pd.NA, index=result.index, dtype="object")
+    cap_band.loc[caps < 300_000_000] = "preferred"
+    cap_band.loc[(caps >= 300_000_000) & (caps < 350_000_000)] = "discovery"
+
+    result["CapBand"] = cap_band
+    return result
+
+
+def _write_weekly_universe_raw(data_dir: str, df_raw: pd.DataFrame | None) -> None:
+    if df_raw is None or df_raw.empty:
+        return
+
+    os.makedirs(data_dir, exist_ok=True)
+
+    required_cols = [
+        "Ticker",
+        "Exchange",
+        "SecurityType",
+        "Sector",
+        "Industry",
+        "Price",
+        "ADV20",
+        "MarketCap",
+        "CIK",
+    ]
+
+    for col in required_cols:
+        if col not in df_raw.columns:
+            df_raw[col] = pd.NA
+
+    raw_path = os.path.join(data_dir, "01_universe_raw.csv")
+    df_raw.to_csv(raw_path, index=False)
+    _log_stage_metrics("01_universe_raw", df_raw)
+
+
 def _write_weekly_universe(data_dir: str, df_prof: pd.DataFrame | None) -> None:
     if df_prof is None or df_prof.empty:
         return
     weekly_universe = os.path.join(data_dir, "01_universe_gated.csv")
-    df_prof.to_csv(weekly_universe, index=False)
-    _log_stage_metrics("01_universe_gated", df_prof)
+    df_with_band = _add_cap_band(df_prof)
+    df_with_band.to_csv(weekly_universe, index=False)
+    _log_stage_metrics("01_universe_gated", df_with_band)
 
 
 def _ensure_event_placeholders(data_dir: str) -> None:
@@ -2186,11 +2288,13 @@ def run_weekly_pipeline(
                 f"filings: skipped (loaded cached {csv_filename('filings')})",
             )
 
+        if start_idx > stages.index("universe") and df_prof is not None:
+            _write_weekly_universe(data_dir, df_prof)
+
         if df_fil is not None and df_prof is not None:
             df_prof = _restrict_profiles_to_core_filings(
                 df_prof, df_fil, progress_fn, eligible_tickers, drop_details
             )
-            _write_weekly_universe(data_dir, df_prof)
 
         if start_idx <= stages.index("events"):
             logger.info("run_weekly: starting W2 events (8-K parsing)")
