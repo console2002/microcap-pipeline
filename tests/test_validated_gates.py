@@ -148,3 +148,71 @@ def test_validation_gates_cover_universe_mandatory_and_biotech(tmp_path, monkeyp
 
     # Secondary evidence remains optional for the passing row.
     assert validated.iloc[0]["SecondarySource"] == ""
+
+
+def test_subscore_count_boundary_and_biotech_bypass(tmp_path):
+    deep_rows = pd.DataFrame(
+        [
+            {
+                "Ticker": "THREE",
+                "Company": "Triple Inc",
+                "CIK": "10",
+                "Sector": "Technology",
+                "Industry": "Software",
+                "Price": 2.5,
+                "MarketCap": 150_000_000,
+                "ADV20": 60_000,
+                "RunwayQuarters": 4,
+                "Runway (qtrs)": 4,
+                "RunwayEvidencePrimary": "https://sec.gov/runway_three",
+                "Dilution": "Low",
+                "DilutionEvidencePrimary": "https://sec.gov/dilution_three",
+                "Catalyst": "Tier-1",
+                "PrimaryCatalystType": "Contract",
+                "CatalystEvidencePrimary": "https://sec.gov/catalyst_three",
+                "Subscores Evidenced (x/5)": 3,
+                "Materiality": "PASS - Tier1 catalyst",
+                "BiotechPeerRead": "",
+                "Status": "Validated",
+            },
+            {
+                "Ticker": "FOUR",
+                "Company": "Quad LLC",
+                "CIK": "11",
+                "Sector": "Technology",
+                "Industry": "Hardware",
+                "Price": 2.5,
+                "MarketCap": 150_000_000,
+                "ADV20": 60_000,
+                "RunwayQuarters": 4,
+                "Runway (qtrs)": 4,
+                "RunwayEvidencePrimary": "https://sec.gov/runway_four",
+                "Dilution": "Low",
+                "DilutionEvidencePrimary": "https://sec.gov/dilution_four",
+                "Catalyst": "Tier-1",
+                "PrimaryCatalystType": "Contract",
+                "CatalystEvidencePrimary": "https://sec.gov/catalyst_four",
+                "Subscores Evidenced (x/5)": 4,
+                "Materiality": "PASS - Tier1 catalyst",
+                "BiotechPeerRead": "",
+                "Status": "Validated",
+            },
+        ]
+    )
+    deep_rows.to_csv(tmp_path / "30_deep_research.csv", index=False)
+
+    pd.DataFrame(
+        [
+            {"Ticker": "THREE", "CIK": "10", "Price": 2.5, "MarketCap": 150_000_000, "ADV20": 60_000},
+            {"Ticker": "FOUR", "CIK": "11", "Price": 2.5, "MarketCap": 150_000_000, "ADV20": 60_000},
+        ]
+    ).to_csv(tmp_path / "01_universe_gated.csv", index=False)
+
+    validated, exclusions = build_validated_selections(data_dir=tmp_path)
+
+    assert list(validated["Ticker"]) == ["FOUR"]
+    assert validated.iloc[0]["GATE_SUBSCORE_COUNT"]
+    assert validated.iloc[0]["GATE_BIOTECH_PEER"]
+
+    exclusion_reason = dict(zip(exclusions["Ticker"], exclusions["Reason"]))
+    assert "Subscores <4/5" in exclusion_reason["THREE"]

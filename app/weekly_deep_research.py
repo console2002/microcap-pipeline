@@ -45,6 +45,16 @@ DILUTION_UNKNOWN = "UNKNOWN"
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_MATERIALITY_PREFIXES = {
+    "pass",
+    "pass-",
+    "pass-high",
+    "pass-med",
+    "pass-low",
+    "pass-tier1",
+    "pass-tier1catalyst",
+}
+
 
 PRIMARY_CATALYST_FIELDS = {
     "PrimaryCatalystType",
@@ -720,7 +730,10 @@ def _materiality(
 
 
 def _materiality_passed(materiality: str) -> bool:
-    return isinstance(materiality, str) and materiality.strip().upper().startswith("PASS")
+    if not isinstance(materiality, str):
+        return False
+    normalized = materiality.strip().lower().replace("_", "-").replace(" ", "")
+    return any(normalized.startswith(prefix.replace(" ", "")) for prefix in ALLOWED_MATERIALITY_PREFIXES)
 
 
 def _aggregate_evidence(primary_links: list[str]) -> str:
@@ -746,6 +759,22 @@ def _classify_evidence(links: list[str]) -> tuple[list[str], list[str]]:
     return list(dict.fromkeys(primary)), list(dict.fromkeys(secondary))
 
 
+def _is_scored_value(value, *, numeric: bool = False) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, float) and pd.isna(value):
+        return False
+    text = str(value).strip().lower()
+    if text in {"", "nan", "tbd", "unknown", "none"}:
+        return False
+    if numeric:
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def _conviction_from_subscores(subscore_count: int, catalyst: str, materiality: str) -> str:
     if not _materiality_passed(materiality):
         return "Low"
@@ -760,6 +789,15 @@ def _conviction_from_subscores(subscore_count: int, catalyst: str, materiality: 
     return "Low"
 
 
+def _mandatory_subscores_status(flags: Mapping[str, bool]) -> tuple[bool, list[str]]:
+    missing: list[str] = []
+    label_map = {"runway": "Runway", "dilution": "Dilution", "catalyst": "Catalyst"}
+    for key, label in label_map.items():
+        if not flags.get(key, False):
+            missing.append(label)
+    return len(missing) == 0, missing
+
+
 def _status_from_row(
     mandatory_ok: bool,
     subscore_count: int,
@@ -768,8 +806,7 @@ def _status_from_row(
     is_biotech_candidate: bool,
     require_biotech_peer: bool,
 ) -> str:
-    materiality_lower = materiality.lower()
-    materiality_ok = materiality_lower.startswith("pass")
+    materiality_ok = _materiality_passed(materiality)
     biotech_ok = True
     if require_biotech_peer and is_biotech_candidate:
         biotech_ok = isinstance(biotech_peer, str) and biotech_peer.startswith("Y_")
@@ -880,6 +917,12 @@ def run_weekly_deep_research(
     output_rows: List[dict] = []
     runway_numeric_count = 0
     runway_evidence_only: list[str] = []
+    mandatory_ok_count = 0
+    mandatory_missing_counts = {"Runway": 0, "Dilution": 0, "Catalyst": 0}
+    governance_present = 0
+    governance_absent = 0
+    insider_present = 0
+    insider_absent = 0
 
     def _select_runway_details(candidate_filings: pd.DataFrame, form_col: str):
         if candidate_filings.empty:
@@ -1084,10 +1127,10 @@ def run_weekly_deep_research(
                 "governance": governance_label,
                 "insider": insider_label,
             }.get(key)
-            valid_value = value_for_key not in {"", None, "TBD", "Unknown"}
+            valid_value = _is_scored_value(value_for_key, numeric=(key == "runway"))
             subscore_flags[key] = valid_value and bool(prim)
 
-        mandatory_ok = all(subscore_flags.get(key, False) for key in ["dilution", "runway", "catalyst"])
+        mandatory_ok, missing_mandatory = _mandatory_subscores_status(subscore_flags)
         subscore_count = sum(1 for v in subscore_flags.values() if v)
         materiality_raw = _materiality(
             subscore_count,
@@ -1099,8 +1142,28 @@ def run_weekly_deep_research(
         )
         materiality_label = materiality_raw
 
+        if mandatory_ok:
+            mandatory_ok_count += 1
+        else:
+            for missing_key in missing_mandatory:
+                if missing_key in mandatory_missing_counts:
+                    mandatory_missing_counts[missing_key] += 1
+
+        governance_present += int(subscore_flags.get("governance", False))
+        governance_absent += int(not subscore_flags.get("governance", False))
+        insider_present += int(subscore_flags.get("insider", False))
+        insider_absent += int(not subscore_flags.get("insider", False))
+
         conviction = _conviction_from_subscores(subscore_count, catalyst_label, materiality_label)
         biotech_field = biotech_peer_field if biotech_flag == "Y" else "N:NonBiotech"
+        if biotech_flag == "Y":
+            logger.info(
+                "WEEKLY_W3_BIOTECH_PEER: ticker=%s biotech_flag=%s peer=%s evidence_present=%s",
+                ticker,
+                biotech_flag,
+                biotech_field,
+                bool(biotech_peer_evidence),
+            )
         status = _status_from_row(
             mandatory_ok,
             subscore_count,
@@ -1184,6 +1247,7 @@ def run_weekly_deep_research(
                 "Materiality": materiality_raw,
                 "Materiality (pass/fail + note)": materiality_label,
                 "ConvictionScore": conviction,
+                "MissingMandatorySubscores": ";".join(missing_mandatory),
                 "Status": status,
             }
         )
@@ -1211,6 +1275,31 @@ def run_weekly_deep_research(
         )
 
     deep_research_df = pd.DataFrame(output_rows)
+    total_candidates = len(output_rows)
+
+    logger.info(
+        "WEEKLY_W3_SUBSCORES: total=%s mandatory_ok=%s missing_runway=%s missing_dilution=%s missing_catalyst=%s governance_present=%s governance_absent=%s insider_present=%s insider_absent=%s",
+        total_candidates,
+        mandatory_ok_count,
+        mandatory_missing_counts.get("Runway", 0),
+        mandatory_missing_counts.get("Dilution", 0),
+        mandatory_missing_counts.get("Catalyst", 0),
+        governance_present,
+        governance_absent,
+        insider_present,
+        insider_absent,
+    )
+
+    if not deep_research_df.empty and "Materiality" in deep_research_df.columns:
+        materiality_counts = (
+            deep_research_df["Materiality"]
+            .fillna("unknown")
+            .astype(str)
+            .str.lower()
+            .value_counts()
+            .to_dict()
+        )
+        logger.info("WEEKLY_W3_MATERIALITY: %s", materiality_counts)
     _log_primary_catalyst_mismatches(shortlist, deep_research_df)
 
     output_path = os.path.join(data_dir, "30_deep_research.csv")

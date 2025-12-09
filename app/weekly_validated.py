@@ -12,6 +12,7 @@ from app.config import load_config
 from app.logging_utils import log_diag
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv, log_line, utc_now_iso
+from app.weekly_deep_research import ALLOWED_MATERIALITY_PREFIXES
 
 # Validation gates are orchestrated in W4. The gate booleans below feed into
 # both Status and ValidationStatus for 40_validated_selections.csv. The current
@@ -81,6 +82,22 @@ def _has_value(val) -> bool:
     return pd.notna(val) and str(val).strip() not in {"", "nan", "TBD", "Unknown"}
 
 
+def _has_scored_value(val, *, numeric: bool = False) -> bool:
+    if val is None:
+        return False
+    if isinstance(val, float) and pd.isna(val):
+        return False
+    text = str(val).strip().lower()
+    if text in {"", "nan", "tbd", "unknown", "none"}:
+        return False
+    if numeric:
+        try:
+            float(val)
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def _first_available_value(row: pd.Series, keys: List[str]):
     for key in keys:
         if key in row:
@@ -133,13 +150,13 @@ def _subscore_evidenced(row: pd.Series, value_fields, evidence_field: str) -> bo
 
 
 def _materiality_passed(materiality: str) -> bool:
-    lowered = str(materiality).strip().lower()
-    return lowered.startswith("pass")
+    normalized = str(materiality or "").strip().lower().replace("_", "-").replace(" ", "")
+    return any(normalized.startswith(prefix.replace(" ", "")) for prefix in ALLOWED_MATERIALITY_PREFIXES)
 
 
 def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str, str], int, float | None]:
     dilution_value = _first_available_value(row, ["Dilution", "DilutionScore"])
-    dilution_scored = _has_value(dilution_value)
+    dilution_scored = _has_scored_value(dilution_value)
     dilution_evidence = _has_value(row.get("DilutionEvidencePrimary"))
 
     runway_value = None
@@ -154,13 +171,20 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str
         row,
         ["Catalyst", "CatalystScore", "PrimaryCatalystType"],
     )
-    catalyst_scored = _has_value(catalyst_value)
+    catalyst_scored = _has_scored_value(catalyst_value)
     catalyst_evidence = any(
         _has_value(row.get(field))
         for field in ["CatalystEvidencePrimary", "PrimaryCatalystURL", "PrimarySource"]
     )
 
-    mandatory_subscores_ok = dilution_scored and dilution_evidence and runway_evidence_ok and catalyst_scored and catalyst_evidence
+    mandatory_subscores_ok = (
+        dilution_scored
+        and dilution_evidence
+        and runway_numeric_ok
+        and runway_evidence_ok
+        and catalyst_scored
+        and catalyst_evidence
+    )
 
     subscore_count = int(row.get("Subscores Evidenced (x/5)", row.get("SubscoresEvidencedCount", 0)) or 0)
 
@@ -183,6 +207,7 @@ def _compute_validation_gates(row: pd.Series) -> tuple[Dict[str, bool], Dict[str
             biotech_ok = True
     else:
         biotech_ok = True
+        biotech_peer = "PASS (not biotech)"
 
     price_value = _coerce_float(_first_available_value(row, ["Price", "DiscoveryPrice", "Close"]))
     adv_value = _coerce_float(_first_available_value(row, ["ADV20", "ADV20_k"]))
@@ -403,6 +428,9 @@ def build_validated_selections(
 
     validated = merged[merged["Status"] == "Validated"].copy()
     exclusions = merged[merged["Status"] != "Validated"].copy()
+
+    if not validated.empty and any(validated["Status"] != "Validated"):
+        raise RuntimeError("40_validated_selections would include non-validated statuses")
 
     val_path = os.path.join(data_dir, "40_validated_selections.csv")
     tbd_path = os.path.join(data_dir, "40_tbd_exclusions.csv")

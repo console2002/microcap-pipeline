@@ -12,6 +12,7 @@ Primary/Secondary sources.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Iterable
 
@@ -21,6 +22,8 @@ from app.csv_names import csv_path
 from app.events_utils import first_non_na, select_primary_catalyst
 
 MAX_CANDIDATES = 40
+
+logger = logging.getLogger(__name__)
 
 
 def _load_csv(path: str) -> pd.DataFrame:
@@ -80,6 +83,15 @@ def build_candidate_shortlist(data_dir: str) -> pd.DataFrame:
     legacy_short = _load_csv(csv_path(data_dir, "shortlist_candidates"))
 
     if universe.empty or events.empty:
+        universe_count = universe.get("Ticker", pd.Series(dtype=str)).nunique()
+        with_event_count = 0
+        dropped_no_events = universe_count
+        logger.info(
+            "WEEKLY_W2_SHORTLIST_EVENTS: universe=%s with_event=%s dropped_no_event=%s",
+            universe_count,
+            with_event_count,
+            dropped_no_events,
+        )
         shortlist = pd.DataFrame()
         shortlist.to_csv(os.path.join(data_dir, "20_candidate_shortlist.csv"), index=False)
         return shortlist
@@ -113,6 +125,11 @@ def build_candidate_shortlist(data_dir: str) -> pd.DataFrame:
         return None
 
     event_groups = events.groupby("Ticker")
+    universe_count = universe.get("Ticker", pd.Series(dtype=str)).nunique()
+    tickers_with_events = set(event_groups.groups.keys())
+    with_event_count = len(set(universe.get("Ticker", pd.Series(dtype=str))) & tickers_with_events)
+    dropped_no_events = universe_count - with_event_count
+
     rows: list[dict] = []
     for _, base_row in base.iterrows():
         ticker = base_row.get("Ticker")
@@ -162,6 +179,13 @@ def build_candidate_shortlist(data_dir: str) -> pd.DataFrame:
         rows.append(row)
 
     shortlist = pd.DataFrame(rows)
+    logger.info(
+        "WEEKLY_W2_SHORTLIST_EVENTS: universe=%s with_event=%s dropped_no_event=%s",
+        universe_count,
+        with_event_count,
+        dropped_no_events,
+    )
+
     if shortlist.empty:
         shortlist.to_csv(os.path.join(data_dir, "20_candidate_shortlist.csv"), index=False)
         return shortlist
