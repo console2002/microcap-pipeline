@@ -962,6 +962,9 @@ def run_weekly_deep_research(
         fallback_reason_code = ""
         fallback_reason_detail = ""
         fallback_reason_meta: dict = {}
+        last_reason_code = fallback_reason_code
+        last_reason_detail = fallback_reason_detail
+        last_reason_meta = fallback_reason_meta
 
         for _, chosen in subset.iterrows():
             evidence_url = (
@@ -998,6 +1001,11 @@ def run_weekly_deep_research(
                     return_reason=True,
                     include_reason_meta=True,
                 )
+
+            if quarters is None:
+                last_reason_code = reason_code
+                last_reason_detail = reason_detail
+                last_reason_meta = reason_meta or {}
 
             diag_payload = {
                 "Ticker": ticker,
@@ -1046,9 +1054,9 @@ def run_weekly_deep_research(
             fallback_evidence_url,
             fallback_filed_at,
             False,
-            fallback_reason_code,
-            fallback_reason_detail,
-            fallback_reason_meta,
+            last_reason_code,
+            last_reason_detail,
+            last_reason_meta,
         )
 
     for row in shortlist.itertuples(index=False):
