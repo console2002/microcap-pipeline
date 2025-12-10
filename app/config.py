@@ -39,6 +39,22 @@ def load_config(path: str = "config.json") -> Dict[str, Any]:
     diag_cfg.setdefault("Enabled", False)
     cfg["Diagnostics"] = diag_cfg
 
+    weekly_cfg = cfg.get("Weekly") or {}
+    if not isinstance(weekly_cfg, dict):
+        weekly_cfg = {}
+    runway_cfg = weekly_cfg.get("Runway") or {}
+    if not isinstance(runway_cfg, dict):
+        runway_cfg = {}
+    runway_cfg.setdefault("AllowNonOkNumeric", False)
+    runway_cfg.setdefault("EnableHtmlFallback", False)
+    runway_cfg.setdefault("WriteDiagnostics", False)
+    runway_cfg.setdefault(
+        "DiagnosticsPath",
+        os.path.join(cfg.get("Paths", {}).get("data", "data"), "runway_diagnostics.csv"),
+    )
+    weekly_cfg["Runway"] = runway_cfg
+    cfg["Weekly"] = weekly_cfg
+
     return cfg
 
 def save_config(cfg: Dict[str, Any], path: str = "config.json") -> None:

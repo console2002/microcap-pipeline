@@ -1185,6 +1185,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             "RunwayErrorType",
             "RunwayErrorMessage",
             "RunwayErrorStage",
+            "RunwayNonOkNumeric",
+            "RunwayFallbackUsed",
         ]:
             if col not in work.columns:
                 work[col] = "" if col.startswith("RunwayReason") else pd.NA
@@ -1244,6 +1246,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
             work.at[idx, "RunwayErrorType"] = (reason_meta or {}).get("error_type", "")
             work.at[idx, "RunwayErrorMessage"] = (reason_meta or {}).get("error_message", "")
             work.at[idx, "RunwayErrorStage"] = (reason_meta or {}).get("error_stage", "")
+            work.at[idx, "RunwayNonOkNumeric"] = bool((reason_meta or {}).get("non_ok_numeric"))
+            work.at[idx, "RunwayFallbackUsed"] = bool((reason_meta or {}).get("fallback_used"))
 
         has_runway = work.get("HasRunway", pd.Series(index=work.index, dtype="boolean"))
         has_runway = has_runway.infer_objects(copy=False)
@@ -1251,6 +1255,8 @@ def filings_step(cfg, adapter: EdgarAdapter, runlog, errlog, df_prof, stop_flag,
         work["HasRunway"] = has_runway.fillna(False)
         work["RunwayReasonCode"] = work.get("RunwayReasonCode", "").fillna("")
         work["RunwayReasonDetail"] = work.get("RunwayReasonDetail", "").fillna("")
+        work["RunwayNonOkNumeric"] = work.get("RunwayNonOkNumeric", False).fillna(False)
+        work["RunwayFallbackUsed"] = work.get("RunwayFallbackUsed", False).fillna(False)
         return work
 
     def _prepare_filings_for_cache(

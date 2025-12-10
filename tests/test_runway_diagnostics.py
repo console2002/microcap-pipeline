@@ -116,3 +116,51 @@ def test_write_runway_diagnostics(tmp_path):
     assert {"RunwayErrorType", "RunwayErrorMessage", "RunwayErrorStage", "Status"}.issubset(
         set(df.columns)
     )
+
+
+def test_compute_runway_quarters_accepts_non_ok_when_allowed():
+    adapter = DummyAdapter({"runway_quarters": 2.5, "reason_code": "NO_BALANCE", "reason_detail": "missing"})
+    (
+        quarters,
+        used_primary,
+        reason_code,
+        reason_detail,
+        reason_meta,
+    ) = compute_runway_quarters(
+        "http://example.com",
+        adapter=adapter,
+        return_reason=True,
+        include_reason_meta=True,
+        allow_non_ok_numeric=True,
+    )
+
+    assert quarters == 2.5
+    assert used_primary is True
+    assert reason_code == "NO_BALANCE"
+    assert reason_detail == "missing"
+    assert reason_meta.get("non_ok_numeric") is True
+
+
+def test_compute_runway_quarters_html_fallback():
+    adapter = DummyAdapter({"runway_quarters": None, "reason_code": "NO_XBRL", "reason_detail": "missing"})
+    html = "Cash and cash equivalents: $12,000,000\nNet cash used in operating activities: $(3,000,000)"
+    (
+        quarters,
+        used_primary,
+        reason_code,
+        reason_detail,
+        reason_meta,
+    ) = compute_runway_quarters(
+        "http://example.com",
+        adapter=adapter,
+        return_reason=True,
+        include_reason_meta=True,
+        enable_html_fallback=True,
+        html_text=html,
+    )
+
+    assert quarters == 4.0
+    assert used_primary is False
+    assert reason_code == "HTML_FALLBACK"
+    assert reason_detail == "html heuristic"
+    assert reason_meta.get("fallback_used") is True

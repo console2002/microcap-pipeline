@@ -15,9 +15,12 @@ def _write_csv(path, rows):
 def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
     data_dir = tmp_path
 
-    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False, include_reason_meta: bool = False, **kwargs):
         if return_reason:
-            return 4.0, True, "OK", ""
+            base = (4.0, True, "OK", "")
+            if include_reason_meta:
+                return (*base, {})
+            return base
         return 4.0, True
 
     monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
@@ -189,3 +192,91 @@ def test_w3_deep_research_and_w4(tmp_path, monkeypatch):
     assert validated_row["RunwayEvidencePrimary"] == deep_row["RunwayEvidencePrimary"]
     assert shortlist_row["PrimaryCatalystDate"] == deep_row["PrimaryCatalystDate"]
     assert shortlist_row["PrimaryCatalystURL"] == deep_row["PrimaryCatalystURL"]
+
+
+def test_w3_selects_first_numeric_runway(tmp_path, monkeypatch):
+    data_dir = tmp_path
+
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False, include_reason_meta: bool = False, **kwargs):
+        if "fail" in url:
+            if return_reason:
+                if include_reason_meta:
+                    return None, False, "NO_CASHFLOW", "missing", {}
+                return None, False, "NO_CASHFLOW", "missing"
+            return None, False
+        if return_reason:
+            if include_reason_meta:
+                return 5.0, True, "OK", "", {}
+            return 5.0, True, "OK", ""
+        return 5.0, True
+
+    monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
+
+    _write_csv(
+        data_dir / "20_candidate_shortlist.csv",
+        [
+            {
+                "Ticker": "MNO",
+                "Company": "Mono",
+                "CIK": "0000000003",
+                "Sector": "Technology",
+                "Industry": "Software",
+                "Price": 4.0,
+                "MarketCap": 75_000_000,
+                "ADV20": 40000,
+            }
+        ],
+    )
+
+    _write_csv(
+        data_dir / "02_filings.csv",
+        [
+            {
+                "Ticker": "MNO",
+                "CIK": "0000000003",
+                "FormType": "10-Q",
+                "Age": 1,
+                "FilingURL": "https://example.com/fail",
+            },
+            {
+                "Ticker": "MNO",
+                "CIK": "0000000003",
+                "FormType": "10-Q",
+                "Age": 2,
+                "FilingURL": "https://example.com/pass",
+            },
+        ],
+    )
+
+    _write_csv(
+        data_dir / "09_events.csv",
+        [
+            {
+                "Ticker": "MNO",
+                "CIK": "0000000003",
+                "Tier": "Tier-2",
+                "EventDate": "2024-05-03",
+            }
+        ],
+    )
+    _write_csv(
+        data_dir / "01_universe_gated.csv",
+        [
+            {
+                "Ticker": "MNO",
+                "CIK": "0000000003",
+                "Sector": "Technology",
+                "Industry": "Software",
+                "Price": 4.0,
+                "MarketCap": 75_000_000,
+                "ADV20": 40_000,
+            }
+        ],
+    )
+
+    dr_df = run_weekly_deep_research(str(data_dir))
+
+    row = dr_df.set_index("Ticker").loc["MNO"]
+    assert row["RunwayQuarters"] == 5.0
+    assert row["RunwaySourceURL"] == "https://example.com/pass"
+    assert row["RunwayReasonCode"] == "OK"

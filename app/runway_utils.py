@@ -9,6 +9,8 @@ from typing import Tuple
 import pandas as pd
 
 from app.edgar_adapter import get_adapter
+from app.config import load_config
+from app.runway_financials import RUNWAY_REASON_NO_XBRL
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,11 @@ def compute_runway_quarters(
     adapter=None,
     return_reason: bool = False,
     include_reason_meta: bool = False,
+    *,
+    allow_non_ok_numeric: bool | None = None,
+    enable_html_fallback: bool | None = None,
+    html_text: str | None = None,
+    cfg: dict | None = None,
 ) -> (
     Tuple[float | None, bool]
     | Tuple[float | None, bool, str, str]
@@ -69,9 +76,22 @@ def compute_runway_quarters(
         return result_tuple
 
     adapter = adapter or get_adapter()
+    cfg = cfg or load_config()
+    weekly_runway_cfg = (cfg.get("Weekly", {}) or {}).get("Runway", {}) or {}
+    allow_non_ok_numeric = (
+        allow_non_ok_numeric
+        if allow_non_ok_numeric is not None
+        else bool(weekly_runway_cfg.get("AllowNonOkNumeric", False))
+    )
+    enable_html_fallback = (
+        enable_html_fallback
+        if enable_html_fallback is not None
+        else bool(weekly_runway_cfg.get("EnableHtmlFallback", False))
+    )
     reason_code = "PARSER_ERROR"
     reason_detail = ""
     reason_meta: dict[str, str] = {"error_type": "", "error_message": "", "error_stage": ""}
+    reason_meta_extra: dict[str, bool] = {}
 
     try:
         primary_result = adapter.runway_from_financials(url, None)
@@ -94,18 +114,50 @@ def compute_runway_quarters(
             "error_stage": primary_result.get("error_stage", "") or "",
         }
 
-        if reason_code == "OK" and quarters is not None and quarters > 0:
-            result_tuple = (round(float(quarters), 2), True)
+        if quarters is not None and quarters > 0:
+            if reason_code == "OK":
+                result_tuple = (round(float(quarters), 2), True)
+                if return_reason:
+                    if include_reason_meta:
+                        return (*result_tuple, reason_code, reason_detail, reason_meta)
+                    return (*result_tuple, reason_code, reason_detail)
+                return result_tuple
+            if allow_non_ok_numeric:
+                reason_meta_extra["non_ok_numeric"] = True
+                result_tuple = (round(float(quarters), 2), True)
+                if return_reason:
+                    if include_reason_meta:
+                        merged_meta = {**reason_meta, **reason_meta_extra}
+                        return (*result_tuple, reason_code, reason_detail, merged_meta)
+                    return (*result_tuple, reason_code, reason_detail)
+                return result_tuple
+
+    should_try_html = enable_html_fallback and (reason_code or "").upper() == RUNWAY_REASON_NO_XBRL
+    if should_try_html:
+        html_content = html_text
+        if html_content is None:
+            try:
+                html_content = adapter.download_filing_text(url)
+            except Exception:
+                logger.debug("runway_utils: html fallback fetch failed", exc_info=True)
+        fallback_quarters = compute_runway_from_html(html_content or "") if html_content else None
+        if fallback_quarters:
+            reason_meta_extra["fallback_used"] = True
+            result_tuple = (round(float(fallback_quarters), 2), False)
+            reason_code = "HTML_FALLBACK"
+            reason_detail = "html heuristic"
             if return_reason:
                 if include_reason_meta:
-                    return (*result_tuple, reason_code, reason_detail, reason_meta)
+                    merged_meta = {**reason_meta, **reason_meta_extra}
+                    return (*result_tuple, reason_code, reason_detail, merged_meta)
                 return (*result_tuple, reason_code, reason_detail)
             return result_tuple
 
     result_tuple = (None, False)
     if return_reason:
         if include_reason_meta:
-            return (*result_tuple, reason_code or "", reason_detail or "", reason_meta)
+            merged_meta = {**reason_meta, **reason_meta_extra}
+            return (*result_tuple, reason_code or "", reason_detail or "", merged_meta)
         return (*result_tuple, reason_code or "", reason_detail or "")
     return result_tuple
 
