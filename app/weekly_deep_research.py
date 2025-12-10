@@ -21,7 +21,11 @@ from app.config import load_config
 from app.edgar_adapter import get_adapter
 from app.logging_utils import log_diag
 from app.events_utils import first_non_na, select_primary_catalyst
-from app.runway_utils import compute_runway_from_html, compute_runway_quarters
+from app.runway_utils import (
+    compute_runway_from_html,
+    compute_runway_quarters,
+    write_runway_diagnostics,
+)
 from app.settings import BIOTECH_PEER_REQUIRED_FOR_VALIDATION
 from app.utils import ensure_csv
 DILUTION_FORMS = {
@@ -924,16 +928,20 @@ def run_weekly_deep_research(
     insider_present = 0
     insider_absent = 0
 
-    def _select_runway_details(candidate_filings: pd.DataFrame, form_col: str):
+    runway_diagnostics: list[dict] = []
+
+    def _select_runway_details(
+        candidate_filings: pd.DataFrame, form_col: str, ticker: str, cik: str
+    ):
         if candidate_filings.empty:
-            return None, "", "", False
+            return None, "", "", False, "", "", {}
 
         filings_with_form = candidate_filings.copy()
         filings_with_form[form_col] = filings_with_form.get(form_col, pd.Series(dtype=str)).astype(str)
         mask = filings_with_form[form_col].str.upper().str.startswith(RUNWAY_FORMS)
         subset = filings_with_form[mask].copy()
         if subset.empty:
-            return None, "", "", False
+            return None, "", "", False, "", "", {}
 
         def _sort_key(rec: pd.Series):
             age_val = rec.get("Age")
@@ -947,26 +955,116 @@ def run_weekly_deep_research(
 
         subset["_runway_sort"] = subset.apply(_sort_key, axis=1)
         subset = subset.sort_values(by="_runway_sort", ascending=True, na_position="last")
-        chosen = subset.iloc[0]
 
-        evidence_url = (
-            chosen.get("RunwaySourceURL")
-            or chosen.get("FilingURL")
-            or chosen.get("URL")
-            or ""
-        )
-        filed_at = chosen.get("FiledAt") or chosen.get("FilingDate") or chosen.get("Date") or ""
+        adapter = get_adapter()
+        fallback_evidence_url = ""
+        fallback_filed_at = ""
+        fallback_reason_code = ""
+        fallback_reason_detail = ""
+        fallback_reason_meta: dict = {}
+        last_reason_code = fallback_reason_code
+        last_reason_detail = fallback_reason_detail
+        last_reason_meta = fallback_reason_meta
+        last_evidence_url = fallback_evidence_url
+        last_filed_at = fallback_filed_at
 
-        quarters = None
-        if evidence_url:
-            adapter = get_adapter()
-            quarters, used_primary, reason_code, _ = compute_runway_quarters(
-                str(evidence_url), adapter=adapter, return_reason=True
+        for _, chosen in subset.iterrows():
+            evidence_url = (
+                chosen.get("RunwaySourceURL")
+                or chosen.get("FilingURL")
+                or chosen.get("URL")
+                or ""
             )
-            if not (used_primary and reason_code == "OK"):
-                quarters = None
+            filed_at = chosen.get("FiledAt") or chosen.get("FilingDate") or chosen.get("Date") or ""
+            form_value = _normalize_form(chosen.get(form_col, ""))
+            if not fallback_evidence_url and evidence_url:
+                fallback_evidence_url = evidence_url
+                fallback_filed_at = filed_at
+                fallback_reason_code = "NO_RUNWAY"
+                fallback_reason_detail = "no runway from primary or fallback"
+                fallback_reason_meta = {}
 
-        return quarters, evidence_url, filed_at, quarters is not None
+            quarters = None
+            used_primary = False
+            reason_code = ""
+            reason_detail = ""
+            reason_meta: dict | None = None
+
+            if evidence_url:
+                (
+                    quarters,
+                    used_primary,
+                    reason_code,
+                    reason_detail,
+                    reason_meta,
+                ) = compute_runway_quarters(
+                    str(evidence_url),
+                    adapter=adapter,
+                    return_reason=True,
+                    include_reason_meta=True,
+                )
+
+            if quarters is None:
+                if reason_code or reason_detail or evidence_url:
+                    last_reason_code = reason_code or last_reason_code
+                    last_reason_detail = reason_detail or last_reason_detail
+                    last_reason_meta = reason_meta or last_reason_meta or {}
+                    if evidence_url:
+                        last_evidence_url = evidence_url
+                    if filed_at is not None:
+                        last_filed_at = filed_at
+
+            diag_payload = {
+                "Ticker": ticker,
+                "CIK": cik,
+                "Form": form_value,
+                "FiledAt": filed_at,
+                "Accession": chosen.get("Accession", ""),
+                "RunwayQuarters": quarters,
+                "HasRunway": quarters is not None,
+                "RunwaySourceURL": evidence_url,
+                "RunwayReasonCode": reason_code,
+                "RunwayReasonDetail": reason_detail,
+                "RunwayErrorType": (reason_meta or {}).get("error_type", ""),
+                "RunwayErrorMessage": (reason_meta or {}).get("error_message", ""),
+                "RunwayErrorStage": (reason_meta or {}).get("error_stage", ""),
+                "RunwayNonOkNumeric": bool((reason_meta or {}).get("non_ok_numeric")),
+                "RunwayFallbackUsed": bool((reason_meta or {}).get("fallback_used")),
+            }
+            runway_diagnostics.append(diag_payload)
+
+            logger.debug(
+                "WEEKLY_W3_RUNWAY_DIAG ticker=%s form=%s url=%s quarters=%s reason=%s primary=%s non_ok=%s fallback=%s",
+                ticker,
+                form_value,
+                evidence_url,
+                quarters,
+                reason_code,
+                used_primary,
+                diag_payload["RunwayNonOkNumeric"],
+                diag_payload["RunwayFallbackUsed"],
+            )
+
+            if quarters is not None and quarters > 0:
+                return (
+                    quarters,
+                    evidence_url,
+                    filed_at,
+                    True,
+                    reason_code,
+                    reason_detail,
+                    reason_meta or {},
+                )
+
+        return (
+            None,
+            last_evidence_url,
+            last_filed_at,
+            False,
+            last_reason_code,
+            last_reason_detail,
+            last_reason_meta,
+        )
 
     for row in shortlist.itertuples(index=False):
         ticker = getattr(row, "Ticker")
@@ -979,10 +1077,21 @@ def run_weekly_deep_research(
         runway_link = ""
         runway_filed_at = ""
         runway_quarters = None
+        runway_reason_code = ""
+        runway_reason_detail = ""
+        runway_reason_meta: dict = {}
         runway_evidence: list[str] = []
         if not candidate_filings.empty:
-            runway_quarters, runway_link, runway_filed_at, has_runway = _select_runway_details(
-                candidate_filings, form_col
+            (
+                runway_quarters,
+                runway_link,
+                runway_filed_at,
+                has_runway,
+                runway_reason_code,
+                runway_reason_detail,
+                runway_reason_meta,
+            ) = _select_runway_details(
+                candidate_filings, form_col, str(ticker), str(cik)
             )
             if runway_link:
                 runway_evidence.append(str(runway_link))
@@ -1213,6 +1322,13 @@ def run_weekly_deep_research(
                 "Runway (qtrs)": runway_display,
                 "RunwaySourceURL": runway_link,
                 "RunwaySourceFiledAt": runway_filed_at,
+                "RunwayReasonCode": runway_reason_code,
+                "RunwayReasonDetail": runway_reason_detail,
+                "RunwayErrorType": (runway_reason_meta or {}).get("error_type", ""),
+                "RunwayErrorMessage": (runway_reason_meta or {}).get("error_message", ""),
+                "RunwayErrorStage": (runway_reason_meta or {}).get("error_stage", ""),
+                "RunwayNonOkNumeric": bool((runway_reason_meta or {}).get("non_ok_numeric")),
+                "RunwayFallbackUsed": bool((runway_reason_meta or {}).get("fallback_used")),
                 "DilutionScore": dilution,
                 "Dilution": dilution_label,
                 "DilutionKeyFilingURL": dilution_key_url,
@@ -1274,6 +1390,15 @@ def run_weekly_deep_research(
             ", ".join(runway_evidence_only[:5]),
         )
 
+    runway_cfg = (cfg.get("Weekly", {}) or {}).get("Runway", {}) or {}
+    if runway_cfg.get("WriteDiagnostics"):
+        diag_path = runway_cfg.get("DiagnosticsPath") or os.path.join(data_dir, "runway_diagnostics.csv")
+        try:
+            write_runway_diagnostics(runway_diagnostics, diag_path)
+            logger.info("WEEKLY_W3_RUNWAY_DIAG_CSV: wrote %s", diag_path)
+        except Exception:
+            logger.warning("WEEKLY_W3_RUNWAY_DIAG_CSV: failed to write %s", diag_path, exc_info=True)
+
     deep_research_df = pd.DataFrame(output_rows)
     total_candidates = len(output_rows)
 
@@ -1316,6 +1441,13 @@ def run_weekly_deep_research(
         "Runway (qtrs)",
         "RunwaySourceURL",
         "RunwaySourceFiledAt",
+        "RunwayReasonCode",
+        "RunwayReasonDetail",
+        "RunwayErrorType",
+        "RunwayErrorMessage",
+        "RunwayErrorStage",
+        "RunwayNonOkNumeric",
+        "RunwayFallbackUsed",
         "DilutionScore",
         "Dilution",
         "DilutionKeyFilingURL",

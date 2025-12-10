@@ -36,9 +36,12 @@ def test_runway_reuse_and_materiality_output(tmp_path, caplog, monkeypatch):
     data_dir = tmp_path
     caplog.set_level(logging.INFO)
 
-    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False, include_reason_meta: bool = False, **kwargs):
         if return_reason:
-            return 3.5, True, "OK", ""
+            base = (3.5, True, "OK", "")
+            if include_reason_meta:
+                return (*base, {})
+            return base
         return 3.5, True
 
     monkeypatch.setattr("app.weekly_deep_research.compute_runway_quarters", _fake_runway)
@@ -138,9 +141,12 @@ def test_validation_reasons_and_pass_fail():
 def test_missing_mandatory_subscore_sets_tbd(tmp_path, caplog, monkeypatch):
     caplog.set_level(logging.INFO)
 
-    def _fake_runway(url: str, adapter=None, return_reason: bool = False):
+    def _fake_runway(url: str, adapter=None, return_reason: bool = False, include_reason_meta: bool = False, **kwargs):
         if return_reason:
-            return 4.0, True, "OK", ""
+            base = (4.0, True, "OK", "")
+            if include_reason_meta:
+                return (*base, {})
+            return base
         return 4.0, True
 
     def _fake_dilution_details(filings, form_col):
