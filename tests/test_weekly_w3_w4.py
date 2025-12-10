@@ -370,6 +370,7 @@ def test_w3_keeps_last_failure_reason(tmp_path, monkeypatch):
 
     row = dr_df.set_index("Ticker").loc["NOP"]
     assert pd.isna(row["RunwayQuarters"])
+    assert row["RunwaySourceURL"] == "https://example.com/fail2"
     assert row["RunwayReasonCode"] == "NO_CASHFLOW"
     assert row["RunwayReasonDetail"] == "missing cashflow"
 
@@ -430,5 +431,6 @@ def test_w3_empty_filings_keeps_fallback_reason(tmp_path, monkeypatch):
 
     row = dr_df.set_index("Ticker").loc["QRS"]
     assert pd.isna(row["RunwayQuarters"])
+    assert row["RunwaySourceURL"] == ""
     assert row["RunwayReasonCode"] == ""
     assert row["RunwayReasonDetail"] == ""

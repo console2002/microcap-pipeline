@@ -965,6 +965,8 @@ def run_weekly_deep_research(
         last_reason_code = fallback_reason_code
         last_reason_detail = fallback_reason_detail
         last_reason_meta = fallback_reason_meta
+        last_evidence_url = fallback_evidence_url
+        last_filed_at = fallback_filed_at
 
         for _, chosen in subset.iterrows():
             evidence_url = (
@@ -1006,6 +1008,8 @@ def run_weekly_deep_research(
                 last_reason_code = reason_code
                 last_reason_detail = reason_detail
                 last_reason_meta = reason_meta or {}
+                last_evidence_url = evidence_url
+                last_filed_at = filed_at
 
             diag_payload = {
                 "Ticker": ticker,
@@ -1051,8 +1055,8 @@ def run_weekly_deep_research(
 
         return (
             None,
-            fallback_evidence_url,
-            fallback_filed_at,
+            last_evidence_url,
+            last_filed_at,
             False,
             last_reason_code,
             last_reason_detail,
