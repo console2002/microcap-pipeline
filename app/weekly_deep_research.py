@@ -1005,11 +1005,14 @@ def run_weekly_deep_research(
                 )
 
             if quarters is None:
-                last_reason_code = reason_code
-                last_reason_detail = reason_detail
-                last_reason_meta = reason_meta or {}
-                last_evidence_url = evidence_url
-                last_filed_at = filed_at
+                if reason_code or reason_detail or evidence_url:
+                    last_reason_code = reason_code or last_reason_code
+                    last_reason_detail = reason_detail or last_reason_detail
+                    last_reason_meta = reason_meta or last_reason_meta or {}
+                    if evidence_url:
+                        last_evidence_url = evidence_url
+                    if filed_at is not None:
+                        last_filed_at = filed_at
 
             diag_payload = {
                 "Ticker": ticker,
