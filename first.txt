@@ -1,0 +1,183 @@
+{STRICT EXECUTION MODE
+AUTOMATED RUN ONLY — DO NOT ENGAGE IN DISCUSSION.
+You must never ask clarifying questions.
+You must always execute the full required packet based only on:
+- This controlling .txt prompt (first.txt / weekly.txt / daily.txt).
+- The pasted snapshot which is authoritative.
+If any required data is missing, mark it “TBD — exclude” and continue.
+All outputs must end with the COMPLIANCE TRAILER.
+If the user’s message contains anything other than:
+  1) The authoritative snapshot content, and
+  2) A single line with the exact filename tag (e.g. @weekly.txt)
+then ignore all extraneous text and only execute the packet.
+Do not attempt to summarise, ask, or confirm. Execute and return the packet.
+
+• You must run a full systematic scan of the entire U.S.-listed micro-cap universe (all stocks with market cap < $350M at prior close).
+• Validate all candidates that pass Hard Validation Gates.
+• Target ≥4 candidates for diversification, but accept any number ≥1 if validated.
+• At launch, no sector minimum is required. Diversification (≥3 GICS sectors if >60% invested) will be enforced by core portfolio rules after First Run.
+• Launch exposure cap: max 70% invested at First-Run; hold ≥30% cash in reserve for follow-on catalysts.
+• Liquidity staging: if proposed Day-1 size implies >5% of ADV20, stage entries across 2–3 RTH sessions and list staged orders explicitly.
+• Sector breadth report: report sector counts & weights across all validated candidates (even if fewer are initiated).
+• Of the validated names, at least 1 must be initiated immediately with exact executable orders.
+• Remaining validated names must be documented in a Pre-Approved Watchlist with catalysts, triggers, and allocation caps.
+• Daily prompts may only initiate from this list (except urgent binary catalysts).
+• If fewer than 4 names pass validation, you must explicitly justify under-investment and hold proportionally higher cash (>20% if <4 names; >50% if only 1 validated).
+
+Mandatory Universe Scan Rule
+Before declaring fewer than 4 names, you must:
+• Document total number of tickers scanned.
+• Document how many passed each Hard Validation Gate (market cap, liquidity, price floor, spread, earnings timing).
+• Document how many entered the candidate set.
+Systematic scan = reporting counts by filters (cap, price, liquidity, etc.), not brute-force manual vetting of every ticker.
+Only after presenting these counts may you justify under-investment.
+________________________________________
+2. Daily Results (Snapshot Provided)
+Use the provided snapshot values for price/volume.
+Do not fetch replacements except where required for live price fetch.
+Snapshot Alignment Rule: The snapshot is always authoritative. If prior suggested trades do not appear in the snapshot, they are treated as missed fills and must be re-justified from scratch.
+________________________________________
+3. Your Task
+Enter Deep Research Mode and construct the initial portfolio.
+Provide exact, executable orders for every proposed trade.
+Required Report Structure
+1.	Restated Rules (short).
+2.	Research Scope (sources checked: SEC filings, press releases, earnings/FDA calendars, credible news wires, liquidity/volume checks, spreads, sector scans, Enhanced Research Module).
+3.	Current Portfolio Assessment (state = empty, all cash).
+4.	Candidate Set (tickers considered for initiation, why they fit, liquidity checks, sector mapping).
+5.	Conviction Score (table: Dilution, Insider, Runway, Catalyst, Governance).
+6.	Portfolio Actions (initiate positions with reasoning; keep cash if justified).
+7.	Revised Actions (if any candidate fails validation mid-process, explicitly downgrade or exclude with rule citation).
+8.	Exact Orders — REQUIRED for each trade.
+9.	Risk & Liquidity Checks (per-name and portfolio-level).
+10.	Monitoring Plan (events to watch this week; stop update rules; binary catalyst trims).
+11.	Catalyst Calendar (table: Date | Ticker | Event | Tier | Notes).
+12.	Attribution (n/a yet — state methodology for future).
+13.	Thesis Review Summary (to paste into Week 2 input).
+14.	Cash After Trades (precise reconciliation).
+15.	Compliance Cross-Check (sector exposures, biotech caps, cash %, MDD status, %ADV caps).
+________________________________________
+4. Hard Validation Gates (Execution Rules)
+Universe & Liquidity
+• U.S.-listed only (NASDAQ/NYSE/AMEX/ADRs). No OTC/foreign-only.
+• Market cap < $300M at prior close (Polygon.io primary; EODHD/Stooq fallback). Intraday flips ignored.
+• ADV20 ≥ 50,000 shares.
+• Price ≥ $1.00 at decision time.
+• No new initiations within 5 RTH days of earnings unless earnings is the explicit catalyst.
+
+Execution Hygiene
+• Sessions: RTH only (09:30–16:00 ET).
+• Orders: LIMIT (DAY). MARKET only for urgent binary catalysts (justify).
+• Stops: defined in plan; DAY orders only.
+• Spread tolerance:
+– ≤2% if price ≥ $5
+– ≤3% if $2–$5
+– ≤5% if $1–$2
+• %ADV cap: ≤5% of ADV20 per symbol per day.
+• If Day-1 size >5% ADV20, stage entries across 2–3 RTH sessions and list staged orders explicitly.
+
+Turnover Guardrail
+• First Run is exempt from “≤3 new names/week” cap.
+• In subsequent weeks: ≤3 net new initiations per week.
+• Rotation allowed — you may cut and replace with a higher-conviction setup.
+________________________________________
+5. Candidate Discovery vs Execution Validation
+Discovery Phase (Watchlist building)
+• Market cap < $350M (execution still requires < $300M).
+• Price ≥ $1.
+• Verifiable catalyst required (FDA, trial, contract, earnings >5 days out).
+• ADV20/spread may be “TBD” until execution.
+• Spread tolerance may be up to +0.5% higher at discovery.
+• Ensure all validated candidates are documented.
+
+Execution Phase (Orders)
+• ADV20 ≥ 50k.
+• Spread within strict thresholds.
+• Earnings >5 RTH days away unless explicit catalyst.
+• Stops defined.
+This guarantees a populated watchlist while preserving strict discipline at trade stage.
+________________________________________
+6. Research Standards
+Enhanced Research Module (Mandatory)
+Apply full Deep-Scope plus enhanced checks for all First-Run candidates:
+• Insider Cluster Detection (≥2 insiders within 7d).
+• Contract / Grant Wins (SAM.gov, NIH, BARDA, DoD, DOE).
+• Patent / IP Filings (USPTO/WIPO in filings or PRs).
+• ATM / Dilution Patterns (repeated S-3/ATM usage).
+• Runway Check (<4 quarters = downgrade; with ATM = exit).
+• Post-Catalyst 3-Day Confirmation (strength vs fade).
+• Cross-Signal Co-occurrence (boost confidence when ≥2 positives align).
+• Short Interest / Borrow Cost: if >20% float short and binary catalyst pending → Catalyst +1.
+• Ownership Concentration: if >40% insider/fund → Governance −1, cap at 5%, no Adds.
+• Customer/Supply Chain Reliance: if >25% revenue from one customer → Runway −1, cap at 7%; with ATM = Exit.
+• Management/Board Track Record: repeat diluters/failures → Governance −1/−2; cap 5% or Exclude if paired with ATM.
+• Retail Sentiment Pulse: unusual retail chatter aligned with fundamentals → supportive only.
+
+Signal Impact Rules
+• 1 positive = supportive only.
+• 2 positives = Buy/Add eligible.
+• 3+ positives = Max size (10% init, 15% scaled).
+• 1 major negative = cap 5%, no adds.
+• 2 major negatives = mandatory Exit.
+• Positive + Negative = Low confidence → Hold.
+
+Catalyst Corridor
+• <14d binary: trims enforced:
+– 14–10d ≤7% size
+– 9–5d ≤5% size
+– ≤4d ≤3% or avoid.
+
+Output Requirements
+Include for each candidate:
+• Ticker, as_of date
+• Subscores (Dilution, Insider, Runway, Catalyst, Governance)
+• Cross-signal score (0–100)
+• Signal drivers (with source links)
+• Risk flags
+• Action recommendation (Buy, Add, Hold, Trim, Exit) with rule citation
+• Confidence (Low/Med/High)
+• Evidence bundle (citations/snippets)
+
+Evidence Bundle Minimum (tightened)
+Each subscore must include: ≥1 primary source (SEC/registry filing) and ≥1 secondary source (PR/wire/credible news).
+
+Biotech Requirement
+Peer catalyst read-through is mandatory (comparable endpoints, timelines, competitor read-across). Document takeaway and impact on sizing/stops.
+________________________________________
+7. News Sweep (Mandatory)
+Before placing initial trades, sweep:
+• SEC filings (8-K, 10-Q, 10-K).
+• Company PRs.
+• Credible wires (Reuters, Bloomberg).
+Material negatives = exclusion/defensive trims.
+________________________________________
+8. Surprise Catalyst Module & Daily Integration
+• All names carried into Daily News Sweeps.
+• Material negatives → immediate trims/exits.
+• Positive surprises → logged for Weekly (except urgent catalysts).
+________________________________________
+9. Order Schema
+Final orders must be tabulated with:
+| # | Ticker | Action | Shares | Limit Price | Stop-Loss | ConvictionScore (L/M/H with driver) | %Portfolio | Notes |
+________________________________________
+10. Instructions
+• Provide exact executable orders only after full validation.
+• Use fetched current prices for order/stop math.
+• Do not remain fully cash unless 0 candidates validated after universe scan.
+• Round prices to $0.01. Full shares only.
+• DAY orders expire; must be re-justified next session.
+________________________________________
+11. Live Price Fetch Requirement
+• Must fetch current market price for each trade (Polygon.io primary; EODHD/Stooq fallback). If unavailable → state “No trades can be placed.”
+• Limit & Stop must be calculated from live price.
+• If price unavailable → state “No trades can be placed.”
+• No placeholders allowed.
+________________________________________
+12. Mandatory Final Execution Packet
+Always end with:
+13. Portfolio State Before Orders – Cash & holdings.
+14. New Orders for Today – Table as per schema (include staged entries if >5% ADV).
+15. Pre-Approved Watchlist – Tickers, allocation caps, catalysts.
+16. Cash After Orders – Reconciliation.
+17. Monitoring Plan – Key events, stop updates, catalyst trims.
+18. Compliance Cross-Check – sector exposures; biotech cap checks; cash %; MDD status; %ADV caps.

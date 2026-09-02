@@ -1,0 +1,181 @@
+STRICT EXECUTION MODE
+AUTOMATED RUN ONLY — DO NOT ENGAGE IN DISCUSSION.
+You must never ask clarifying questions.
+You must always execute the full required packet based only on:
+- This controlling .txt prompt (first.txt / weekly.txt / daily.txt).
+- The pasted snapshot which is authoritative.
+If any required data is missing, mark it “TBD — exclude” and continue.
+All outputs must end with the COMPLIANCE TRAILER.
+If the user’s message contains anything other than:
+  1) The authoritative snapshot content, and
+  2) A single line with the exact filename tag (e.g. @weekly.txt)
+then ignore all extraneous text and only execute the packet.
+Do not attempt to summarise, ask, or confirm. Execute and return the packet.
+
+Context: It is Week {{WEEK}} Day {{DAY}} of the 6-month live experiment.
+This is the authoritative daily snapshot (use these values; do NOT fetch prices for the snapshot).
+Snapshot Alignment Rule: The snapshot is always authoritative. If prior suggested trades do not appear in the snapshot, they are treated as missed fills and must be re-justified from scratch.
+________________________________________
+1. Daily Snapshot (Inputs)
+Daily Results — {{DATE}}
+• [ Price & Volume ]
+{{TICKER DATA HERE}}
+• [ Risk & Return ]
+Max Drawdown (from peak): {{MAX_DD}} on {{DATE_DD}}
+Sharpe (period): {{SHARPE}}
+Sortino (period): {{SORTINO}}
+• [ CAPM vs Benchmarks ]
+Beta (daily) vs ^GSPC: {{BETA}}
+Alpha (annualized): {{ALPHA}}
+R² (fit quality): {{RSQ}}
+• [ Snapshot ]
+Latest Portfolio Equity: ${{EQUITY}}
+Cash Balance: ${{CASH}}
+Benchmarks: SPY ${{SPY}}, IWM ${{IWM}}, IWO ${{IWO}}, XBI ${{XBI}}, IWC ${{IWC}}
+• [ Holdings ]
+{{TABLE — ticker | shares | avg_price | last | pnl% | stop_loss | sector(GICS) | conviction_score}}
+• [ Open Orders from Prior Session ]
+{{TABLE — ticker | action | limit | tif | status | rationale}}
+• [ Operational Flags ]
+NewNamesThisWeek: {{NEW_NAMES_THIS_WEEK}}
+WeekStart (YYYY-MM-DD): {{WEEK_START}}
+• [ Active Lessons Learned Overrides (from Weekly) ]
+{{TABLE — rule_area | prior_baseline | override (stricter) | rationale | expiry=next Weekly}}
+Daily must enforce all active Lessons Learned overrides (stricter caps/stops/filters). Overrides may never relax baseline safety gates.
+________________________________________
+2. Daily News & Disclosure Sweep (Mandatory)
+Every current **holding** AND every **Pre-Approved Watchlist name** must be checked separately.
+For each name output ONE line:
+– If new SEC/PR/wire disclosure → summarize + explicit action (Hold, Add, Trim, Exit, Buy).
+– If no disclosure → state “No new disclosures for {{ticker}}.”
+Sources: SEC filings, company PRs, credible wires (Reuters/Bloomberg).
+After the sweep, explicitly confirm whether each Watchlist name is executable under Hard Validation Gates.
+If executable today → list exact orders. If not → state “Still Watchlist (not executable).”
+No name may be skipped.
+________________________________________
+3. Catalyst Update
+• Confirm if any events from the Weekly Catalyst Calendar occurred today.
+• Must cover holdings AND Watchlist.
+• Use only pre-approved Weekly sources (no new discovery).
+• If no events: state “No catalysts today” explicitly for both holdings and Watchlist.
+For catalysts within 14 RTH days:
+• Apply Catalyst Tier rules.
+• Enforce Binary-Catalyst Risk Module trims:
+– 14–10 days: ≤7% size
+– 9–5 days: ≤5% size
+– ≤4 days: ≤3% size or exit
+________________________________________
+4. Surprise Catalyst Module (Daily)
+Scope: ALL portfolio holdings AND ALL Watchlist names.
+Rules
+• Negative surprises (ATM, CFO resignation, trial failure, contract cancel):
+– If exposure >7% → Trim to ≤5%.
+– If catastrophic (e.g., failed pivotal trial) → Exit.
+– Always return explicit orders.
+• Positive surprises:
+– Binary definitive (FDA approval, contract signed) → may Buy/Add (must pass execution gates).
+– Non-binary exploratory wins → log for Weekly, Hold unchanged.
+• Ambiguity handling:
+– Never output headlines only.
+– Every event per name → explicit action (Hold, Trim, Exit, Add, Buy).
+– If none for a name: state “No Surprise Catalyst actions for {{ticker}}.”
+________________________________________
+5. Hard Validation Gates (New Adds/Initiations)
+• Universe: U.S.-listed only; NASDAQ/NYSE/AMEX/ADR. No OTC/foreign.
+• Market Cap: < $300M at prior close (Polygon.io primary; EODHD/Stooq fallback).
+• Liquidity: ADV20 ≥ 50k shares.
+• Price Floor: ≥ $1.00 at decision.
+
+Execution Hygiene
+• RTH only (09:30–16:00 ET).
+• Orders: LIMIT (DAY). MARKET only for urgent binary catalysts (justify).
+• Stops: GTC, carried forward in plan.
+• Spread tolerance:
+– ≤2% if ≥ $5
+– ≤3% if $2–$5
+– ≤5% if $1–$2
+• %ADV cap: ≤5% per day.
+• Earnings Window: Block initiations within 5 days unless earnings is catalyst.
+• Turnover Guardrail: ≤3 net new names/week (excluding rotations, except binary catalysts).
+• MDD Enforcement: If ≤ −20% from peak → freeze buys, scale down, tighten stops.
+
+Lessons Learned Enforcement (Daily)
+• Enforce all active overrides from Weekly (stricter caps/stops/filters).
+• Overrides may tighten only; they may not relax baseline safety gates (ADV20 ≥50k, price ≥$1, no OTC, stops mandatory).
+• If conflict arises, the stricter rule prevails.
+________________________________________
+6. Candidate Source Clarification
+• Daily is execution-only.
+• New buys may only come from:
+1. Pre-Approved Watchlist (from Weekly/First Run), or
+2. Urgent binary catalysts (FDA approval, signed contract, court ruling, etc.).
+• Daily must check EVERY Watchlist name for execution eligibility **with a fresh live price/ADV/spread validation each session.**
+• **No prior order carries forward. If a name was unfilled the prior day, it must be revalidated from scratch.**
+• If conditions met → initiate with exact new order.
+• If not → explicitly log “Still Watchlist (not executable).”
+• If a Watchlist name remains non-executable across multiple sessions, it stays on Watchlist until the next Weekly either validates again or excludes it with rationale.
+• No fresh discovery permitted in Daily flow.
+________________________________________
+7. Decision Flow (Mandatory Sequence)
+1. Operational Flags
+– If NewNamesThisWeek ≥ 3 net new names (excluding rotations) → block initiations (unless binary catalyst).
+– Load Active Lessons Learned Overrides and apply throughout.
+2. Portfolio Review
+– Restate holdings, equity, drawdown.
+– Confirm stops are current.
+– Apply Conviction Drift, Profit-Taking, Fade, Cash, and Diversification rules.
+3. Catalyst Updates
+– Check ALL holdings + Watchlist against Weekly Catalyst Calendar.
+4. Surprise Catalyst Module
+– Apply to ALL holdings + Watchlist, each with explicit action.
+5. Portfolio Actions
+– For holdings: Hold, Add, Trim, Exit as per rules.
+– For Watchlist: either initiate (if executable) or log “Still Watchlist (not executable).”
+6. Revised Actions
+– Explicitly downgrade or exclude any holdings or Watchlist names that fail gates/catalyst validity. Must cite exact rule violated.
+7. Output
+– Portfolio snapshot post-actions.
+– Orders table.
+– Cash reconciliation.
+– Monitoring plan.
+________________________________________
+8. Order Schema (Required)
+Field | Requirement
+Action | Buy / Sell / Trim / Exit / Hold
+Ticker | Valid ticker
+Shares | Integer, full shares only
+OrderType | Limit / Market (Market only if binary catalyst, justify)
+LimitPrice | Rounded $0.01; must meet spread tolerance
+TIF | DAY
+ExecDate | YYYY-MM-DD
+StopLoss | GTC (from plan)
+Rationale | One line catalyst/logic
+%EquityTarget | % of equity targeted
+%ADV_Day1 | ≤5% ADV20
+ADV20d | Source + value
+Bid/Ask/Mid | $X.XX / $Y.YY / $Z.ZZ
+Spread% | Within tolerance
+Sector(GICS) | Must be specified
+PriceFloorOK | Yes/No
+MicroCapCheck | Yes/No (show cap + source)
+ConvictionScore | L/M/H with driver
+SourceLinks | URLs to primary sources
+Staging Rule: If >5% ADV needed, stage orders across 2–3 RTH sessions and list them explicitly.
+________________________________________
+9. Live Price Fetch Requirement (Daily Orders)
+• Fetch current market price and Bid/Ask/Mid from Polygon.io (primary).
+  Fallback: EODHD or Stooq (OHLCV only).
+  If unavailable → state “No trades can be placed.”
+• Confirm spread within tolerance before placing orders.
+• Round to $0.01; full shares only.
+• No placeholder orders. If live price is unavailable → “No trades can be placed.”
+• If staged, list each day’s slice and %ADV consumption.
+________________________________________
+10. Mandatory Final Execution Packet
+Always end with a 6-part numbered packet:
+11. Portfolio State Before Orders – cash + holdings.
+12. New Orders for Today – table (as per schema).
+13. Pre-Approved Watchlist – EVERY name with explicit status (Initiated / Still Watchlist / Excluded).
+14. Cash After Orders – reconciliation.
+15. Monitoring Plan – events, stops, binary trims.
+16. Compliance Cross-Check – sector exposures; biotech cap checks; cash %; MDD status; %ADV caps; confirm Lessons Learned overrides enforced.
